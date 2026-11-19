@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {supplierSettlementTimeline,commercialFiscalPostingPolicy,assertSupplierSettlementTransition} from '../api/_fiscal/settlement-integrity.mjs';
+import {supplierSettlementTimeline,commercialFiscalPostingPolicy,assertSupplierSettlementTransition,assertSupplierTreasuryAuthority} from '../api/_fiscal/settlement-integrity.mjs';
 const scope={accountUid:'u',workspaceId:'w',egsId:'e',environment:'simulation',currency:'SAR',source:'purchase',sourceId:'p',issuerVat:'issuer',counterpartyVat:'supplier',sourceFingerprint:'hash',category:'S',rate:'15'};
 const purchase={workspaceId:'w',branchId:'b',currency:'SAR',id:'p',number:'P-1',status:'posted',date:'2026-11-01',supplierSnapshot:{sourceSupplierId:'s'}};
 const original={...scope,key:'purchase-p',taxDate:purchase.date,amount:{kind:'invoice',treatment:'domestic',net:'100.00',vat:'15.00',deductibleVat:'0.00',gross:'115.00'}};
@@ -18,3 +18,28 @@ test('backdated new payment cannot defeat a known credit and pre-existing excess
 test('existing cash evidence cannot be deleted, reassigned or retroactively voided',()=>{const p=payment('90.00'),args={purchase,original,adjustments:[correction('credit-note')],beforePayments:[p],today:'2026-11-12'};for(const afterPayments of [[],[{...p,amount:'10.00'}],[{...p,voidedAt:'2026-11-06T00:00:00Z',voidReason:'error'}]])assert.throws(()=>assertSupplierSettlementTransition({...args,afterPayments}));const valid={...p,voidedAt:'2026-11-12T00:00:00Z',voidReason:'bank reversal'};assert.equal(assertSupplierSettlementTransition({...args,afterPayments:[valid]}).paid,'0.00');});
 
 test('new supplier settlement cannot be future-dated or injected already voided',()=>{const args={purchase,original,adjustments:[correction('credit-note')],beforePayments:[],today:'2026-11-12'};assert.throws(()=>assertSupplierSettlementTransition({...args,afterPayments:[payment('20.00','2026-11-13')]}));assert.throws(()=>assertSupplierSettlementTransition({...args,afterPayments:[{...payment('20.00'),voidedAt:'2026-11-12T00:00:00Z',voidReason:'fabricated'}]}));});
+
+const treasuryScope={workspaceId:'w',branchId:'b',currency:'SAR'};
+const bank={...treasuryScope,id:'bank',kind:'bank',active:true};
+const elevated=payment('130.00','2026-11-11');
+const cash={...treasuryScope,id:'cash',type:'supplier-payment',sourceType:'supplier-payment',sourceId:elevated.id,amount:elevated.amount,date:elevated.date,fromAccountId:bank.id,toAccountId:''};
+const wallet=(supplierPayments=[],treasuryEntries=[],treasuryAccounts=[bank])=>({supplierPayments,treasuryEntries,treasuryAccounts});
+const authority=(before,candidate,allowElevated=true)=>assertSupplierTreasuryAuthority({purchase,original,before,candidate,today:'2026-11-12',allowElevated});
+test('elevated cash requires explicit server scope and one exact active treasury source',()=>{
+ authority(wallet(),wallet([payment('100.00')]),false);
+ authority(wallet(),wallet([elevated],[cash]));
+ for(const candidate of [wallet([elevated]),wallet([elevated],[{...cash,amount:'129.00'}]),wallet([elevated],[{...cash,branchId:'other'}]),wallet([elevated],[{...cash,date:'2026-11-10'}]),wallet([elevated],[cash,{...cash,id:'duplicate'}]),wallet([elevated],[cash],[{...bank,active:false}]),wallet([elevated],[cash],[{...bank,currency:'USD'}]),wallet([elevated,{...elevated,workspaceId:'other'}],[cash])])assert.throws(()=>authority(wallet(),candidate));
+ assert.throws(()=>authority(wallet(),wallet([elevated],[cash]),false));
+});
+test('treasury evidence is immutable; an elevated payment and its cash can be voided together',()=>{
+ const before=wallet([elevated],[cash]),voidedAt='2026-11-12T12:00:00Z',voidReason='bank reversal';
+ for(const candidate of [wallet([elevated]),wallet([elevated],[{...cash,sourceType:'manual'}]),wallet([elevated],[{...cash,amount:'10.00'}]),wallet([elevated],[{...cash,voidedAt,voidReason}]),wallet([{...elevated,voidedAt,voidReason}],[cash]),wallet([elevated],[cash],[{...bank,branchId:'other'}])])assert.throws(()=>authority(before,candidate));
+ authority(before,wallet([{...elevated,voidedAt,voidReason}],[{...cash,voidedAt,voidReason}]));
+});
+test('prior ordinary allocation may be reversed and replaced without historical double cash',()=>{
+ const pay=payment('100.00'),link={...cash,sourceId:pay.id,amount:pay.amount,date:pay.date};
+ const old={...link,voidedAt:'2026-11-10T12:00:00Z',voidReason:'allocation changed'};
+ const replacement={...link,id:'replacement',date:'2026-11-12'};
+ authority(wallet([pay],[old]),wallet([pay],[old,replacement]),false);
+ assert.throws(()=>authority(wallet([pay],[old]),wallet([pay],[old,{...replacement,date:'2026-11-09'}]),false));
+});

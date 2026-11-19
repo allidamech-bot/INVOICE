@@ -59,3 +59,54 @@ export function assertSupplierSettlementTransition({purchase,original,adjustment
  need(cents(current.paid)<=cents(old.paid)||signed(current.adjustedOutstanding)>=0n);
  return current;
 }
+
+
+// Validate cash evidence in the final trusted CAS, never a client balance.
+export function assertSupplierTreasuryAuthority({purchase,original,before,candidate,today,allowElevated=false}){
+ need(day(today));
+ const all=v=>v.supplierPayments??[],entries=v=>v.treasuryEntries??[];
+ const previous=all(before).filter(x=>x.purchaseId===purchase.id&&x.workspaceId===purchase.workspaceId);
+ const current=all(candidate).filter(x=>x.purchaseId===purchase.id&&x.workspaceId===purchase.workspaceId);
+ const ids=new Set([...previous,...current].map(x=>x.id));
+ const linked=v=>entries(v).filter(x=>x.sourceType==='supplier-payment'&&ids.has(x.sourceId));
+ const oldLinked=linked(before),newLinked=linked(candidate);
+ const sameScope=(a,b)=>a.workspaceId===b.workspaceId&&a.branchId===b.branchId&&a.currency===b.currency;
+ const voidDay=x=>{
+  if(!x.voidedAt)return null;
+  const value=x.voidedAt.slice(0,10);
+  need(day(value)&&Number.isFinite(Date.parse(x.voidedAt))&&value>=x.date&&value<=today&&typeof x.voidReason==='string'&&x.voidReason.trim());
+  return value;
+ };
+ for(const id of ids)need(typeof id==='string'&&id&&all(before).filter(x=>x.id===id).length<=1&&all(candidate).filter(x=>x.id===id).length===1);
+ const byId=new Map(current.map(x=>[x.id,x])),oldIds=new Set(previous.map(x=>x.id)),oldById=new Map(oldLinked.map(x=>[x.id,x]));
+ const newById=new Map(newLinked.map(x=>[x.id,x]));
+ need(oldById.size===oldLinked.length&&newById.size===newLinked.length);
+ for(const e of oldLinked){
+  const next=newById.get(e.id);need(next);
+  for(const k of ['id','workspaceId','branchId','currency','type','sourceType','sourceId','amount','date','fromAccountId','toAccountId','reference','notes','createdAt'])need(e[k]===next[k]);
+  if(e.voidedAt)need(e.voidedAt===next.voidedAt&&e.voidReason===next.voidReason);
+  else if(next.voidedAt)need(voidDay(next)===today);
+ }
+ const activeLinks=new Set();
+ for(const e of newLinked){
+  const payment=byId.get(e.sourceId),accounts=(candidate.treasuryAccounts??[]).filter(a=>a.id===e.fromAccountId);
+  need(typeof e.id==='string'&&e.id&&entries(candidate).filter(x=>x.id===e.id).length===1&&payment&&sameScope(e,payment)&&sameScope(payment,purchase)&&e.type==='supplier-payment'&&e.fromAccountId&&!e.toAccountId&&cents(e.amount)===cents(payment.amount)&&cents(e.amount)>0n&&day(e.date)&&e.date>=payment.date&&e.date<=today);
+  need(accounts.length===1&&sameScope(accounts[0],e)&&['cash','bank'].includes(accounts[0].kind));
+  const stop=voidDay(e),paymentStop=voidDay(payment);
+  need(!paymentStop||stop&&stop<=paymentStop);
+  if(!oldById.has(e.id))need(!stop&&accounts[0].active===true);
+  if(!stop){need(!activeLinks.has(e.sourceId));activeLinks.add(e.sourceId);}
+  // Historical replacement allocations cannot overlap.
+  for(const other of newLinked.filter(x=>x.sourceId===e.sourceId&&x.id!==e.id)){
+   const otherStop=voidDay(other);
+   need((stop&&stop<=e.date)||(otherStop&&otherStop<=other.date)||(stop&&stop<=other.date)||(otherStop&&otherStop<=e.date));
+  }
+ }
+ const active=current.filter(x=>!x.voidedAt&&x.date<=today).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+ const gross=cents(original.amount.gross),total=active.reduce((sum,x)=>sum+cents(x.amount),0n);
+ let running=0n;
+ for(const payment of active){
+  running+=cents(payment.amount);
+  if(running>gross||total>gross&&!oldIds.has(payment.id))need(allowElevated===true&&activeLinks.has(payment.id));
+ }
+}

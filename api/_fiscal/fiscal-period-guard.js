@@ -1,7 +1,7 @@
 import {assertSettlementCashContinuity,assertSupplierSettlementContinuity,assertPostedSupplierPaymentTransition} from './supplier-settlement-posting.mjs';
 import {assertAdvanceContinuity} from './advance-commercial.js';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
-import {assertSupplierSettlementTransition} from './settlement-integrity.mjs';
+import {assertSupplierSettlementTransition,assertSupplierTreasuryAuthority} from './settlement-integrity.mjs';
 import {isFiscalPurchaseReturn} from './purchase-return.mjs';
 import {inspectReturnPostings,isReturnMovement} from './return-postings.js';
 import {reviewDigest} from './commercial-source.js';
@@ -64,6 +64,18 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
    if(oldPayments.size!==beforePayments.length||nextPayments.size!==afterPayments.length)fail(422,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
    const changedPurchases=new Set();
    for(const k of new Set([...oldPayments.keys(),...nextPayments.keys()])){const old=oldPayments.get(k),next=nextPayments.get(k);if(same(old,next))continue;if(old)changedPurchases.add(old.purchaseId);if(next)changedPurchases.add(next.purchaseId);}
+   // Treasury-only allocations, reversals and account changes also affect AP.
+   const oldTreasury=(before.treasuryEntries??[]).filter(e=>e.workspaceId===workspaceId),newTreasury=(candidate.treasuryEntries??[]).filter(e=>e.workspaceId===workspaceId);
+   const oldTreasuryById=new Map(oldTreasury.map(e=>[e.id,e])),newTreasuryById=new Map(newTreasury.map(e=>[e.id,e]));
+   const oldAccounts=new Map((before.treasuryAccounts??[]).map(a=>[a.id,a])),newAccounts=new Map((candidate.treasuryAccounts??[]).map(a=>[a.id,a]));
+   for(const k of new Set([...oldTreasuryById.keys(),...newTreasuryById.keys()])){
+     const old=oldTreasuryById.get(k),next=newTreasuryById.get(k);
+     if(same(old,next)&&same(oldAccounts.get(old?.fromAccountId),newAccounts.get(next?.fromAccountId)))continue;
+     for(const e of [old,next]){
+       if(e?.sourceType!=='supplier-payment')continue;
+       for(const payment of [oldPayments.get(e.sourceId),nextPayments.get(e.sourceId)])if(payment)changedPurchases.add(payment.purchaseId);
+     }
+   }
    if(changedPurchases.size>100)fail(422,'FISCAL_CHANGE_LIMIT');
    for(const k of changedPurchases){
      if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');
@@ -73,7 +85,9 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
      try{
        const snapshot=await tx.get(db.collection(base+'/accountingEntries').where('sourceId','==',k).limit(201));if(snapshot.docs.length>200)fail(422,'FISCAL_CHANGE_LIMIT');
        const adjustments=snapshot.docs.map(x=>{const r=x.data();if(r.key!==x.id)fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');return r;}).filter(x=>x.source==='purchase'&&x.key!==original.key);
-       assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today:new Date().toISOString().slice(0,10)});
+       const today=new Date().toISOString().slice(0,10);
+       assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today});
+       assertSupplierTreasuryAuthority({purchase,original,before,candidate,today,allowElevated:scope.commandsEnabled===true});
      }catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
    const oldCashAccounts=(before.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId),newCashAccounts=(candidate.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId);
