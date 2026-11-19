@@ -110,7 +110,7 @@ function customerName(doc:LourexDocument):string{
 }
 
 function kindLabel(doc:LourexDocument):string{
-  const label=documentKindLabel(doc.kind,doc.role);
+  const label=documentKindLabel(doc.kind,doc.role,doc.invoiceMode);
   return t(label.en,label.ar);
 }
 

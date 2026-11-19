@@ -458,7 +458,11 @@ export type FiscalAdvanceBinding =
   | {kind:'receipt';net:string;vat:string;gross:string;evidenceDigest:string;treasuryEntryId:string}
   | {kind:'settlement';net:string;vat:string;gross:string;evidenceDigest:string;allocations:{receiptId:string;net:string;vat:string;gross:string}[]};
 
+export type InvoiceMode = 'ordinary' | 'tax';
+
 export interface LourexDocument extends WorkspaceScopeFields {
+  /** Explicit choice for newly created invoices; absent on historical documents. */
+  invoiceMode?: InvoiceMode;
   fiscalAdvance?: FiscalAdvanceBinding;
   id: string;
   kind: DocumentKind;
