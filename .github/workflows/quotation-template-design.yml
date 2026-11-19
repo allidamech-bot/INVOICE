@@ -50,7 +50,14 @@ jobs:
       - run: npm run typecheck && npm run build
       - run: npm install --no-save --no-package-lock playwright@1.56.1
       - run: npx playwright install --with-deps chromium webkit
-      - run: sudo apt-get install -y poppler-utils
+      - name: Install pinned fiscal PDF test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils python3-venv libpango-1.0-0 libpangoft2-1.0-0
+          python3 -m venv "$RUNNER_TEMP/lourex-fiscal-pdf"
+          "$RUNNER_TEMP/lourex-fiscal-pdf/bin/python" -m pip install -r scripts/fiscal/requirements-pdfa.txt
+          "$RUNNER_TEMP/lourex-fiscal-pdf/bin/python" -m pip check
+          echo "$RUNNER_TEMP/lourex-fiscal-pdf/bin" >> "$GITHUB_PATH"
       - name: Verify commercial A4 and appearance contracts
         run: node --test tests/*template*.test.mjs tests/document-appearance*.test.mjs tests/document-premium-redesign-v141.test.mjs tests/*pdf*.test.mjs tests/*pagination*.test.mjs tests/*qr*.test.mjs
       - name: Verify 18 templates in Arabic, English and bilingual output
