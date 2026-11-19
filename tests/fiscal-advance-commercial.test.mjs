@@ -4,6 +4,7 @@ import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {outputVatReport} from '../dist/src/lib/tax-vat.js';
 import {financialReportByCurrency} from '../dist/src/lib/reports.js';
+import {createAdvanceRefundDraft,advanceRefundCapacity,assertDocumentLifecycleInvariant} from '../dist/src/lib/document-lifecycle.js';
 import {accountedInvoiceCreditNotes,assertInvoicePaymentInvariant} from '../dist/src/lib/payments.js';
 import {assertFiscalAdvanceIntegrity,fiscalAdvanceBalances,fiscalReceivableCents,fiscalRecognizedTax,isFiscalAdvanceReceipt,readFiscalAdvance} from '../dist/src/lib/fiscal-advance-commercial.js';
 const digest='a'.repeat(64),scope={workspaceId:'w',branchId:'b',currency:'SAR'},party={customerSnapshot:{sourceCustomerId:'c',vatTaxNumber:'300000000000003'},companySnapshot:{vatNumber:'300000000000013'}},common={...scope,...party,kind:'invoice',role:'standard',status:'final',lifecycleStatus:'active',items:[{stockTreatment:'non-stock'}]};
@@ -62,4 +63,15 @@ test('refund is a VAT reversal and negative cash collection, never a sales credi
  assert.doesNotThrow(()=>assertInvoicePaymentInvariant(a,[],docs));
  const result=financialReportByCurrency(docs,[],'2026-11-01','2026-11-09')[0];
  assert.equal(result.collected,'69.00');assert.equal(result.invoiced,'0.00');assert.equal(result.creditNotes,0);
+});
+
+test('dedicated advance refund drafts are inert and cannot become ordinary final credits',()=>{
+ const v=emptyVault(),d=createBlankDocument('invoice','ADV-2',v.company),a={...d,...receipt,items:[{...d.items[0],descriptionEn:'Advance',stockTreatment:'non-stock',savedItemId:'',quantity:'1',unitPrice:'100'}],adjustments:{...d.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'15'}};
+ const credit=createAdvanceRefundDraft(a,'CN-TEST','46.00',{mode:'invoice-tax',reason:'Unused advance'},[a]);
+ assert.equal(credit.status,'draft');assert.equal(credit.fiscalAdvance,undefined);assert.equal(credit.role,'credit-note');assert.equal(credit.items[0].stockTreatment,'non-stock');
+ assert.equal(advanceRefundCapacity(a,[a,credit]),'115.00');
+ assert.doesNotThrow(()=>assertDocumentLifecycleInvariant(credit,[a,credit],[]));
+ assert.throws(()=>assertDocumentLifecycleInvariant({...credit,status:'final'},[a,credit],[]));
+ assert.throws(()=>createAdvanceRefundDraft(a,'CN-TEST','116.00',{mode:'invoice-tax',reason:'Unused advance'},[a]));
+ assert.throws(()=>createAdvanceRefundDraft(a,'CN-TEST','46.00',{mode:'keep-vat',reason:'Unused advance'},[a]));
 });

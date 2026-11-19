@@ -1,3 +1,4 @@
+import {projectSupplierAPJournal} from './supplier-ap-reconciliation.mjs';
 import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation} from './supplier-settlement-posting.mjs';
 import {planAdvanceCommercial,planAdvanceRefundCommercial,verifyAdvanceReport} from './advance-commercial.js';
 import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
@@ -380,7 +381,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const collection=db.collection(base+'/accountingEntries');
      const snapshot=await tx.get(collection.where('taxDate','>=',from).where('taxDate','<=',to).limit(1001));
      need(snapshot.docs.length<=1000,'FISCAL_REPORT_LIMIT');
-     const rows=[],salePostings=[],postedPurchases=new Set(),purchaseBalances=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
+     const rows=[],salePostings=[],postedPurchases=new Set(),purchaseBalances=new Map(),apSources=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
      for(const item of snapshot.docs){
        const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment===s.environment&&r.key===item.id&&['sale','purchase'].includes(r.source)&&day(r.taxDate)&&r.taxDate>=from&&r.taxDate<=to&&HEX.test(r.evidenceDigest));journal(r.amount.lines);
        const sign=signFor(r.amount.kind);let reconciliation=null;
@@ -404,6 +405,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,payableTotal:purchaseFinancialTotals(p).payableTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
              const balance=supplierSettlementTimeline({purchase:p,original,adjustments:corrections,payments:source.payload.supplierPayments,through:to});
              need(balance.paid===baseRecon.paid,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+             if(baseRecon.legacyPayable===baseRecon.fiscalPayable&&baseRecon.paymentsMatch&&!balance.violations.length)apSources.set(p.id,{purchase:p,original,adjustments:corrections.filter(x=>x.amount.treatment==='domestic'),payments:source.payload.supplierPayments,through:to,legacyPayable:baseRecon.legacyPayable});
              const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));
              let catalogCostCorrectionDate=null,valuationBridge=null;
              if(cost){
@@ -475,9 +477,11 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
-     const supplierSettlements=await readSupplierSettlements(db,tx,s,source.payload,from,to);
+     const supplierSettlementHistory=await readSupplierSettlements(db,tx,s,source.payload,'0001-01-01',to);
+     const supplierSettlements={...supplierSettlementHistory,journals:supplierSettlementHistory.journals.filter(j=>j.date>=from)};
      const settledByPurchase=new Map(supplierSettlements.balances.map(b=>[b.purchaseId,b]));
      need(settledByPurchase.size===supplierSettlements.balances.length,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+     const supplierPayableJournals=[...apSources.values()].map(a=>projectSupplierAPJournal({...a,settledBalance:settledByPurchase.get(a.purchase.id),settlementJournals:supplierSettlementHistory.journals}));
      const settlementReconciliations=new Map();
      for(const [purchaseId,reconciliation] of purchaseBalances){
        const b=settledByPurchase.get(purchaseId);
@@ -489,7 +493,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        r.reconciliation=next;
        if(previous.matched&&!next.matched)unmatched++;
      }
-     return {supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
+     return {supplierPayableJournals,supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
  async function closeProof(tx,s,through){

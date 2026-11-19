@@ -20,3 +20,12 @@ test('reviewed warehouse transfer preserves quantity and VAT relief and enables 
  for(const invalid of [{...args,assignments:args.assignments.slice(1)},{...args,movements:[inbound,{...m,fromWarehouseId:'C'},out]},{...args,movements:[inbound,m,{...out,quantity:'-3'}],assignments:[args.assignments[0],{movementId:out.id,lots:[{receiptId:inbound.id,quantity:'3'}]}]}])assert.throws(()=>planReviewedLotCostBridge(invalid));
 });
 test('cannot attribute cross-warehouse issue without reviewed transfer',()=>assert.throws(()=>planReviewedLotCostBridge({...base,movements:[{...receipt,warehouseId:'A'},{...other,warehouseId:'A'},{...issue,warehouseId:'B'}]})));
+
+test('uses actual commercial inbound/outbound warehouse fields and branch default',()=>{
+ const inbound={...receipt,toWarehouseId:'warehouse-b'},out={...issue,quantity:'-2',fromWarehouseId:'secondary'},transfer={...movement('T','transfer','2','2026-11-02'),fromWarehouseId:'warehouse-b',toWarehouseId:'secondary'};
+ const args={...base,movements:[inbound,transfer,out],assignments:[{movementId:'T',lots:[{receiptId:'receipt',quantity:'2'}]},{movementId:out.id,lots:[{receiptId:'receipt',quantity:'2'}]}]};
+ assert.equal(planReviewedLotCostBridge(args).valuationBridge.inventoryRelief,'7.50');
+ assert.equal(planReviewedLotCostBridge({...args,movements:[receipt,transfer,out]}).valuationBridge.cogsRelief,'7.50');
+ assert.throws(()=>planReviewedLotCostBridge({...args,movements:[inbound,{...transfer,fromWarehouseId:'wrong'},out]}));
+ assert.throws(()=>planReviewedLotCostBridge({...args,movements:[inbound,transfer,{...out,warehouseId:'unrelated'}]}));
+});

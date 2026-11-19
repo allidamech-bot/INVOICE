@@ -1,3 +1,4 @@
+import type {FiscalSupplierPayableJournal} from './fiscal-accounting-client.js';
 import type { PaymentMethod, PurchaseRecord, Supplier, SupplierPaymentRecord } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
 import { decimalToScaled, isDecimalInput, isFinancialDecimalInput } from './money.js';
@@ -8,15 +9,15 @@ export type SupplierPayableState='draft'|'unpaid'|'partial'|'paid'|'overdue'|'re
 export interface PayablesAgingAmounts{current:string;days1to30:string;days31to60:string;days61to90:string;days90plus:string;}
 export interface PurchasePayableSummary{
   purchaseId:string;purchaseNumber:string;supplierId:string;currency:string;date:string;dueDate:string;
-  total:string;paid:string;remaining:string;state:SupplierPayableState;daysOverdue:number;agingBucket:PayablesAgingBucket;
+  total:string;paid:string;remaining:string;supplierCredit?:string;settlementDelta?:string;state:SupplierPayableState;daysOverdue:number;agingBucket:PayablesAgingBucket;
 }
 export interface CurrencyPayableSummary{
-  currency:string;purchases:string;paid:string;remaining:string;overdue:string;aging:PayablesAgingAmounts;openPurchases:number;overduePurchases:number;
+  currency:string;purchases:string;paid:string;remaining:string;supplierCredit?:string;overdue:string;aging:PayablesAgingAmounts;openPurchases:number;overduePurchases:number;
 }
 export interface SupplierCurrencyPayableSummary extends CurrencyPayableSummary{supplierId:string;}
 export interface SupplierAccountSummary{supplierId:string;supplier:Supplier|null;currencies:SupplierCurrencyPayableSummary[];hasOverdue:boolean;openPurchases:number;}
-export interface SupplierStatementEntry{currency:string;date:string;reference:string;type:'purchase'|'payment';description:string;debit:string;credit:string;balance:string;purchaseNumber:string;}
-export interface SupplierStatementCurrency{currency:string;entries:SupplierStatementEntry[];purchases:string;paid:string;remaining:string;overdue:string;}
+export interface SupplierStatementEntry{currency:string;date:string;reference:string;type:'purchase'|'payment'|'payment-void'|'supplier-credit'|'supplier-debit'|'supplier-refund'|'supplier-offset';description:string;debit:string;credit:string;balance:string;purchaseNumber:string;}
+export interface SupplierStatementCurrency{currency:string;entries:SupplierStatementEntry[];purchases:string;paid:string;remaining:string;supplierCredit?:string;overdue:string;}
 
 const METHODS=new Set<PaymentMethod>(['cash','bank-transfer','card','cheque','other']);
 function nowIso():string{return new Date().toISOString();}
@@ -138,11 +139,17 @@ function effectiveSupplierPaymentsForPurchase(purchase:PurchaseRecord,payments:S
   });
 }
 
-export function purchasePayableSummary(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso()):PurchasePayableSummary{
+export function purchasePayableSummary(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso(),journal?:FiscalSupplierPayableJournal):PurchasePayableSummary{
   const effective=postedPurchaseAt(purchase,today);
   const total=liabilityCents(effective);
   const linked=effective.status==='posted'?effectiveSupplierPaymentsForPurchase(effective,payments,today):[];
   const paid=linked.reduce((sum,payment)=>sum+paymentCents(payment),0n);
+  if(journal){
+    if(effective.status!=='posted'||journal.purchaseId!==purchase.id||journal.number!==purchase.number||journal.workspaceId!==purchase.workspaceId||journal.branchId!==purchase.branchId||journal.supplierId!==purchaseSupplierId(purchase)||journal.currency!==purchase.currency||journal.through!==today||journal.originalPayable!==centsString(total)||journal.paid!==centsString(paid))throw new Error('Fiscal AP source changed; reload the verified supplier ledger.');
+    const adjusted=decimalToScaled(journal.adjustedPayable,2),remaining=decimalToScaled(journal.outstanding,2),credit=decimalToScaled(journal.supplierCredit,2),delta=decimalToScaled(journal.settlementDelta,2);
+    if(adjusted<0n||remaining<0n||credit<0n||(remaining>0n&&credit>0n)||adjusted-paid+delta!==remaining-credit||journal.entries.reduce((sum,e)=>sum+decimalToScaled(e.credit,2)-decimalToScaled(e.debit,2),0n)!==remaining-credit)throw new Error('Fiscal AP journal is not balanced.');
+    const days=remaining>0n?supplierDaysOverdue(purchase.dueDate,today):0;return{purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchaseSupplierId(purchase),currency:cleanCurrency(purchase.currency),date:purchase.date,dueDate:purchase.dueDate,total:journal.adjustedPayable,paid:journal.paid,remaining:journal.outstanding,supplierCredit:journal.supplierCredit,settlementDelta:journal.settlementDelta,state:remaining===0n?'paid':days>0?'overdue':paid>0n||delta<0n?'partial':'unpaid',daysOverdue:days,agingBucket:supplierAgingBucketFor(purchase.dueDate,today)};
+  }
   if(paid>total)throw new Error('Recorded supplier payments exceed the posted purchase total; AP cannot be reconciled.');
   const remaining=effective.status==='posted'?(total>paid?total-paid:0n):effective.status==='draft'?total:0n;
   const days=effective.status==='posted'&&remaining>0n?supplierDaysOverdue(effective.dueDate,today):0;
@@ -150,45 +157,46 @@ export function purchasePayableSummary(purchase:PurchaseRecord,payments:Supplier
   return{purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchaseSupplierId(purchase),currency:cleanCurrency(purchase.currency),date:purchase.date,dueDate:purchase.dueDate,total:centsString(total),paid:centsString(paid),remaining:centsString(remaining),state,daysOverdue:days,agingBucket:supplierAgingBucketFor(purchase.dueDate,today)};
 }
 
-export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),supplierId=''):CurrencyPayableSummary[]{
+export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),supplierId='',journals?:ReadonlyMap<string,FiscalSupplierPayableJournal>):CurrencyPayableSummary[]{
   assertUniquePostedPurchaseSources(purchases,today);
   assertUniqueEffectiveSupplierPaymentSources(purchases,payments,today);
-  const map=new Map<string,{purchases:bigint;paid:bigint;remaining:bigint;overdue:bigint;aging:Record<PayablesAgingBucket,bigint>;openPurchases:number;overduePurchases:number}>();
+  const map=new Map<string,{purchases:bigint;paid:bigint;remaining:bigint;supplierCredit:bigint;overdue:bigint;aging:Record<PayablesAgingBucket,bigint>;openPurchases:number;overduePurchases:number}>();
   for(const purchase of purchases){
     if(!postedOnOrBefore(purchase,today))continue;
     if(supplierId&&purchaseSupplierId(purchase)!==supplierId)continue;
-    const summary=purchasePayableSummary(purchase,payments,today);
-    const row=map.get(summary.currency)??{purchases:0n,paid:0n,remaining:0n,overdue:0n,aging:{current:0n,days1to30:0n,days31to60:0n,days61to90:0n,days90plus:0n},openPurchases:0,overduePurchases:0};
+    const summary=purchasePayableSummary(purchase,payments,today,journals?.get(purchase.id));
+    const row=map.get(summary.currency)??{purchases:0n,paid:0n,remaining:0n,supplierCredit:0n,overdue:0n,aging:{current:0n,days1to30:0n,days31to60:0n,days61to90:0n,days90plus:0n},openPurchases:0,overduePurchases:0};
     const total=decimalToScaled(summary.total,2),paid=decimalToScaled(summary.paid,2),remaining=decimalToScaled(summary.remaining,2);
-    row.purchases+=total;row.paid+=paid;row.remaining+=remaining;
+    row.purchases+=total;row.paid+=paid;row.remaining+=remaining;row.supplierCredit+=decimalToScaled(summary.supplierCredit||'0.00',2);
     if(remaining>0n){row.openPurchases+=1;row.aging[summary.agingBucket]+=remaining;if(summary.state==='overdue'){row.overdue+=remaining;row.overduePurchases+=1;}}
     map.set(summary.currency,row);
   }
-  return[...map.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([currency,row])=>({currency,purchases:centsString(row.purchases),paid:centsString(row.paid),remaining:centsString(row.remaining),overdue:centsString(row.overdue),aging:{current:centsString(row.aging.current),days1to30:centsString(row.aging.days1to30),days31to60:centsString(row.aging.days31to60),days61to90:centsString(row.aging.days61to90),days90plus:centsString(row.aging.days90plus)},openPurchases:row.openPurchases,overduePurchases:row.overduePurchases}));
+  return[...map.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([currency,row])=>({currency,purchases:centsString(row.purchases),paid:centsString(row.paid),remaining:centsString(row.remaining),...(journals?{supplierCredit:centsString(row.supplierCredit)}:{}),overdue:centsString(row.overdue),aging:{current:centsString(row.aging.current),days1to30:centsString(row.aging.days1to30),days31to60:centsString(row.aging.days31to60),days61to90:centsString(row.aging.days61to90),days90plus:centsString(row.aging.days90plus)},openPurchases:row.openPurchases,overduePurchases:row.overduePurchases}));
 }
 
-export function supplierAccounts(suppliers:Supplier[],purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso()):SupplierAccountSummary[]{
+export function supplierAccounts(suppliers:Supplier[],purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),journals?:ReadonlyMap<string,FiscalSupplierPayableJournal>):SupplierAccountSummary[]{
   const supplierMap=new Map(suppliers.map(supplier=>[supplier.id,supplier]));
   const ids=new Set(purchases.filter(purchase=>postedOnOrBefore(purchase,today)).map(purchaseSupplierId));
-  return[...ids].map(supplierId=>{const currencies=supplierPayablesByCurrency(purchases,payments,today,supplierId).map(row=>({...row,supplierId}));return{supplierId,supplier:supplierMap.get(supplierId)??null,currencies,hasOverdue:currencies.some(row=>decimalToScaled(row.overdue,2)>0n),openPurchases:currencies.reduce((sum,row)=>sum+row.openPurchases,0)};}).sort((a,b)=>Number(b.hasOverdue)-Number(a.hasOverdue)||b.openPurchases-a.openPurchases||((a.supplier?.nameEn||a.supplier?.nameAr||a.supplierId).localeCompare(b.supplier?.nameEn||b.supplier?.nameAr||b.supplierId)));
+  return[...ids].map(supplierId=>{const currencies=supplierPayablesByCurrency(purchases,payments,today,supplierId,journals).map(row=>({...row,supplierId}));return{supplierId,supplier:supplierMap.get(supplierId)??null,currencies,hasOverdue:currencies.some(row=>decimalToScaled(row.overdue,2)>0n),openPurchases:currencies.reduce((sum,row)=>sum+row.openPurchases,0)};}).sort((a,b)=>Number(b.hasOverdue)-Number(a.hasOverdue)||b.openPurchases-a.openPurchases||((a.supplier?.nameEn||a.supplier?.nameAr||a.supplierId).localeCompare(b.supplier?.nameEn||b.supplier?.nameAr||b.supplierId)));
 }
 
-export function supplierStatement(supplierId:string,purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso()):SupplierStatementCurrency[]{
-  const rows=new Map<string,{date:string;reference:string;type:'purchase'|'payment';description:string;debit:bigint;credit:bigint;purchaseNumber:string;order:number}[]>();
-  const push=(currency:string,row:{date:string;reference:string;type:'purchase'|'payment';description:string;debit:bigint;credit:bigint;purchaseNumber:string;order:number})=>{const list=rows.get(currency)??[];list.push(row);rows.set(currency,list);};
+export function supplierStatement(supplierId:string,purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),journals?:ReadonlyMap<string,FiscalSupplierPayableJournal>):SupplierStatementCurrency[]{
+  const rows=new Map<string,{date:string;reference:string;type:SupplierStatementEntry['type'];description:string;debit:bigint;credit:bigint;purchaseNumber:string;order:number}[]>();
+  const push=(currency:string,row:{date:string;reference:string;type:SupplierStatementEntry['type'];description:string;debit:bigint;credit:bigint;purchaseNumber:string;order:number})=>{const list=rows.get(currency)??[];list.push(row);rows.set(currency,list);};
   const supplierPurchases=purchases.filter(purchase=>postedOnOrBefore(purchase,today)&&purchaseSupplierId(purchase)===supplierId);
   for(const purchase of supplierPurchases){
     const effective=postedPurchaseAt(purchase,today);
-    const currency=cleanCurrency(purchase.currency),total=liabilityCents(purchase);
+    const currency=cleanCurrency(purchase.currency),total=liabilityCents(purchase),journal=journals?.get(purchase.id);
+    if(journal){purchasePayableSummary(purchase,payments,today,journal);for(const e of journal.entries)push(currency,{date:e.date,reference:e.reference,type:e.type,description:e.reference,debit:decimalToScaled(e.debit,2),credit:decimalToScaled(e.credit,2),purchaseNumber:purchase.number,order:e.type==='purchase'?1:2});continue;}
     push(currency,{date:purchase.date,reference:purchase.number,type:'purchase',description:purchase.supplierSnapshot?.nameEn||purchase.supplierSnapshot?.nameAr||purchase.number,debit:0n,credit:total,purchaseNumber:purchase.number,order:1});
     for(const payment of effectiveSupplierPaymentsForPurchase(effective,payments,today))push(currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||purchase.number,debit:paymentCents(payment),credit:0n,purchaseNumber:purchase.number,order:2});
   }
-  const summaries=supplierPayablesByCurrency(purchases,payments,today,supplierId);
+  const summaries=supplierPayablesByCurrency(purchases,payments,today,supplierId,journals);
   return[...rows.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([currency,entries])=>{
     entries.sort((a,b)=>a.date.localeCompare(b.date)||a.order-b.order||a.reference.localeCompare(b.reference));let balance=0n;
     const statementEntries=entries.map(entry=>{balance+=entry.credit-entry.debit;return{currency,date:entry.date,reference:entry.reference,type:entry.type,description:entry.description,debit:centsString(entry.debit),credit:centsString(entry.credit),balance:centsString(balance),purchaseNumber:entry.purchaseNumber};});
     const summary=summaries.find(item=>item.currency===currency);
-    return{currency,entries:statementEntries,purchases:summary?.purchases||'0.00',paid:summary?.paid||'0.00',remaining:summary?.remaining||'0.00',overdue:summary?.overdue||'0.00'};
+    return{currency,entries:statementEntries,purchases:summary?.purchases||'0.00',paid:summary?.paid||'0.00',remaining:summary?.remaining||'0.00',...(journals?{supplierCredit:summary?.supplierCredit||'0.00'}:{}),overdue:summary?.overdue||'0.00'};
   });
 }
 

@@ -21,9 +21,11 @@ export function planReviewedLotCostBridge({purchase,amount,allocations,assignmen
  const allocationMap=new Map(),usedLines=new Set(),assigned=new Map();for(const a of allocations){need(a.lineId&&!allocationMap.has(a.lineId));allocationMap.set(a.lineId,a);}
  for(const a of assignments){need(a.movementId&&!assigned.has(a.movementId)&&Array.isArray(a.lots)&&a.lots.length>0);assigned.set(a.movementId,a.lots);}
  const lots=new Map(),consumed=new Map();
- // An empty warehouse is a legacy single-location ledger. Never equate it
- // with a named warehouse. Transfers require explicitly reviewed lot slices.
+ // Match the existing commercial warehouse ledger: inbound uses toWarehouseId,
+ // outbound uses fromWarehouseId; missing location means the branch default.
+ // The historical fixture alias is accepted only if it agrees with the real field.
  const warehouse=v=>{need(v===undefined||v===''||typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v));return v||'';};
+ const operationalLocation=(m,direction)=>{const actual=warehouse(direction==='in'?m.toWarehouseId:m.fromWarehouseId),alias=warehouse(m.warehouseId);need(!actual||!alias||actual===alias);return actual||alias||'warehouse-'+purchase.branchId;};
  const location=(lot,id)=>lot.locations.get(id)??0n;
  const move=(lot,from,to,n)=>{need(location(lot,from)>=n);lot.locations.set(from,location(lot,from)-n);if(to!==null)lot.locations.set(to,location(lot,to)+n);};
  for(const m of [...related].sort(order)){
@@ -31,9 +33,9 @@ export function planReviewedLotCostBridge({purchase,amount,allocations,assignmen
    const q=signedQty(m.quantity);need(q!==0n);
    const transfer=m.type==='transfer';
    if(transfer)need(q>0n&&warehouse(m.fromWarehouseId)&&warehouse(m.toWarehouseId)&&m.fromWarehouseId!==m.toWarehouseId);
-   if(!transfer&&q>0n){need(['purchase','opening','adjustment'].includes(m.type));lots.set(m.id,{movement:m,total:q,remaining:q,locations:new Map([[warehouse(m.warehouseId),q]])});continue;}
+   if(!transfer&&q>0n){need(['purchase','opening','adjustment'].includes(m.type));lots.set(m.id,{movement:m,total:q,remaining:q,locations:new Map([[operationalLocation(m,'in'),q]])});continue;}
    need(transfer||['issue','adjustment'].includes(m.type));
-   const from=warehouse(transfer?m.fromWarehouseId:m.warehouseId),to=transfer?warehouse(m.toWarehouseId):null;
+   const from=(transfer?warehouse(m.fromWarehouseId):operationalLocation(m,'out')),to=transfer?warehouse(m.toWarehouseId):null;
    const slices=assigned.get(m.id);need(slices);assigned.delete(m.id);let total=0n;const refs=new Set();
    for(const a of slices){
      const n=qty(a.quantity),lot=lots.get(a.receiptId);need(n>0n&&lot&&lot.movement.itemId===m.itemId&&!refs.has(a.receiptId)&&n<=lot.remaining);refs.add(a.receiptId);
