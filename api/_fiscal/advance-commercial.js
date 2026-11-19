@@ -73,6 +73,27 @@ export async function assertAdvanceContinuity(db,tx,{accountUid,workspaceId},bef
  const changed=[...priorCash].filter(([id,e])=>!nextCash.has(id)||!equal(advanceCashFacts(e),advanceCashFacts(nextCash.get(id))));
  need(changed.length<=100,'FISCAL_CHANGE_LIMIT');
  for(const [id] of changed){need(ID.test(id));const claim=await tx.get(reservationIndex(db,{accountUid},id));need(!claim.exists,'FISCAL_ADVANCE_CASH_LOCKED');}
+ // A reserved deposit also binds its treasury account identity. Otherwise an
+ // account can be removed or moved without editing the protected deposit.
+ const priorAccounts=(before.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId);
+ const nextAccounts=(candidate.treasuryAccounts??[]);
+ const changedDestinations=new Set(priorAccounts.filter(a=>{
+   const matches=nextAccounts.filter(x=>x.id===a.id);
+   return matches.length!==1||matches[0].workspaceId!==a.workspaceId||matches[0].branchId!==a.branchId||matches[0].currency!==a.currency||a.active===true&&matches[0].active!==true;
+ }).map(a=>a.id));
+ const impacted=[...priorCash.values()].filter(e=>e.type==='deposit'&&changedDestinations.has(e.toAccountId));
+ need(impacted.length<=100,'FISCAL_CHANGE_LIMIT');
+ for(const e of impacted){
+   need(ID.test(e.id));
+   const claim=await tx.get(reservationIndex(db,{accountUid},e.id));
+   if(!claim.exists)continue;
+   const old=priorAccounts.find(x=>x.id===e.toAccountId),matches=nextAccounts.filter(x=>x.id===e.toAccountId);
+   need(old&&matches.length===1&&matches[0].workspaceId===old.workspaceId&&matches[0].branchId===old.branchId&&matches[0].currency===old.currency,'FISCAL_ADVANCE_CASH_LOCKED');
+   // A posted historical receipt may keep an inactive account, but an
+   // unresolved reservation must still be able to finalize its receipt.
+   const posted=await tx.get(receiptIndex(db,{accountUid},e.id));
+   need(posted.exists||matches[0].active===true,'FISCAL_ADVANCE_CASH_LOCKED');
+ }
  const beforeDocs=(before.documents??[]).filter(d=>d.workspaceId===workspaceId&&d.fiscalAdvance!==undefined),afterDocs=(candidate.documents??[]).filter(d=>d.workspaceId===workspaceId&&d.fiscalAdvance!==undefined);
  need(beforeDocs.length===afterDocs.length&&beforeDocs.every(d=>equal(d,afterDocs.find(x=>x.id===d.id))),'FISCAL_ADVANCE_LOCKED');
  for(const d of beforeDocs){const b=d.fiscalAdvance;if(b.kind!=='receipt')continue;const a=(before.treasuryEntries??[]).find(e=>e.id===b.treasuryEntryId),z=(candidate.treasuryEntries??[]).find(e=>e.id===b.treasuryEntryId);need(a&&z&&equal(advanceCashFacts(a),advanceCashFacts(z)),'FISCAL_ADVANCE_CASH_LOCKED');}

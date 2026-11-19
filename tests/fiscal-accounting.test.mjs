@@ -78,3 +78,25 @@ test('fiscal payment publication validates adjusted liability with the same tran
  await assert.rejects(guard(tx,uid,before,{...before,supplierPayments:[{...payment,amount:'100.00'}]},{operation:'commit'}),/FISCAL_SETTLEMENT_REVIEW_REQUIRED/);
  await assert.rejects(guard(tx,uid,{...before,supplierPayments:[payment]},before,{operation:'commit'}),/FISCAL_SETTLEMENT_REVIEW_REQUIRED/);
 });
+
+test('advance deposit reservation protects its treasury account identity even when cash is unchanged',async()=>{
+ const {assertAdvanceContinuity}=await import('../api/_fiscal/advance-commercial.js');
+ const {reviewDigest}=await import('../api/_fiscal/commercial-source.js');
+ const accountUid='owner',workspaceId='qa',scope={accountUid,workspaceId};
+ const bank={id:'bank',workspaceId,branchId:'b',currency:'SAR',active:true,name:'bank'};
+ const deposit={id:'deposit',workspaceId,branchId:'b',currency:'SAR',type:'deposit',toAccountId:'bank',amount:'115.00'};
+ const before={treasuryAccounts:[bank],treasuryEntries:[deposit],documents:[]};
+ const db={doc:path=>({path})},root='fiscalPrivateV1/owner/',digest=reviewDigest(deposit.id);
+ const reservation=root+'advanceTreasuryReservations/'+digest,index=root+'advanceTreasuryIndex/'+digest;
+ const rows=new Set([reservation]),tx={get:async ref=>({exists:rows.has(ref.path)})};
+ const candidate=accounts=>({...before,treasuryAccounts:accounts});
+ await assertAdvanceContinuity(db,tx,scope,before,candidate([{...bank,name:'renamed'}]));
+ for(const accounts of [[],[{...bank,branchId:'other'}],[{...bank,currency:'USD'}],[{...bank,workspaceId:'other'}],[bank,bank],[{...bank,active:false}]]){
+   await assert.rejects(assertAdvanceContinuity(db,tx,scope,before,candidate(accounts)),/FISCAL_ADVANCE_CASH_LOCKED/);
+ }
+ rows.add(index);
+ await assertAdvanceContinuity(db,tx,scope,before,candidate([{...bank,active:false}]));
+ await assert.rejects(assertAdvanceContinuity(db,tx,scope,before,candidate([])),/FISCAL_ADVANCE_CASH_LOCKED/);
+ rows.clear();
+ await assertAdvanceContinuity(db,tx,scope,before,candidate([{...bank,active:false}]));
+});
