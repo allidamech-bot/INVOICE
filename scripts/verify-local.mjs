@@ -184,6 +184,11 @@ const MANIFEST={
         "args": []
       },
       {
+        "file": "tests/visual/run-invoice-mode.cjs",
+        "seconds": 180,
+        "args": []
+      },
+      {
         "file": "tests/visual/run-accounting-foundation-batch7.cjs",
         "seconds": 180,
         "args": []
@@ -463,6 +468,7 @@ const CONTRACTS=[
   'tests/fiscal-lot-cost-bridge.test.mjs',
   'tests/fiscal-cost-continuity.test.mjs',
   'tests/fiscal-advance-commercial.test.mjs',
+  'tests/invoice-mode.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
   'tests/fiscal-enrollment.test.mjs',

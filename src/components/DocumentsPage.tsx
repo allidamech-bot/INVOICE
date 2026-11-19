@@ -110,7 +110,7 @@ function customerName(doc:LourexDocument):string{
 }
 
 function kindLabel(doc:LourexDocument):string{
-  const label=documentKindLabel(doc.kind,doc.role);
+  const label=documentKindLabel(doc.kind,doc.role,doc.invoiceMode);
   return t(label.en,label.ar);
 }
 
@@ -558,7 +558,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       <section className="ta-doc-register-card">
         <label className="ta-doc-mobile-type-picker"><span>{t('Document types','أنواع المستندات')}</span><Select value={this.state.tab} onChange={(e:any)=>this.setState({tab:e.target.value as OverviewTab,menuId:''})}>
           <option value="all">{t('All','الكل')} ({this.props.documents.length})</option>
-          {(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'] as DocumentKind[]).map(kind=><option key={kind} value={kind}>{documentKindLabel(kind)[isArabic()?'ar':'en']} ({this.typeCount(kind)})</option>)}
+          {(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'] as DocumentKind[]).map(kind=><option key={kind} value={kind}>{kind==='invoice'?t('Invoices','الفواتير'):documentKindLabel(kind)[isArabic()?'ar':'en']} ({this.typeCount(kind)})</option>)}
           <option value="credit">{t('Credit Note','إشعار دائن')} ({this.props.documents.filter(doc=>doc.role==='credit-note').length})</option>
         </Select></label>
         <div className="ta-doc-type-tabs" aria-label={t('Document types','أنواع المستندات')}>
@@ -568,7 +568,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           {this.typeTab('proforma',t('Quotation','عرض سعر'),this.typeCount('proforma'),3)}
           {this.typeTab('proforma-invoice',t('Proforma Invoice','فاتورة مبدئية'),this.typeCount('proforma-invoice'),4)}
           {this.typeTab('purchase-order',t('Purchase Order','طلب شراء'),this.typeCount('purchase-order'),5)}
-          {this.typeTab('invoice',t('Commercial Invoice','فاتورة تجارية'),this.typeCount('invoice'),6)}
+          {this.typeTab('invoice',t('Invoices','الفواتير'),this.typeCount('invoice'),6)}
           {this.typeTab('delivery-note',t('Delivery Note','سند تسليم'),this.typeCount('delivery-note'),7)}
           {this.typeTab('payment-receipt',t('Manual Payment Receipt','إيصال دفع يدوي'),this.typeCount('payment-receipt'),8)}
           {this.typeTab('credit',t('Credit Note','إشعار دائن'),this.props.documents.filter(doc=>doc.role==='credit-note').length,9)}
