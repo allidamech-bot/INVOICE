@@ -19,7 +19,7 @@ concurrency:
 jobs:
   full-release-gate:
     name: Node 24 / security / build / contracts / Chromium / WebKit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
       - name: Check out final PR snapshot with comparison history
@@ -34,6 +34,8 @@ jobs:
           cache: npm
       - name: Install locked project dependencies
         run: npm ci --no-audit --no-fund
+      - name: Prepare fiscal PDF regression dependencies (isolated QA)
+        run: bash scripts/fiscal/setup-qa-python.sh
       - name: Prepare isolated browser QA dependencies
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0

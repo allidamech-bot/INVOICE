@@ -16,6 +16,10 @@ node scripts/verify-local.mjs
 A local signoff may take significantly longer than the former parallel hosted matrix because all required suites now run serially. On Linux install Playwright system libraries with `npx playwright install-deps chromium webkit` if missing.
 Playwright is installed without changing package.json or the lockfile. It is NOT uploaded as a GitHub artifact.
 
+## Fiscal QA prerequisites
+
+The permanent local contract manifest includes all fiscal tests (not just changed files). Install JDK 17+ (`java` and `javac`) and OpenSSL on PATH for the offline canonicalization and certificate tests. These tests do not establish official SDK, live Firestore/KMS or actual FATOORA simulation acceptance. Fiscal PR release requires separately recorded official SDK and six-document simulation results, isolated Firebase auth/rules and transaction acceptance, and all statutory/application integration gates in `docs/TAX_00_FISCAL_INTEGRATION.md`. No production credentials or paid infrastructure are required for the focused offline tests.
+
 ## Mandatory before merge
 
 Default verification runs the safe-workflow preflight, `npm audit --audit-level=high`, `scripts/security-check.mjs`, TypeScript, production build, every changed PR top-level test contract, the Batch 7 tests, and ten permanent stock-issue, invoice-void, sales-return, accounting, reporting, AI-isolation and two-device cloud-race contracts. It also runs the current Chromium/WebKit QA shards and iPad/mobile/editor stability suites. A failure or missing dependency blocks local signoff. Keep full console output and the tested commit SHA in the Pull Request.
@@ -28,3 +32,11 @@ Feature branch → PR → final-head local verification → recorded manual sign
 Required status checks and branch protection were not audited by this change. If obsolete contexts block a verified merge, only an authorized repository admin should reconcile them; do not bypass an active, relevant required check.
 
 This release-gate fix does not modify Vercel deployment or domain settings and does not edit application behavior, Firebase rules or financial data.
+
+## Fiscal PDF/A verification prerequisites
+
+Install Python 3.11+ in an isolated virtual environment and run `python -m pip install -r scripts/fiscal/requirements-pdfa.txt`. Use the environment's Python via `LOUREX_FISCAL_PYTHON` (defaults to python3 on POSIX and python on Windows) when running the local verifier. The permanent fiscal PDF/A structural regression invokes the Python suite, so dependency absence fails the local gate. Actual PDF/A-3b verification also requires the official veraPDF CLI installed separately (absolute trusted path) and synthetic validated fiscal renderer fixtures; the structural test does not replace validation of the final PAdES-stamped output. Never use mock validator output as acceptance evidence. No paid or production infrastructure is implied.
+
+The fiscal PDF renderer additionally requires WeasyPrint 68.0 system dependencies (Pango, Fontconfig and Noto Sans Arabic/DejaVu Sans fonts); install on the isolated QA machine before the local verifier. Tests exercise the actual renderer and QR decoder, not a mocked pass. PDF/A-3 XMP generation is not certification; use real veraPDF before/after packaging and after PAdES signing.
+
+The fiscal PDF wrapper also exercises actual synthetic secp256k1 PAdES signing with asn1crypto, cryptography and OpenSSL 3.x. The IPC adapter is an offline candidate only; a successful local detached CMS verification is not official PAdES acceptance. Validate the final signed PDF with veraPDF and official applicable acceptance tooling. Do not treat a synthetic or mocked result as the release gate.

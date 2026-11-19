@@ -92,7 +92,8 @@ const output='visual-qa-output/functional-payments';
     await run('payment-delete-single-flight',async()=>{
       const page=await open('lang=en&existing=300&deleteDelay=250');
       try{
-        const remove=page.locator('.payment-history .payment-row button').first();
+        const remove=page.locator('.payment-history .payment-row').getByRole('button',{name:'Delete',exact:true});
+        assert.equal(await remove.count(),1,'the receipt and delete actions must remain independently reachable');
         await remove.evaluate(button=>{button.click();button.click();});
         const dialog=page.locator('.modal-backdrop').filter({has:page.locator('.modal-message')}).last();
         await dialog.waitFor();

@@ -18,7 +18,8 @@ test('Vercel server can load the genuine compiled finance engine without duplica
 });
 
 test('finance module loader is allowlisted and cannot read arbitrary files',async()=>{
-  for(const forbidden of ['../package.json','money','/etc/passwd','','../accounting','period.js'])
+  for(const name of ['operations','stock','governance','commercial','lifecycle','payments','money','returns','movementEvidence','advance'])assert.equal(typeof await loadCompiledFinance(name),'object');
+  for(const forbidden of ['../package.json','money.js','/etc/passwd','','../accounting','period.js','__proto__','constructor'])
     await assert.rejects(()=>loadCompiledFinance(forbidden),/Unsupported server finance module/);
 });
 

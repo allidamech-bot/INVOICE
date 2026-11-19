@@ -9,7 +9,8 @@ import {emptyVault,defaultCompany} from './src/lib/defaults.js';
 import {createSupplier,createPurchase,createPurchaseItem,createManualInventoryMovement} from './src/lib/operations.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 import {setUiThemePreference} from './src/lib/ui-theme.js';
-import {setupVault} from './src/storage/vault.js';
+import {setupVault,resumeVaultSession} from './src/storage/vault.js';
+import {registerWorkspaceSessionReader} from './src/storage/vault-mutation-bridge.js';
 import {establishSession,suspendSession} from './src/storage/session.js';
 const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en',theme=params.get('theme')==='light'?'light':'dark',h=React.createElement;
 setUiLanguage(lang);setUiThemePreference(theme);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
@@ -22,7 +23,11 @@ const stockMovement=createManualInventoryMovement(item,'opening','12','2026-01-0
 if(params.get('vault')==='1'){
  vault.savedItems=[item];vault.suppliers=[supplier];vault.purchases=[purchase];vault.inventoryMovements=[stockMovement];vault.appSettings.autoLockMinutes=0;
  const setup=await setupVault('2468',vault);await establishSession(setup.key);
- window.lockWorkspaceQa=()=>suspendSession();window.unlockWorkspaceQa=()=>establishSession(setup.key);
+ let sessionAvailable=true;
+ const resumed=await resumeVaultSession(),snapshot=resumed?.vault??setup.vault;
+ registerWorkspaceSessionReader(async()=>sessionAvailable?{key:setup.key,vault:snapshot}:null);
+ window.lockWorkspaceQa=async()=>{sessionAvailable=false;await suspendSession();if(await resumeVaultSession()!==null)throw new Error('Locked QA account remains readable');};
+ window.unlockWorkspaceQa=async()=>{await establishSession(setup.key);sessionAvailable=true;if(!(await resumeVaultSession()))throw new Error('QA account recovery failed');};
 }
 const noop=async()=>{};
 class Fixture extends React.Component{

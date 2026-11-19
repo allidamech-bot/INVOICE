@@ -764,7 +764,7 @@ function issuedInvoiceFinancialFacts(doc:LourexDocument):unknown{
     items:doc.items,adjustments:doc.adjustments,internalCosts:doc.internalCosts,
     terms:doc.terms,creditForId:doc.creditForId,creditForNumber:doc.creditForNumber,
     convertedFromId:doc.convertedFromId,bankAccountId:doc.bankAccountId,
-    paymentTermPresetId:doc.paymentTermPresetId
+    paymentTermPresetId:doc.paymentTermPresetId,...(doc.fiscalAdvance!==undefined?{fiscalAdvance:doc.fiscalAdvance}:{})
   };
 }
 function guardIssuedInvoiceContinuity(base:VaultPayload,candidate:VaultPayload):void{
@@ -774,6 +774,7 @@ function guardIssuedInvoiceContinuity(base:VaultPayload,candidate:VaultPayload):
     if(original.kind!=='invoice'||original.status!=='final')continue;
     const next=byId.get(original.id);
     if(!next)throw new Error('Issued invoice history cannot be deleted. Void the invoice instead.');
+    if(original.fiscalAdvance&&(!sameRecord(original.fiscalAdvance,next.fiscalAdvance)||next.status!=='final'||next.lifecycleStatus!=='active'))throw new Error('Verified advance history cannot be edited or removed.');
     // Only the audited revision workflow may turn an issued final into a draft.
     if(next.status==='draft')continue;
     if(!sameRecord(issuedInvoiceFinancialFacts(original),issuedInvoiceFinancialFacts(next)))

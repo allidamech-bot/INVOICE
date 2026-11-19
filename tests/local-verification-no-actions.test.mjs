@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {assertQaRunnerAndPushBranches} from './qa-workflow-policy.mjs';
 import {readdir,readFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 test('GitHub QA uses only safe read-only free branch runners, never production deployment',async()=>{
@@ -8,13 +9,10 @@ test('GitHub QA uses only safe read-only free branch runners, never production d
   assert.ok(workflows.length>=1,'free branch QA must remain available');
   for(const file of workflows){
     const yaml=await readFile(new URL('.github/workflows/'+file,root),'utf8');
-    assert.match(yaml,/runs-on:\s*ubuntu-latest/,file);
     assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,file);
     assert.match(yaml,/^on:\s*\n(?:[\s\S]*?)(?:^  (?:push|pull_request):)/m,'safe QA trigger required: '+file);
-    const pushBlock=yaml.match(/^  push:\s*\n([\s\S]*?)(?=^  [a-z_]+:|^permissions:|^jobs:|$(?![\s\S]))/m)?.[1];
-    if(pushBlock)assert.match(pushBlock,/branches:\s*(?:\[[^\]]*(?:fix|feat)\/|\n\s+-\s+(?:fix|feat)\/)/,file+' must push only feature branches');
+    assertQaRunnerAndPushBranches(yaml,file);
     assert.doesNotMatch(yaml,/^\s*(?:pull_request_target|deployment|release|schedule):/m,file);
-    assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,file);
     assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,file);
     assert.doesNotMatch(yaml,/\b(?:secrets\.|environment:\s*production)/i,file);
   }
@@ -89,4 +87,29 @@ test('local verification retains safe branch QA and critical financial, AI and c
     'tests/ai-operational-stock-posting.test.mjs',
     'tests/ai-account-cache-isolation.test.mjs'
   ])assert.ok(block.includes("'"+contract+"'"),contract+' must be release-gating');
+});
+
+test('read-only QA can target main via pull_request but cannot run on a direct main push',()=>{
+  const base='permissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n';
+  const pr='on:\n  pull_request:\n    branches:\n      - main\n';
+  assert.doesNotThrow(()=>assertQaRunnerAndPushBranches(pr+base,'pr-base'));
+  for(const push of [
+    '  push:\n    branches: [main, fix/safe]\n',
+    '  push:\n    branches:\n      - feat/safe\n      - main\n',
+    '  push:\n    branches-ignore: [main]\n',
+    '  push:\n    branches: [feat/safe]\n    tags: [v1]\n',
+    '  push:\n'
+  ])assert.throws(()=>assertQaRunnerAndPushBranches(pr+push+base,'unsafe'));
+  assert.doesNotThrow(()=>assertQaRunnerAndPushBranches(pr+'  push:\n    branches: [feat/safe, fix/other]\n'+base,'safe'));
+  assert.throws(()=>assertQaRunnerAndPushBranches(pr+base.replace('ubuntu-24.04','self-hosted'),'untrusted'));
+});
+
+test('only the two documented historical integration branches remain eligible',()=>{
+  const base='permissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n';
+  const workflow='lourex-ai-batches1-7-free-qa.yml';
+  const yaml=branches=>'on:\n  push:\n    branches: ['+branches+']\n'+base;
+  const historical='integration/ai-batches1-7-qa-20261012, integration/ai-parallel-streams-safe-20261013';
+  assert.doesNotThrow(()=>assertQaRunnerAndPushBranches(yaml(historical+', fix/safe'),workflow));
+  assert.throws(()=>assertQaRunnerAndPushBranches(yaml(historical),'another.yml'));
+  for(const branch of ['main','integration/main','integration/*','integration/unapproved','release/production'])assert.throws(()=>assertQaRunnerAndPushBranches(yaml(historical+', '+branch),workflow));
 });

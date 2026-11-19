@@ -1,3 +1,4 @@
+import {isFiscalAdvanceReceipt} from './fiscal-advance-commercial.js';
 import type { Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, decimalToScaled } from './money.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments } from './payments.js';
@@ -91,18 +92,19 @@ export function normalizeReportPeriod(from:string,to:string):{from:string;to:str
   return{from:cleanFrom,to:cleanTo};
 }
 
-function standardInvoices(documents:LourexDocument[]):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided');}
+function standardInvoices(documents:LourexDocument[]):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&!isFiscalAdvanceReceipt(doc)&&doc.status==='final'&&doc.lifecycleStatus!=='voided');}
 export function financialDocuments(documents:LourexDocument[]):LourexDocument[]{
   const invoices=standardInvoices(documents);
   const accountedCredits=new Set<string>();
   for(const invoice of invoices)for(const credit of accountedInvoiceCreditNotes(invoice,documents))accountedCredits.add(credit.id);
-  return documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(doc.role!=='credit-note'||accountedCredits.has(doc.id)));
+  return documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!isFiscalAdvanceReceipt(doc)&&(doc.role!=='credit-note'||accountedCredits.has(doc.id)));
 }
 function financialPayments(documents:LourexDocument[],payments:PaymentRecord[]):PaymentRecord[]{
   const result:PaymentRecord[]=[];
   for(const invoice of standardInvoices(documents))result.push(...accountedInvoicePayments(invoice,payments));
   return result;
 }
+function advanceCollections(documents:LourexDocument[],from:string,to:string):LourexDocument[]{return documents.filter(doc=>doc.fiscalAdvance?.kind==='receipt'&&isFiscalAdvanceReceipt(doc)&&reportDateInRange(doc.issueDate,from,to));}
 function reportCustomerId(doc:LourexDocument,documents:LourexDocument[]):string{if(doc.role==='credit-note'){const source=documents.find(item=>item.id===doc.creditForId);if(source)return receivableCustomerId(source);}return receivableCustomerId(doc);}
 function customerName(doc:LourexDocument):string{return (doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||'').trim();}
 function reportCustomerName(doc:LourexDocument,documents:LourexDocument[]):string{if(doc.role==='credit-note'){const source=documents.find(item=>item.id===doc.creditForId);if(source)return customerName(source);}return customerName(doc);}
@@ -137,6 +139,7 @@ export function financialReportByCurrency(documents:LourexDocument[],payments:Pa
     const row=get(payment.currency);row.collected+=decimalToScaled(payment.amount,2);row.payments+=1;
   }
 
+  for(const doc of advanceCollections(documents,period.from,period.to)){const row=get(doc.currency);row.collected+=decimalToScaled(doc.fiscalAdvance!.gross,2);row.payments+=1;}
   const receivables=receivablesByCurrency(asOfDocuments(documents,period.to),asOfPayments(documents,payments,period.to),period.to);
   for(const row of receivables)get(row.currency);
 
@@ -191,6 +194,7 @@ export function customerPerformanceReport(customers:Customer[],documents:LourexD
     aggregate.collected+=decimalToScaled(payment.amount,2);aggregate.payments+=1;
   }
 
+  for(const doc of advanceCollections(documents,period.from,period.to)){const row=get(receivableCustomerId(doc),doc.currency,customerName(doc));row.collected+=decimalToScaled(doc.fiscalAdvance!.gross,2);row.payments+=1;}
   const asOfDocs=asOfDocuments(documents,period.to);
   const asOfPays=asOfPayments(documents,payments,period.to);
   const receivables=customerReceivables(customers,asOfDocs,asOfPays,period.to);
@@ -235,6 +239,7 @@ export function monthlyPerformanceReport(documents:LourexDocument[],payments:Pay
     if(!reportDateInRange(payment.date,period.from,period.to))continue;
     const aggregate=get(payment.date.slice(0,7),payment.currency);aggregate.collected+=decimalToScaled(payment.amount,2);aggregate.payments+=1;
   }
+  for(const doc of advanceCollections(documents,period.from,period.to)){const row=get(doc.issueDate.slice(0,7),doc.currency);row.collected+=decimalToScaled(doc.fiscalAdvance!.gross,2);row.payments+=1;}
   return [...map.values()].sort((a,b)=>a.month.localeCompare(b.month)||a.currency.localeCompare(b.currency)).map(row=>({
     month:row.month,currency:row.currency,netSales:centsString(row.aggregate.netSales),grossProfit:row.aggregate.profitComplete?centsString(row.aggregate.grossProfit):'',collected:centsString(row.aggregate.collected),profitComplete:row.aggregate.profitComplete,missingCostItems:row.aggregate.missingCostItems
   }));

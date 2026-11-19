@@ -240,6 +240,7 @@ export function duplicateDocument(source: LourexDocument, number: string): Loure
   // still copied and the duplicate intentionally keeps the same attachment files.
   const attachmentRefs=(source.attachments??[]).map(attachment=>({...attachment}));
   const clone=structuredClone({...source,attachments:[]}) as LourexDocument;
+  delete clone.fiscalAdvance;
   return { ...clone, attachments:attachmentRefs, id: makeId('doc'), number, issueDate, dueDate, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...i, id: makeId('item') })) };
 }
 

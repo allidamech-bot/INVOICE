@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {reconcileDomesticPurchase} from '../api/_fiscal/purchase-reconciliation.mjs';
+const scope={workspaceId:'w',branchId:'b',currency:'SAR'};
+const purchase={...scope,id:'p',number:'P-1',date:'2026-11-01',status:'posted',supplierSnapshot:{sourceSupplierId:'s'},items:[{savedItemId:'i',quantity:'2',unitCost:'57.50',landedUnitCost:'57.50'}]};
+const amount={kind:'invoice',treatment:'domestic',net:'100.00',vat:'15.00',gross:'115.00',deductibleVat:'0.00'};
+const movement={...scope,id:'m',sourceId:'p',type:'purchase',date:purchase.date,itemId:'i',quantity:'2',unitCost:'57.50'};
+const payment={...scope,id:'pay',purchaseId:'p',purchaseNumber:'P-1',supplierId:'s',date:'2026-11-02',amount:'30.00'};
+const base={purchase,amount,landedTotal:'115.00',movements:[movement],payments:[payment],through:'2026-11-30'};
+test('reconciles domestic payable, original tracked stock and supplier payment',()=>{const r=reconcileDomesticPurchase(base);assert.equal(r.matched,true);assert.equal(r.fiscalOutstanding,'85.00');assert.equal(r.recordedInboundStock,'115.00');});
+test('recoverable VAT exposes cost overstatement without pretending inventory was corrected',()=>{const r=reconcileDomesticPurchase({...base,amount:{...amount,deductibleVat:'15.00'}});assert.equal(r.matched,false);assert.equal(r.costDifference,'15.00');assert.equal(r.fiscalCost,'100.00');assert.equal(r.fiscalPayable,'115.00');});
+test('wrong stock quantity, duplicate movement, or cross-branch movement cannot reconcile',()=>{for(const movements of [[{...movement,quantity:'1'}],[movement,movement],[{...movement,branchId:'other'}]])assert.equal(reconcileDomesticPurchase({...base,movements}).stockMatches,false);});
+test('payments are historical as of report date and voided payments are excluded only after void',()=>{const p={...payment,voidedAt:'2026-12-01T00:00:00Z'};assert.equal(reconcileDomesticPurchase({...base,payments:[p]}).paid,'30.00');assert.equal(reconcileDomesticPurchase({...base,payments:[p],through:'2026-12-01'}).paid,'0.00');});
+test('duplicate, wrong supplier or excess payments do not reconcile',()=>{for(const payments of [[payment,payment],[{...payment,supplierId:'other'}],[{...payment,amount:'116.00'}]])assert.equal(reconcileDomesticPurchase({...base,payments}).paymentsMatch,false);});
+test('untracked purchases do not fabricate stock, and mismatched gross is surfaced',()=>{const r=reconcileDomesticPurchase({...base,purchase:{...purchase,items:[{savedItemId:''}]},movements:[],landedTotal:'114.00'});assert.equal(r.stockMatches,true);assert.equal(r.recordedInboundStock,'0.00');assert.equal(r.matched,false);});

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {assertQaRunnerAndPushBranches} from './qa-workflow-policy.mjs';
 import {readFile,readdir} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
@@ -13,12 +14,9 @@ test('Hosted verification is limited to free feature-branch pushes and cannot pu
   for(const name of workflows){
     const yaml=await read(new URL('.github/workflows/'+name,root));
     assert.match(yaml,/^on:\s*\n(?:[\s\S]*?)(?:^  (?:push|pull_request):)/m,'safe QA trigger required: '+name);
-    const pushBlock=yaml.match(/^  push:\s*\n([\s\S]*?)(?=^  [a-z_]+:|^permissions:|^jobs:|$(?![\s\S]))/m)?.[1];
-    if(pushBlock)assert.match(pushBlock,/branches:\s*(?:\[[^\]]*(?:fix|feat)\/|\n\s+-\s+(?:fix|feat)\/)/,name+' must push only feature branches');
-    assert.match(yaml,/runs-on:\s*ubuntu-latest/,name);
+    assertQaRunnerAndPushBranches(yaml,name);
     assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,name);
     assert.doesNotMatch(yaml,/^\s*(?:pull_request_target|deployment|release|schedule):/m,name);
-    assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,name);
     assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,name);
   }
 });

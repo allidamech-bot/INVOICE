@@ -39,7 +39,7 @@ async function assertNoLostAuthority(root,readQuery){
 }
 
 /** db is a server Firestore instance. No browser reference/token supplies authority. */
-export function createPeriodService(db){
+export function createPeriodService(db,{fiscalGuard}={}){
   async function readPayload(root,meta,staged=false){
     validateMeta(meta);const chunks=[];
     for(let start=0;start<meta.chunkCount;start+=8){
@@ -69,6 +69,12 @@ export function createPeriodService(db){
         for(const doc of await db.getAll(...refs))chunks.push(doc.exists?doc.data():null);
       }
       decodeReport(report,chunks,boundary);
+      if(report.fiscalProof){
+        const p=report.fiscalProof;
+        if(p.format!=='LOUREX_FISCAL_CLOSE_V1'||p.environment!=='simulation'||p.workspaceId!==boundary.workspaceId||p.through!==boundary.through||typeof p.snapshotJson!=='string'||Buffer.byteLength(p.snapshotJson)>350000||hash(Buffer.from(p.snapshotJson))!==p.sha256)fail(422,'INVALID_PUBLISHED_REPORT');
+        let snapshot;try{snapshot=JSON.parse(p.snapshotJson);}catch{fail(422,'INVALID_PUBLISHED_REPORT');}
+        if(snapshot?.to!==boundary.through||snapshot?.readyForFiling!==false||snapshot?.unmatched!==0||snapshot?.unpostedSales!==0||snapshot?.pendingSales!==0||snapshot?.unreviewedPurchases!==0||snapshot?.pendingAdjustments?.length!==0||snapshot?.salesBlockers?.length!==0)fail(422,'INVALID_PUBLISHED_REPORT');
+      }
       let candidate;try{candidate=closedPeriodState(payload,boundary);}catch{fail(422,'PERIOD_CHANGED');}
       if(hash(Buffer.from(JSON.stringify(candidate)))!==report.sha256)fail(422,'PERIOD_CHANGED');
     }
@@ -145,11 +151,12 @@ export function createPeriodService(db){
     // Enrolled accounts have immutable published chunks. The final transaction
     // rechecks both control generation and manifest, avoiding long read locks.
     const before=await readPayload(root,meta);
+    let candidateForGuard=before;
     let nextMeta=meta,boundaries=control.boundaries.map(b=>({...b})),report=null;
     if(input.operation==='commit'){
       const stageRef=root.collection('periodStaging').doc(input.opId),stageDoc=await stageRef.get(),stageMeta=validateMeta(stageDoc.data());
       if(stageMeta.revision!==input.opId)fail(422,'INVALID_STAGE_IDENTITY');
-      const candidate=await readPayload(stageRef,stageMeta,true);
+      const candidate=await readPayload(stageRef,stageMeta,true);candidateForGuard=candidate;
       try{assertPostedStockRestoreContinuity(before,candidate);assertClosedPeriodUnchanged(before,candidate,boundaries);}
       catch(error){if(error instanceof PeriodError)throw error;fail(422,'PERIOD_CHANGED');}
       await assertPublishedState(root,candidate,boundaries);
@@ -185,11 +192,12 @@ export function createPeriodService(db){
       }
       const verifiedControl=controlValue(latestControl,identity.uid),verifiedMeta=validateMeta(latestMeta.data());
       if(verifiedControl.generation!==control.generation||verifiedMeta.revision!==meta.revision||verifiedMeta.sha256!==meta.sha256)fail(409,'REVISION_CONFLICT');
+      const fiscalProof=fiscalGuard?await fiscalGuard(tx,identity.uid,before,candidateForGuard,input):null;
       if(input.operation==='commit'){
         tx.create(root.collection('workspaceHistory').doc(meta.revision),{...meta,archivedAt:FieldValue.serverTimestamp()});
         tx.set(metaRef,nextMeta);
       }
-      if(report)tx.create(root.collection('periodReports').doc(report.reportId),{...report,actorUid:identity.uid,reason:input.reason,publishedAt:FieldValue.serverTimestamp()});
+      if(report)tx.create(root.collection('periodReports').doc(report.reportId),{...report,...(fiscalProof?{fiscalProof}:{}),actorUid:identity.uid,reason:input.reason,publishedAt:FieldValue.serverTimestamp()});
       tx.set(controlRef,{...verifiedControl,generation:result.generation,boundaries,updatedAt:FieldValue.serverTimestamp()});
       tx.create(operationRef,{fingerprint,operation:input.operation,actorUid:identity.uid,reason:input.reason||'',workspaceId:input.workspaceId||'',at:FieldValue.serverTimestamp(),result});
       return result;

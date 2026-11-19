@@ -132,6 +132,16 @@ export default async function handler(request,response){
     const {default:periodHandler}=await import('./_accounting/workspace-handler.js');
     return periodHandler(request,response);
   }
+  // Read-only fiscal QA status uses the same function budget; disabled in production.
+  if(request.query?.lourexFiscalStatus==='1'||new URLSearchParams(String(request.url||'').split('?')[1]||'').get('lourexFiscalStatus')==='1'){
+    const {default:fiscalStatusHandler}=await import('./_fiscal/status-handler.js');
+    return fiscalStatusHandler(request,response);
+  }
+  // Isolated, authenticated fiscal command gateway shares the function budget.
+  if(request.query?.lourexFiscalCommand==='1'||new URLSearchParams(String(request.url||'').split('?')[1]||'').get('lourexFiscalCommand')==='1'){
+    const {default:fiscalCommandHandler}=await import('./_fiscal/command-handler.js');
+    return fiscalCommandHandler(request,response);
+  }
   // One inference deadline covers structured creation AND its dialogue fallback.
   // Keep transport/auth headroom below the browser's 60s request deadline.
   const inferenceDeadline=Date.now()+40_000;

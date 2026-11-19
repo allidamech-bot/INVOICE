@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {fiscalQaInvoice} from '../dist/src/lib/fiscal-document-client.js';
 import assert from 'node:assert/strict';
 
 import {emptyVault} from '../dist/src/lib/defaults.js';
@@ -157,7 +158,7 @@ test('real App.saveDocument: draft 200, rejected final save 200, committed final
   let stored={uid:accountUid,localRevision:'qa-stock-r1',payload:reopen(full)};
   let blocked=false,commits=0;
   const shareCalls=[];
-  const context={
+  const context={fiscalQaInvoice,
     exports:{},Error,Promise,structuredClone,
     scopeVault:workspace.scopeVault,
     applyWorkspaceScope:workspace.applyWorkspaceScope,

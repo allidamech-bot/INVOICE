@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {returnCostJournal} from '../api/_fiscal/return-cost.mjs';
+const scope={workspaceId:'w',branchId:'b',currency:'SAR'},invoice={...scope,id:'i',status:'final',role:'standard',issueDate:'2026-11-01'},credit={...scope,id:'c',status:'final',role:'credit-note',creditForId:'i',issueDate:'2026-11-02'};
+const issue={...scope,id:'sales-invoice-stock:i:l',sourceId:'i',itemId:'sku',type:'issue',quantity:'-3.0000',unitCost:'0.333333333333'};
+const receipt=(id,date='2026-11-03')=>({...scope,id,date,type:'adjustment',quantity:'1.0000',itemId:'sku',unitCost:issue.unitCost,salesReturn:{invoiceId:'i',invoiceLineId:'l',creditNoteId:'c'}});
+const correction=(r,date='2026-11-04')=>({...scope,id:'reversal-'+r.id,date,type:'adjustment',quantity:'-1.0000',itemId:'sku',unitCost:issue.unitCost,salesReturnCorrection:{receiptMovementId:r.id}});
+const run=(rows,through='2026-11-30',documents=[invoice,credit])=>returnCostJournal({documents,movements:[issue,...rows],through});
+test('financial credit alone has no physical COGS reversal',()=>assert.deepEqual(run([]),[]));
+test('three partial receipts telescope exactly to one SAR original cost',()=>{const r=run([receipt('a'),receipt('b'),receipt('c')]);assert.deepEqual(r.map(x=>x.amount),['0.33','0.34','0.33']);assert.equal(r[0].lines[0].side,'debit');});
+test('dated reversal restores COGS and preserves historical cutoff',()=>{const r=receipt('a');assert.equal(run([r,correction(r)],'2026-11-03').length,1);const rows=run([r,correction(r)]);assert.equal(rows[1].amount,'0.33');assert.equal(rows[1].lines[0].side,'credit');});
+test('excess receipt quantity and duplicate or orphan reversals fail closed',()=>{assert.throws(()=>run([receipt('a'),receipt('b'),receipt('c'),receipt('d')]));const r=receipt('a');assert.throws(()=>run([correction(r)]));assert.throws(()=>run([r,correction(r),{...correction(r),id:'r2'}]));});
+test('return cannot predate credit or change original cost/scope',()=>{for(const r of [receipt('a','2026-11-01'),{...receipt('a'),unitCost:'1.00'},{...receipt('a'),branchId:'other'}])assert.throws(()=>run([r]));});
+test('repeat after correction remains within the original cost and physical cap',()=>{const r=receipt('a');const rows=run([r,correction(r),receipt('b','2026-11-05')]);assert.deepEqual(rows.map(x=>x.amount),['0.33','0.33','0.33']);});

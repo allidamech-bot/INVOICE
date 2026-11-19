@@ -68,7 +68,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    assert.match(await input.inputValue(),/voice after background$/,'recording restarts after Safari background suspension');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'background transition may not overlap native sessions');
 
-   await input.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await input.press('Enter');
+   await textarea.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await textarea.press('Enter');
    await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
    const toolActivity=page.locator('.lourex-ai-tool-activity').last();await toolActivity.waitFor({state:'visible'});
    assert.match(await toolActivity.innerText(),lang==='ar'?/خطة LOUREX/:/LOUREX plan/,'deterministic tool request exposes the visible LOUREX plan');
@@ -87,7 +87,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
 
    let unifiedAssistant='not-run';
    if(engine.name()==='chromium'){
-    await input.fill('Cost is 10 and margin 20%');await input.press('Enter');
+    await textarea.fill('Cost is 10 and margin 20%');await textarea.press('Enter');
     await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
     assert.deepEqual(requests,[],'deterministic advisor calculation must not call a provider');
     const overflow=page.locator('.lourex-ai-overflow-trigger');await overflow.waitFor({state:'visible'});await overflow.click();

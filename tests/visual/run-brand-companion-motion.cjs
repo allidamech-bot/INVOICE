@@ -1,3 +1,4 @@
+const {installPinlessWorkspace}=require('./pinless-workspace-fixture.cjs');
 const {chromium}=require(process.cwd()+'/node_modules/playwright');
 const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict');
 (async()=>{
@@ -30,12 +31,31 @@ const fs=require('node:fs/promises'),path=require('node:path'),assert=require('n
  await page.emulateMedia({reducedMotion:'no-preference'});
  if(width===390&&lang==='ar')await hero.screenshot({path:'visual-qa-output/brand-companion/energy-mobile.png'});
  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.ta-energy-blue').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
- await page.goto('http://localhost/tests/visual/ai-conversation-workspace.html?lang='+lang);await page.locator('.lourex-ai-launcher').waitFor();
+ // Exercise the current AppShell-mounted conversation, not the obsolete
+ // standalone AiCopilot fixture. The current scoped workspace intentionally
+ // hides its welcome content until the local encrypted session is ready.
+ await page.route('**/api/**',route=>route.fulfill({status:503,body:'No live provider in identity QA'}));
+ await page.goto('http://localhost/tests/visual/contextual-ai-batch4.html?lang='+lang+'&theme=dark');
+ await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
+ await installPinlessWorkspace(page,{uid:'qa-brand-identity',companyName:'LOUREX Identity QA',theme:'dark'});
+ await page.locator('.lourex-ai-launcher').waitFor({state:'visible'});
  const button=page.locator('.lourex-ai-launcher'),box=await button.boundingBox();assert.ok(box.width<=64&&box.height<=64);assert.equal(await button.locator('.lxw-robot-eyes').count(),1);
  const glyphBox=await button.locator('.lxw-brand-glyph').boundingBox();
  assert.ok(Math.abs(glyphBox.x+glyphBox.width/2-box.x-box.width/2)<.5,'robot stays horizontally centered in the button');
  assert.ok(Math.abs(glyphBox.y+glyphBox.height/2-box.y-box.height/2)<.5,'robot stays vertically centered in the button');
- await button.click();await page.locator('#lourex-ai-panel .lxw-welcome-identity .lxw-robot-eyes').waitFor();
+ await button.click();
+ const panel=page.locator('#lourex-ai-panel[data-lourex-workspace="2"]');
+ await panel.waitFor({state:'visible'});
+ try{
+  await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel')?.dataset.workspaceReady==='true',null,{timeout:30000});
+ }catch(error){
+  const diagnostic=await panel.evaluate(el=>({ready:el.dataset.workspaceReady,mode:el.dataset.workspaceMode,alert:el.querySelector('.lxw-load-error')?.textContent||null}));
+  throw new Error('Identity QA workspace failed to hydrate: '+JSON.stringify(diagnostic),{cause:error});
+ }
+ assert.equal(await panel.getAttribute('data-workspace-mode'),'controller','fresh synthetic business thread must use Controller');
+ await panel.locator('.lourex-ai-empty').waitFor({state:'visible'});
+ const welcome=panel.locator('.lxw-welcome-identity .lxw-robot-eyes');
+ await welcome.waitFor({state:'visible'});assert.equal(await welcome.count(),1,'one actual welcome identity in the ready conversation');
  const mark=page.locator('#lourex-ai-panel .lourex-ai-mark .lxw-brand-glyph');assert.ok(await mark.isVisible(),'header robot visible');
  assert.ok(['none','normal'].includes(await page.locator('.lourex-ai-mark').evaluate(el=>getComputedStyle(el,'::before').content)),'no legacy logo overlay');
  assert.equal(await mark.evaluate(el=>getComputedStyle(el).display),'block');
