@@ -40,8 +40,11 @@ function leafFacts(leafDer){
  const names=leaf.issuer.split('\n');need(names.length>0&&names.every(s=>/^[A-Za-z][A-Za-z0-9.]*=[^,\n+"\\<>;=]+$/.test(s))&&/^[a-fA-F0-9]+$/.test(leaf.serialNumber));
  const cert=leafDer.toString('base64');return {cert,digest:hex64(cert),issuer:xmlEscape(names.reverse().join(', ')),serial:BigInt('0x'+leaf.serialNumber).toString()};
 }
-// The SDK-derived digest input uses the exact fixed indentation, LF and
-// self-closing DigestMethod, NOT the generic inclusive C14N signed-properties.
+// SDK4 serializes the detached SignedProperties subtree: namespace declarations
+// are restored and the opening indentation is excluded. Not generic C14N.
+function propertiesDigest(props){
+ return hex64(props.trimStart().replace('<xades:SignedProperties Id=','<xades:SignedProperties xmlns:xades="'+XA+'" Id=').replace(/<ds:(DigestMethod|DigestValue|X509IssuerName|X509SerialNumber)(?=[ >])/g,'<ds:$1 xmlns:ds="'+DS+'"'));
+}
 function properties(f,at){
  need(iso(at));const stamp=at.slice(0,19);
  const rows=[[0,'<xades:SignedProperties Id="xadesSignedProperties">'],[1,'<xades:SignedSignatureProperties>'],[2,'<xades:SigningTime>'+stamp+'</xades:SigningTime>'],[2,'<xades:SigningCertificate>'],[3,'<xades:Cert>'],[4,'<xades:CertDigest>'],[5,'<ds:DigestMethod Algorithm="'+SHA+'"/>'],[5,'<ds:DigestValue>'+f.digest+'</ds:DigestValue>'],[4,'</xades:CertDigest>'],[4,'<xades:IssuerSerial>'],[5,'<ds:X509IssuerName>'+f.issuer+'</ds:X509IssuerName>'],[5,'<ds:X509SerialNumber>'+f.serial+'</ds:X509SerialNumber>'],[4,'</xades:IssuerSerial>'],[3,'</xades:Cert>'],[2,'</xades:SigningCertificate>'],[1,'</xades:SignedSignatureProperties>'],[0,'</xades:SignedProperties>']];
@@ -50,7 +53,7 @@ function properties(f,at){
 function digest(value){return '<ds:DigestMethod Algorithm="'+SHA+'"/><ds:DigestValue>'+value+'</ds:DigestValue>';}
 function assemble(xml,f,props,invoiceHash,signature,payload){
  const xpath=['ext:UBLExtensions','cac:Signature',"cac:AdditionalDocumentReference[cbc:ID='QR']"].map(x=>'<ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>not(//ancestor-or-self::'+x+')</ds:XPath></ds:Transform>').join('');
- const info='<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="'+C14N+'"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"/><ds:Reference Id="invoiceSignedData" URI=""><ds:Transforms>'+xpath+'<ds:Transform Algorithm="'+C14N+'"/></ds:Transforms>'+digest(invoiceHash)+'</ds:Reference><ds:Reference Type="'+DS+'SignatureProperties" URI="#xadesSignedProperties">'+digest(hex64(props))+'</ds:Reference></ds:SignedInfo>';
+ const info='<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="'+C14N+'"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"/><ds:Reference Id="invoiceSignedData" URI=""><ds:Transforms>'+xpath+'<ds:Transform Algorithm="'+C14N+'"/></ds:Transforms>'+digest(invoiceHash)+'</ds:Reference><ds:Reference Type="'+DS+'SignatureProperties" URI="#xadesSignedProperties">'+digest(propertiesDigest(props))+'</ds:Reference></ds:SignedInfo>';
  const extension='<ext:UBLExtensions xmlns:ext="'+EXT+'"><ext:UBLExtension><ext:ExtensionURI>urn:oasis:names:specification:ubl:dsig:enveloped:xades</ext:ExtensionURI><ext:ExtensionContent><sig:UBLDocumentSignatures xmlns:sig="'+SIG+'" xmlns:sac="'+SAC+'" xmlns:sbc="'+SBC+'"><sac:SignatureInformation><cbc:ID>urn:oasis:names:specification:ubl:signature:1</cbc:ID><sbc:ReferencedSignatureID>urn:oasis:names:specification:ubl:signature:Invoice</sbc:ReferencedSignatureID><ds:Signature xmlns:ds="'+DS+'" Id="signature">'+info+'<ds:SignatureValue>'+signature+'</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>'+f.cert+'</ds:X509Certificate></ds:X509Data></ds:KeyInfo><ds:Object><xades:QualifyingProperties xmlns:xades="'+XA+'" Target="signature">\n'+props+'\n</xades:QualifyingProperties></ds:Object></ds:Signature></sac:SignatureInformation></sig:UBLDocumentSignatures></ext:ExtensionContent></ext:UBLExtension></ext:UBLExtensions>';
  const reference=QR+payload+'</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference><cac:Signature><cbc:ID>urn:oasis:names:specification:ubl:signature:Invoice</cbc:ID><cbc:SignatureMethod>urn:oasis:names:specification:ubl:dsig:enveloped:xades</cbc:SignatureMethod></cac:Signature>';
  return checked(Buffer.from(ROOT+extension+xml.slice(ROOT.length).replace(SUPPLIER,reference+SUPPLIER)));
@@ -71,5 +74,5 @@ export async function buildManagedSdk4SimplifiedStamp({unsigned,session,policy,c
  const signature=(await s.sign('sdk4-invoice-hash',hash)).toString('base64');
  const payload=buildSdk4SimplifiedQr({...fields,invoiceHash,xmlSignature:signature,leafDer}),bytes=assemble(xml,f,props,invoiceHash,signature,payload);
  need(verifySdk4SimplifiedStamp({unsigned,bytes,leafDer,at:s.at,policy,canonicalize}));
- return {status:'sdk4-managed-candidate',bytes,payload,invoiceHash,propertiesDigest:hex64(props),artifactDigest:sha(bytes).toString('hex')};
+ return {status:'sdk4-managed-candidate',bytes,payload,invoiceHash,propertiesDigest:propertiesDigest(props),artifactDigest:sha(bytes).toString('hex')};
 }

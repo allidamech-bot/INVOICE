@@ -1,5 +1,6 @@
 """Private SDK4 gate: verify a pinned read-only installed distribution and exact XML."""
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -8,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from defusedxml import ElementTree
 from verify_sdk_matrix import MAX_XML, MAX_LOG, invoice_identity, parse_sdk_result, need, sha
 
 VERSION = '4.0.0'
@@ -43,6 +45,23 @@ def check_installation(root, manifest):
             actual[rel] = file_hash(path)
     need(actual == manifest['files'], 'SDK_INSTALLATION_CHANGED')
 
+def configured_certificate(data):
+    # SDK4 compares issuer/serial to its configured certificate, not just
+    # KeyInfo. Use the exact embedded public leaf for validation only.
+    root = ElementTree.fromstring(data, forbid_dtd=True, forbid_entities=True, forbid_external=True)
+    ds = 'http://www.w3.org/2000/09/xmldsig#'
+    ext = 'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2'
+    sig = 'urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2'
+    sac = 'urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2'
+    ns = {'ext':ext,'sig':sig,'sac':sac,'ds':ds}
+    certs = root.findall('./ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/sig:UBLDocumentSignatures/sac:SignatureInformation/ds:Signature/ds:KeyInfo/ds:X509Data/ds:X509Certificate', ns)
+    need(len(certs) == 1 and len(list(root.iter('{'+ds+'}X509Certificate'))) == 1 and len(list(root.iter('{'+ds+'}Signature'))) == 1, 'SDK_CERTIFICATE_MISMATCH')
+    cert = certs[0].text
+    need(isinstance(cert,str) and len(cert) <= 43692 and not list(certs[0]), 'SDK_CERTIFICATE_MISMATCH')
+    der = base64.b64decode(cert, validate=True)
+    need(0 < len(der) <= 32768 and base64.b64encode(der).decode('ascii') == cert, 'SDK_CERTIFICATE_MISMATCH')
+    return cert.encode('ascii')
+
 def validate_one(data, kind, root_path, manifest_path, manifest_sha, java_home):
     uuid = invoice_identity(data, kind)
     root, manifest_file, java = map(checked_path, (root_path, manifest_path, java_home))
@@ -61,15 +80,30 @@ def validate_one(data, kind, root_path, manifest_path, manifest_sha, java_home):
         work = Path(directory)
         xml, stdout, stderr = work/'invoice.xml', work/'stdout.log', work/'stderr.log'
         xml.write_bytes(data)
+        # Public certificate only; no private key is required for -validate.
+        # Keep the pinned installation unchanged and isolate each EGS invocation.
+        settings = json.loads(config.read_text(encoding='utf-8'))
+        need(isinstance(settings,dict), 'SDK_CONFIGURATION_INVALID')
+        no_key = work/'validation-only-no-private-key.pem'
+        settings['privateKeyPath'] = str(no_key)
+        cert = None
+        if kind.startswith('simplified-'):
+            cert = configured_certificate(data)
+            leaf = work/'leaf.b64'
+            leaf.write_bytes(cert)
+            settings['certPath'] = str(leaf)
+        derived = work/'config.json'
+        derived_bytes = json.dumps(settings,separators=(',',':')).encode('utf-8')
+        derived.write_bytes(derived_bytes)
         # Do not inherit application credentials, JAVA_TOOL_OPTIONS or SDK overrides.
-        env = {'SDK_CONFIG': str(config), 'JAVA_HOME': str(java), 'PATH': str(java/'bin') + os.pathsep + os.defpath, 'HOME': directory, 'TMPDIR': directory, 'LANG': 'C.UTF-8'}
+        env = {'FATOORA_HOME':str(launcher.parent), 'SDK_CONFIG': str(derived), 'JAVA_HOME': str(java), 'PATH': str(java/'bin') + os.pathsep + os.defpath, 'HOME': directory, 'TMPDIR': directory, 'LANG': 'C.UTF-8'}
         if os.name == 'nt':
             for key in ('SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT'):
                 if key in os.environ: env[key] = os.environ[key]
             env['TEMP'] = directory; env['TMP'] = directory
         with stdout.open('wb') as out, stderr.open('wb') as err:
             proc = subprocess.run([str(launcher), '-validate', '-invoice', str(xml)], cwd=launcher.parent, env=env, stdout=out, stderr=err, timeout=120, check=False)
-        need(stdout.stat().st_size + stderr.stat().st_size <= MAX_LOG and xml.read_bytes() == data, 'SDK_INPUT_CHANGED')
+        need(stdout.stat().st_size + stderr.stat().st_size <= MAX_LOG and xml.read_bytes() == data and derived.read_bytes() == derived_bytes and not no_key.exists() and (cert is None or leaf.read_bytes() == cert), 'SDK_INPUT_CHANGED')
         a,b = stdout.read_bytes(), stderr.read_bytes()
         stages = parse_sdk_result(a, b, proc.returncode, VERSION, kind)
     check_installation(root, manifest)

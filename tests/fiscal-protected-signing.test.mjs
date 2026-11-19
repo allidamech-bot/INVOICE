@@ -60,7 +60,8 @@ test('native managed SDK4 candidate stamps all three domestic document types usi
     assert.equal(sdk4StampSigningTime(out.bytes),session.at.slice(0,19)+'.000Z');
     assert.match(xml,/<ds:Reference Type="http:\/\/www.w3.org\/2000\/09\/xmldsig#SignatureProperties"/);
     const propertyText=xml.match(/ {32}<xades:SignedProperties[\s\S]*?<\/xades:SignedProperties>/)[0];
-    assert.equal(out.propertiesDigest,Buffer.from(hex(propertyText),'ascii').toString('base64'));
+    const detached=propertyText.trimStart().replace('<xades:SignedProperties Id=','<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id=').replace(/<ds:(DigestMethod|DigestValue|X509IssuerName|X509SerialNumber)(?=[ >])/g,'<ds:$1 xmlns:ds="http://www.w3.org/2000/09/xmldsig#"');
+    assert.equal(out.propertiesDigest,Buffer.from(hex(detached),'ascii').toString('base64'));
     assert.ok(xml.includes('<ds:DigestValue>'+Buffer.from(hex(chainDer[0].toString('base64')),'ascii').toString('base64')+'</ds:DigestValue>'));
     for(const changed of [xml.replace('QA-'+code,'QA-other'),xml.replace('115.00','114.00'),xml.replace('Target="signature"','Target="other"'),xml.replace('SigningCertificate','SigningCertificateV2'),xml.replace(out.payload,out.payload.slice(0,-5)+'AAAA='),xml.replace('CN=Test Root','CN=Other Root'),xml.replace('SignatureProperties','SignedProperties'),xml.replace(/<ds:SignatureValue>./,'<ds:SignatureValue>!')])assert.equal(verifySdk4SimplifiedStamp({...input,bytes:Buffer.from(changed)}),false);
     const before=f.calls();await assert.rejects(buildManagedSdk4SimplifiedStamp({unsigned:Buffer.from(unsigned.toString().replace(credential.issuerVat,'311111111111113')),session,policy,canonicalize}));assert.equal(f.calls(),before);
