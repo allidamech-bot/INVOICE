@@ -1,3 +1,4 @@
+import {assertInvoiceMode,needsSaudiFiscalIssuance,withInvoiceMode} from '../dist/src/lib/invoice-mode.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -101,7 +102,7 @@ async function fixture(){
   const js=ts.transpileModule('class RealAppDraftHarness{\n'+methods+'\n}\nexports.RealAppDraftHarness=RealAppDraftHarness;',{
     compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
   }).outputText;
-  const ctx={exports:{},Error,Promise,structuredClone,
+  const ctx={assertInvoiceMode,needsSaudiFiscalIssuance,exports:{},Error,Promise,structuredClone,
     scopeVault,applyWorkspaceScope,overlayWorkspaceScope,mergeVaultIntent,sameDocumentContent,
     appendAuditEventsForVaultDiff,synchronizeActiveWorkspaceOnSave,assertPlainCloudWorkspaceUploadable,
     currentCloudUser:()=>({uid}),activeAccountStorageUid:()=>uid,

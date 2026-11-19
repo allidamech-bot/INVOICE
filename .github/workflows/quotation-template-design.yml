@@ -24,7 +24,7 @@ permissions:
   contents: read
 jobs:
   template-rendering:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -49,8 +49,12 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck && npm run build
       - run: npm install --no-save --no-package-lock playwright@1.56.1
-      - run: npx playwright install --with-deps chromium webkit
-      - run: sudo apt-get install -y poppler-utils
+      - run: bash scripts/qa-retry.sh npx playwright install --with-deps chromium webkit
+      - name: Install pinned fiscal PDF test prerequisites
+        run: |
+          bash scripts/fiscal/setup-qa-python.sh
+          bash scripts/qa-retry.sh bash -ec 'sudo apt-get -o APT::Update::Error-Mode=any -o Acquire::Retries=2 update && sudo apt-get -o Acquire::Retries=2 install -y poppler-utils'
+          echo "$RUNNER_TEMP/lourex-fiscal-python/bin" >> "$GITHUB_PATH"
       - name: Verify commercial A4 and appearance contracts
         run: node --test tests/*template*.test.mjs tests/document-appearance*.test.mjs tests/document-premium-redesign-v141.test.mjs tests/*pdf*.test.mjs tests/*pagination*.test.mjs tests/*qr*.test.mjs
       - name: Verify 18 templates in Arabic, English and bilingual output

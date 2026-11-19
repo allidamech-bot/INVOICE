@@ -112,7 +112,7 @@ test('hidden party translations do not consume English A4 capacity or satisfy En
 
 test('renderer uses the centralized v312 document catalog without changing the internal quotation kind',async()=>{
   const [renderer,catalog]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/lib/document-kinds.ts')]);
-  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role\)/);
+  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role,doc\.invoiceMode\)/);
   assert.ok(catalog.includes("kind:'proforma',order:3,en:'Quotation',ar:'عرض سعر',titleEn:'QUOTATION'"));
   assert.ok(catalog.includes("kind:'proforma-invoice',order:4,en:'Proforma Invoice',ar:'فاتورة مبدئية',titleEn:'PROFORMA INVOICE'"));
   assert.ok(catalog.includes("kind:'purchase-order',order:5,en:'Purchase Order',ar:'طلب شراء',titleEn:'PURCHASE ORDER'"));
@@ -121,7 +121,7 @@ test('renderer uses the centralized v312 document catalog without changing the i
 test('editor uses centralized document terminology with document-neutral navigation',async()=>{
   const core=await read('src/components/EditorPageCore.tsx');
   const wrapper=await read('src/components/EditorPage.tsx');
-  assert.match(core,/documentKindLabel\(d\.kind,d\.role\)/);
+  assert.match(core,/documentKindLabel\(d\.kind,d\.role,d\.invoiceMode\)/);
   assert.match(core,/t\(kindLabel\.en,kindLabel\.ar\)/);
   assert.match(wrapper,/aria-label=\{t\('Document editing steps','مراحل تحرير المستند'\)\}/);
   assert.doesNotMatch(wrapper,/Invoice editing steps/);

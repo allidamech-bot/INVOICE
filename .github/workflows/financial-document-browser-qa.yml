@@ -37,7 +37,7 @@ jobs:
       - name: Existing financial output and business-cycle regressions
         run: node --test tests/financial-output-parity-v559.test.mjs tests/financial-e2e-v145.test.mjs
       - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
-      - run: npx playwright install --with-deps chromium webkit
+      - run: bash scripts/qa-retry.sh npx playwright install --with-deps chromium webkit
       - name: Existing financial, tax and document browser workflows
         shell: bash
         run: |

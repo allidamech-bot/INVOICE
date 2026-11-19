@@ -1,4 +1,5 @@
 import {assertUniquePurchaseTaxReference} from '../lib/purchase-tax.js';
+import {assertInvoiceMode} from '../lib/invoice-mode.js';
 import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput } from '../lib/money.js';
@@ -767,12 +768,14 @@ function issuedInvoiceFinancialFacts(doc:LourexDocument):unknown{
     items:doc.items,adjustments:doc.adjustments,internalCosts:doc.internalCosts,
     terms:doc.terms,creditForId:doc.creditForId,creditForNumber:doc.creditForNumber,
     convertedFromId:doc.convertedFromId,bankAccountId:doc.bankAccountId,
-    paymentTermPresetId:doc.paymentTermPresetId,...(doc.fiscalAdvance!==undefined?{fiscalAdvance:doc.fiscalAdvance}:{})
+    paymentTermPresetId:doc.paymentTermPresetId,...(doc.invoiceMode!==undefined?{invoiceMode:doc.invoiceMode}:{}),...(doc.fiscalAdvance!==undefined?{fiscalAdvance:doc.fiscalAdvance}:{})
   };
 }
 function guardIssuedInvoiceContinuity(base:VaultPayload,candidate:VaultPayload):void{
   if(candidate.documents===base.documents)return;
   const byId=new Map(candidate.documents.map(doc=>[doc.id,doc]));
+  const previousById=new Map(base.documents.map(doc=>[doc.id,doc]));
+  for(const doc of candidate.documents)assertInvoiceMode(doc,previousById.get(doc.id));
   for(const original of base.documents){
     if(original.kind!=='invoice'||original.status!=='final')continue;
     const next=byId.get(original.id);

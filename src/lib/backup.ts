@@ -1,4 +1,5 @@
 import {assertPurchaseTax} from './purchase-tax.js';
+import {assertInvoiceMode} from './invoice-mode.js';
 import {assertFiscalAdvanceIntegrity} from './fiscal-advance-commercial.js';
 import {calculateTotals} from './money.js';
 import {validatePeriodArchive,type PeriodArchive} from './period-archive.js';
@@ -86,6 +87,7 @@ export function assertRestorableBackupVault(value:unknown):asserts value is Vaul
   if(!Array.isArray(raw.workspaces)&&required)throw new Error('Backup workspaces are missing.');
   if(!Array.isArray(raw.branches)&&required)throw new Error('Backup branches are missing.');
   for(const p of (raw.purchases??[]) as VaultPayload['purchases'])assertPurchaseTax(p);
+  for(const doc of raw.documents as VaultPayload['documents'])if(doc.invoiceMode!==undefined)assertInvoiceMode(doc);
   if((raw.documents as VaultPayload['documents']).some(d=>d.fiscalAdvance!==undefined)){
     try{assertFiscalAdvanceIntegrity(value as VaultPayload,d=>calculateTotals(d.items,d.adjustments));}
     catch(error){throw new Error('Backup advance receipt or application evidence is invalid. No existing workspace data was changed.',{cause:error});}
