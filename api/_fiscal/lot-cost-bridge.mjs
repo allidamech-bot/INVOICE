@@ -21,16 +21,29 @@ export function planReviewedLotCostBridge({purchase,amount,allocations,assignmen
  const allocationMap=new Map(),usedLines=new Set(),assigned=new Map();for(const a of allocations){need(a.lineId&&!allocationMap.has(a.lineId));allocationMap.set(a.lineId,a);}
  for(const a of assignments){need(a.movementId&&!assigned.has(a.movementId)&&Array.isArray(a.lots)&&a.lots.length>0);assigned.set(a.movementId,a.lots);}
  const lots=new Map(),consumed=new Map();
+ // An empty warehouse is a legacy single-location ledger. Never equate it
+ // with a named warehouse. Transfers require explicitly reviewed lot slices.
+ const warehouse=v=>{need(v===undefined||v===''||typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v));return v||'';};
+ const location=(lot,id)=>lot.locations.get(id)??0n;
+ const move=(lot,from,to,n)=>{need(location(lot,from)>=n);lot.locations.set(from,location(lot,from)-n);if(to!==null)lot.locations.set(to,location(lot,to)+n);};
  for(const m of [...related].sort(order)){
    need(!m.salesReturn&&!m.salesReturnCorrection&&!m.invoiceVoidStock&&!m.id.startsWith('fiscal-purchase-return:'));
    const q=signedQty(m.quantity);need(q!==0n);
-   if(m.type==='transfer'){need(q>0n&&m.fromWarehouseId&&m.toWarehouseId&&m.fromWarehouseId!==m.toWarehouseId);continue;}
-   if(q>0n){need(['purchase','opening','adjustment'].includes(m.type));lots.set(m.id,{movement:m,total:q,remaining:q});continue;}
-   need(['issue','adjustment'].includes(m.type));const slices=assigned.get(m.id);need(slices);assigned.delete(m.id);let total=0n;const refs=new Set();
-   for(const a of slices){const n=qty(a.quantity),lot=lots.get(a.receiptId);need(n>0n&&lot&&lot.movement.itemId===m.itemId&&!refs.has(a.receiptId)&&n<=lot.remaining);refs.add(a.receiptId);lot.remaining-=n;total+=n;const arr=consumed.get(a.receiptId)??[];arr.push({movement:m,quantity:n});consumed.set(a.receiptId,arr);}
-   need(total===-q);
+   const transfer=m.type==='transfer';
+   if(transfer)need(q>0n&&warehouse(m.fromWarehouseId)&&warehouse(m.toWarehouseId)&&m.fromWarehouseId!==m.toWarehouseId);
+   if(!transfer&&q>0n){need(['purchase','opening','adjustment'].includes(m.type));lots.set(m.id,{movement:m,total:q,remaining:q,locations:new Map([[warehouse(m.warehouseId),q]])});continue;}
+   need(transfer||['issue','adjustment'].includes(m.type));
+   const from=warehouse(transfer?m.fromWarehouseId:m.warehouseId),to=transfer?warehouse(m.toWarehouseId):null;
+   const slices=assigned.get(m.id);need(slices);assigned.delete(m.id);let total=0n;const refs=new Set();
+   for(const a of slices){
+     const n=qty(a.quantity),lot=lots.get(a.receiptId);need(n>0n&&lot&&lot.movement.itemId===m.itemId&&!refs.has(a.receiptId)&&n<=lot.remaining);refs.add(a.receiptId);
+     move(lot,from,to,n);total+=n;
+     if(!transfer){lot.remaining-=n;const arr=consumed.get(a.receiptId)??[];arr.push({movement:m,quantity:n});consumed.set(a.receiptId,arr);}
+   }
+   need(total===(transfer?q:-q));
  }
  need(assigned.size===0);
+ for(const l of lots.values())need([...l.locations.values()].reduce((a,b)=>a+b,0n)===l.remaining);
  const lines=[],updates=[],claims=[],usedLots=new Set(),latest=new Map();let oldTotal=0n,reliefTotal=0n,inventoryRelief=0n,cogsRelief=0n,expenseRelief=0n;
  for(const m of [...related].sort(order))if(m.type==='purchase')latest.set(m.itemId,m.id);
  for(const l of purchase.items){need(l.id&&!usedLines.has(l.id));usedLines.add(l.id);const a=allocationMap.get(l.id);need(a);const quantity=qty(l.quantity),cost=l.landedUnitCost||l.unitCost,old=stockCostCents(l.quantity,cost),tax=cents(a.deductibleVat),corrected=stockCostCents(l.quantity,a.adjustedUnitCost);need(quantity>0n&&tax<=old&&corrected===old-tax);oldTotal+=old;reliefTotal+=tax;

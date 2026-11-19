@@ -41,6 +41,11 @@ export function commercialFiscalPostingPolicy(document,model,scenario){
 // may remain, but new payment mutations must never increase it.
 export function assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today}){
  need(day(today));
+ const priorIds=new Set(beforePayments.filter(p=>p.purchaseId===purchase.id).map(p=>p.id));
+ const newRows=afterPayments.filter(p=>p.purchaseId===purchase.id&&!priorIds.has(p.id));
+ // A future-dated payment is not a recorded cash settlement and cannot be
+ // used to bypass a currently known supplier credit.
+ need(newRows.every(p=>day(p.date)&&p.date<=today&&!p.voidedAt));
  const afterById=new Map(afterPayments.filter(p=>p.purchaseId===purchase.id).map(p=>[p.id,p]));
  for(const old of beforePayments.filter(p=>p.purchaseId===purchase.id)){
    const next=afterById.get(old.id);need(next);
