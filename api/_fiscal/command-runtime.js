@@ -14,7 +14,17 @@ export function fiscalCommandConfig(env){
   if(account?.project_id!==project||reader?.project_id!==project||typeof account.client_email!=='string'||!account.client_email.endsWith('@'+project+'.iam.gserviceaccount.com')||typeof reader.client_email!=='string'||account.client_email===reader.client_email||typeof account.private_key!=='string'||!account.private_key)throw Error('FISCAL_COMMAND_UNAVAILABLE');
   return {project,account};
 }
-export async function getFiscalQaCommandRuntime({submissionVerifiers}={}){
+// Trusted server composition only, never request options. A complete set
+// of separately verified adapters is required before remote commands exist.
+export function fiscalSimulationAdaptersConfigured(options){
+  if(options===undefined)return false;
+  if(!options||typeof options!=='object'||!options.preparation||!options.submission||!options.enrollment)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
+  const {preparation:p,submission:s,enrollment:e}=options;
+  if([p.canonicalize,p.validateOfficial,p.resolveProtectedSession,s.resolveCredential,s.verifyPrepared,s.verifyAuthorityResult,e.resolveProtectedSession,e.verifyCredential,e.buildComplianceInvoice,e.verifyComplianceResult].some(fn=>typeof fn!=='function')||!p.policy)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
+  return true;
+}
+export async function getFiscalQaCommandRuntime({simulationAdapters}={}){
+  const configured=fiscalSimulationAdaptersConfigured(simulationAdapters);
   const {project,account}=fiscalCommandConfig(process.env);
   const [{initializeApp,getApps,cert},{getFirestore},{getAuth},{createCommercialIssueApproval},{createCommercialReview}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js'),import('./commercial-review.js')]);
   const name='lourex-fiscal-qa-command';let app=getApps().find(a=>a.name===name);
@@ -34,7 +44,18 @@ export async function getFiscalQaCommandRuntime({submissionVerifiers}={}){
   // A genuine trusted SDK/authority adapter is a mandatory prerequisite.
   // The standard hosted route does not supply it; no mock verifier or network
   // submission is enabled by default.
-  const submit=submissionVerifiers?createFiscalSimulationWorker({ledger,...submissionVerifiers}):undefined;
-  const reconcile=submissionVerifiers?createFiscalReconciler({ledger,resolveCredential:submissionVerifiers.resolveCredential,verifyPrepared:submissionVerifiers.verifyPrepared,verifyAuthorityResult:submissionVerifiers.verifyAuthorityResult}):undefined;
-  return {periodService,verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output:createFiscalOutputService({db}),accounting,recover,reconcile,submit})};
+  let submit,reconcile,prepare,enrollment;
+  if(configured){
+    const {preparation:p,submission:s,enrollment:e}=simulationAdapters;
+    const [{createCommercialFiscalPreparation},{getFiscalQaOnboardingRuntime}]=await Promise.all([import('./commercial-preparation.js'),import('./onboarding-runtime.js')]);
+    // Explicit fields only: adapters cannot replace the command ledger/db.
+    prepare=createCommercialFiscalPreparation({db,ledger,canonicalize:p.canonicalize,validateOfficial:p.validateOfficial,resolveProtectedSession:p.resolveProtectedSession,policy:p.policy});
+    const verifiers={resolveCredential:s.resolveCredential,verifyPrepared:s.verifyPrepared,verifyAuthorityResult:s.verifyAuthorityResult};
+    submit=createFiscalSimulationWorker({ledger,...verifiers});
+    reconcile=createFiscalReconciler({ledger,...verifiers});
+    const onboarding=await getFiscalQaOnboardingRuntime({enrollmentVerifiers:{resolveProtectedSession:e.resolveProtectedSession,verifyCredential:e.verifyCredential,buildComplianceInvoice:e.buildComplianceInvoice,verifyComplianceResult:e.verifyComplianceResult}});
+    if(!onboarding.enrollment)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
+    enrollment=onboarding.enrollment;
+  }
+  return {periodService,verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output:createFiscalOutputService({db}),accounting,recover,reconcile,submit,prepare,enrollment})};
 }

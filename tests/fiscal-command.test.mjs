@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createFiscalCommandService} from '../api/_fiscal/command-service.js';
 import {createFiscalCommandHandler} from '../api/_fiscal/command-handler.js';
-import {fiscalCommandConfig} from '../api/_fiscal/command-runtime.js';
+import {fiscalCommandConfig,fiscalSimulationAdaptersConfigured} from '../api/_fiscal/command-runtime.js';
 const scope={accountUid:'owner',workspaceId:'qa',egsId:'egs',environment:'simulation'},owner={uid:'owner',role:'owner'},base='fiscalPrivateV1/owner/workspaces/qa',doc={documentId:'doc',documentRevision:1};
 const cmd=(operation,extra={})=>({operation,workspaceId:'qa',...extra});
 function fixture(patch={}){
@@ -24,7 +24,8 @@ test('wrong account, revision, injected EGS/amount and disabled commands fail cl
 test('trusted preparation and exact queue version are composed without client totals',async()=>{
  const calls=[];const f=fixture({prepare:async(s,id)=>{calls.push(['prepare',s,id]);return {documentId:id,status:'queued',version:1};},submit:async(s,id,v)=>{calls.push(['submit',s,id,v]);return {documentId:id,status:'reported',version:3};}});
  assert.equal((await f.execute(owner,cmd('prepare',doc))).status,'queued');
- f.rows.set(base+'/issues/doc',{...scope,...doc,status:'queued',version:1});await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:2})),/STALE_ISSUE/);
+ f.rows.set(base+'/issueIntents/doc',{...scope,...doc,state:'approved',sha256:'a'.repeat(64)});
+ f.rows.set(base+'/issues/doc',{...scope,...doc,status:'queued',version:1,snapshotDigest:'a'.repeat(64)});await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:2})),/STALE_ISSUE/);
  assert.equal((await f.execute(owner,cmd('submit',{...doc,expectedVersion:1}))).status,'reported');assert.equal(calls.length,2);
 });
 async function http(handler,patch={}){const out={};await handler({method:'POST',headers:{host:'qa.test',origin:'https://qa.test','x-requested-with':'LOUREX-Invoice','content-type':'application/json',authorization:'Bearer '+'a'.repeat(128)},body:cmd('inspect'),...patch},{set statusCode(v){out.status=v;},setHeader(){},end(v){out.body=JSON.parse(v);}});return out;}
@@ -92,4 +93,26 @@ test('supplier settlement command only accepts owner and approved settlement ide
  assert.deepEqual(await f.execute(owner,cmd('post-supplier-settlement',{settlementId:'s1'})),{environment:'simulation',status:'posted',key:'supplier-settlement-s1'});
  for(const extra of [{settlementId:'s1',amount:'1.00'},{settlementId:'bad/path'},{settlementId:'s1',egsId:'other'}])await assert.rejects(f.execute(owner,cmd('post-supplier-settlement',extra)));
  await assert.rejects(f.execute({...owner,role:'viewer'},cmd('post-supplier-settlement',{settlementId:'s1'})));assert.deepEqual(calls,[[scope,'s1']]);
+});
+
+test('queued immutable issue survives unrelated cloud changes but not missing or conflicting approval',async()=>{
+ const calls=[],f=fixture({submit:async(s,id,v)=>{calls.push([s,id,v]);return {status:'reported',version:3};}});
+ const intent={...scope,...doc,state:'approved',sha256:'a'.repeat(64)},issue={...scope,...doc,status:'queued',version:1,snapshotDigest:intent.sha256};
+ f.rows.set(base+'/issues/doc',issue);
+ await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:1})),/STALE_ISSUE/);
+ f.rows.set(base+'/issueIntents/doc',intent);
+ f.rows.set('users/owner/workspace/meta',{chunkStorage:'period-generations-v1',revision:'newer',sha256:'b'.repeat(64)});
+ for(const changed of [{...intent,documentRevision:2},{...intent,sha256:'b'.repeat(64)}]){
+  f.rows.set(base+'/issueIntents/doc',changed);
+  await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:1})),/STALE_ISSUE/);
+ }
+ f.rows.set(base+'/issueIntents/doc',intent);
+ assert.equal((await f.execute(owner,cmd('submit',{...doc,expectedVersion:1}))).status,'reported');
+ assert.deepEqual(calls,[[scope,'doc',1]]);
+});
+test('server simulation composition is off by default and refuses partial verifier bundles',()=>{
+ const fn=()=>{},preparation={canonicalize:fn,validateOfficial:fn,resolveProtectedSession:fn,policy:{}},submission={resolveCredential:fn,verifyPrepared:fn,verifyAuthorityResult:fn},enrollment={resolveProtectedSession:fn,verifyCredential:fn,buildComplianceInvoice:fn,verifyComplianceResult:fn};
+ assert.equal(fiscalSimulationAdaptersConfigured(undefined),false);
+ assert.equal(fiscalSimulationAdaptersConfigured({preparation,submission,enrollment}),true);
+ for(const x of [null,{}, {preparation,submission}, {preparation:{...preparation,validateOfficial:undefined},submission,enrollment}, {preparation,submission:{...submission,verifyAuthorityResult:true},enrollment}])assert.throws(()=>fiscalSimulationAdaptersConfigured(x),/VERIFICATION_UNAVAILABLE/);
 });

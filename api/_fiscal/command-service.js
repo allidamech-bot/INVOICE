@@ -102,11 +102,15 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
       const r=await reviewDocument(identity,{workspaceId:s.workspaceId,egsId:s.egsId,documentId:cmd.documentId,documentRevision:cmd.documentRevision,invoiceType:cmd.invoiceType,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans});
       return {environment:'simulation',...r};
     }
-    need(unit.active&&c.reviewed&&(!c.intent||c.intent.documentRevision===cmd.documentRevision),'FISCAL_REVIEW_REQUIRED');
     if(op==='submit'){
-      need(typeof submit==='function','FISCAL_VERIFICATION_UNAVAILABLE');need(c.issue?.status==='queued'&&c.issue.version===cmd.expectedVersion,'FISCAL_STALE_ISSUE');
+      // The queue already owns an immutable approved snapshot. An unrelated
+      // workspace sync must not strand it; neither may it substitute a new
+      // revision, issuer or approval. The worker re-verifies actual bytes.
+      need(unit.active&&c.intent&&c.issue&&c.intent.documentRevision===cmd.documentRevision&&c.intent.sha256===c.issue.snapshotDigest&&c.issue.status==='queued'&&c.issue.version===cmd.expectedVersion,'FISCAL_STALE_ISSUE');
+      need(typeof submit==='function','FISCAL_VERIFICATION_UNAVAILABLE');
       const r=await submit(s,cmd.documentId,cmd.expectedVersion);return {environment:'simulation',documentId:cmd.documentId,status:r.status,version:r.version};
     }
+    need(unit.active&&c.reviewed&&(!c.intent||c.intent.documentRevision===cmd.documentRevision),'FISCAL_REVIEW_REQUIRED');
     if(op==='prepare')need(typeof prepare==='function','FISCAL_VERIFICATION_UNAVAILABLE');
     const a=await approve(identity,{workspaceId:s.workspaceId,egsId:s.egsId,documentId:cmd.documentId},{expectedDocumentRevision:cmd.documentRevision,requireCommandEnabled:true});
     need(a.documentRevision===cmd.documentRevision,'FISCAL_REVIEW_REQUIRED');
