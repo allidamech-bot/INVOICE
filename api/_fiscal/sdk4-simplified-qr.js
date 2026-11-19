@@ -33,3 +33,18 @@ export function verifySdk4SimplifiedQr({payload,invoiceHash,xmlSignature,leafDer
     return fields.length===9&&expected.every((v,i)=>v.equals(fields[i]))&&verify('sha256',h,{key:leaf.publicKey,dsaEncoding:'der'},sig);
   }catch{return false;}
 }
+
+// Offline encoding boundary for an already issued XML signature. Does not sign,
+// provision or trust a certificate, or permit transport without official validation.
+export function buildSdk4SimplifiedQr(fields){
+  need(fields&&Buffer.isBuffer(fields.leafDer)&&fields.leafDer.length>0&&fields.leafDer.length<=32768);
+  const {leafDer,sellerName,vatNumber,timestamp,total,vat,invoiceHash,xmlSignature}=fields;
+  need([sellerName,vatNumber,timestamp,total,vat,invoiceHash,xmlSignature].every(v=>typeof v==='string'&&v.length>0&&v.length<=255));
+  const leaf=new X509Certificate(leafDer);
+  const values=[sellerName,vatNumber,timestamp.slice(0,-1),total,vat,invoiceHash,xmlSignature].map(v=>Buffer.from(v,'utf8'));
+  values.push(leaf.publicKey.export({format:'der',type:'spki'}),certificateSignature(leaf.raw));
+  need(values.every(v=>v.length>0&&v.length<=255));
+  const payload=Buffer.concat(values.map((v,i)=>Buffer.concat([Buffer.from([i+1,v.length]),v]))).toString('base64');
+  need(verifySdk4SimplifiedQr({...fields,payload}));
+  return payload;
+}

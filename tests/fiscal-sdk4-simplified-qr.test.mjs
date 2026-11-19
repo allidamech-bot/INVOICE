@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {X509Certificate,createHash,sign} from 'node:crypto';
-import {verifySdk4SimplifiedQr} from '../api/_fiscal/sdk4-simplified-qr.js';
+import {verifySdk4SimplifiedQr,buildSdk4SimplifiedQr} from '../api/_fiscal/sdk4-simplified-qr.js';
 
 test('SDK4 simplified QR representation and signature over digest bytes, offline synthetic certificate',()=>{
  const dir=mkdtempSync(join(tmpdir(),'lourex-sdk4-qr-'));
@@ -26,9 +26,11 @@ test('SDK4 simplified QR representation and signature over digest bytes, offline
   values.push(leaf.publicKey.export({type:'spki',format:'der'}),caSignature);
   const encode=v=>Buffer.concat(v.map((b,i)=>Buffer.concat([Buffer.from([i+1,b.length]),b]))).toString('base64');
   const payload=encode(values);assert.equal(verifySdk4SimplifiedQr({...f,payload}),true);
+  assert.equal(buildSdk4SimplifiedQr(f),payload,'encoder equals independently constructed TLV');
   for(let i=0;i<values.length;i++){const x=values.map(b=>Buffer.from(b));x[i][0]^=1;assert.equal(verifySdk4SimplifiedQr({...f,payload:encode(x)}),false,'tag '+(i+1));}
   const wrong=sign('sha256',Buffer.from('synthetic invoice bytes'),{key,dsaEncoding:'der'}).toString('base64');
   const bad=values.map(b=>Buffer.from(b));bad[6]=Buffer.from(wrong);
   assert.equal(verifySdk4SimplifiedQr({...f,xmlSignature:wrong,payload:encode(bad)}),false);
+  for(const invalid of [{xmlSignature:wrong},{invoiceHash:Buffer.alloc(32).toString('base64')},{timestamp:f.timestamp.slice(0,-1)},{vat:'116.00'},{sellerName:'ع'.repeat(128)},{sellerName:' '},{leafDer:Buffer.alloc(10)}])assert.throws(()=>buildSdk4SimplifiedQr({...f,...invalid}));
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
