@@ -3,6 +3,7 @@ import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {hashArtifact,hashCanonicalInvoice} from './fiscal-artifacts.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
 import {buildManagedSdk4SimplifiedStamp} from './sdk4-xades-candidate.js';
+import {normalizeSdk4Proof} from './sdk4-local-validator.js';
 
 // Server-only preparation command. Source is an immutable, separately approved
 // private intent, never a request's monetary fields or a client-selected route.
@@ -47,8 +48,11 @@ export function createCommercialFiscalPreparation({db,ledger,canonicalize,valida
       need(signed.invoiceHash===invoiceHash,'FISCAL_SIGNED_HASH_MISMATCH');
       bytes=Buffer.from(signed.bytes);
     }
-    need(await validateOfficial({scope,mode:mapped.mode,invoice:structuredClone(mapped.invoice),context:structuredClone(mapped.context),bytes:Buffer.from(bytes),invoiceHash})===true,'FISCAL_OFFICIAL_VALIDATION_REQUIRED');
-    const result=await ledger.prepare(scope,{...scope,...identity,mode:mapped.mode,invoiceHash,artifactDigest:hashArtifact(bytes),snapshotDigest:intent.digest},bytes,intent.bytes,{approvedIntent:true});
+    const validated=await validateOfficial({scope,mode:mapped.mode,invoice:structuredClone(mapped.invoice),context:structuredClone(mapped.context),bytes:Buffer.from(bytes),invoiceHash});
+    // Direct synthetic service fixtures retain their explicit boolean adapter.
+    // The configured runtime ledger requires an exact, pinned SDK proof.
+    const sdkProof=validated===true?undefined:normalizeSdk4Proof(validated,{uuid:identity.uuid,mode:mapped.mode,artifactDigest:hashArtifact(bytes)});
+    const result=await ledger.prepare(scope,{...scope,...identity,mode:mapped.mode,invoiceHash,artifactDigest:hashArtifact(bytes),snapshotDigest:intent.digest},bytes,intent.bytes,{approvedIntent:true,...(sdkProof?{sdkProof}:{})});
     return project(result);
   };
 }

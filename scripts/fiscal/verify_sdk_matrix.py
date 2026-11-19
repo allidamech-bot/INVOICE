@@ -11,6 +11,7 @@ from defusedxml import ElementTree
 TYPES = {f"{mode}-{kind}": (prefix, code)
          for mode, prefix in (("standard", "01"), ("simplified", "02"))
          for kind, code in (("invoice", "388"), ("credit", "381"), ("debit", "383"))}
+VALIDATION_TYPES = {**TYPES, 'standard-prepayment': ('01', '386'), 'simplified-prepayment': ('02', '386')}
 CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 UBL = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
 HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -25,7 +26,7 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 def invoice_identity(data, kind):
-    need(0 < len(data) <= MAX_XML and kind in TYPES, "SDK_INVALID_ARTIFACT")
+    need(0 < len(data) <= MAX_XML and kind in VALIDATION_TYPES, "SDK_INVALID_ARTIFACT")
     root = ElementTree.fromstring(data, forbid_dtd=True, forbid_entities=True, forbid_external=True)
     need(root.tag == f"{{{UBL}}}Invoice", "SDK_INVALID_ARTIFACT")
     def field(name):
@@ -34,13 +35,13 @@ def invoice_identity(data, kind):
         return found[0]
     uuid = field("UUID").text
     code = field("InvoiceTypeCode")
-    prefix, expected = TYPES[kind]
+    prefix, expected = VALIDATION_TYPES[kind]
     need(isinstance(uuid, str) and re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", uuid)
          and code.text == expected and re.fullmatch(prefix + r"[01]{5}", code.get("name", "")), "SDK_DOCUMENT_TYPE_MISMATCH")
     return uuid
 
 def parse_sdk_result(stdout, stderr, returncode, version, kind):
-    need(kind in TYPES and re.fullmatch(r"[0-9]+(?:\.[0-9]+){2}", version), "SDK_CONFIGURATION_INVALID")
+    need(kind in VALIDATION_TYPES and re.fullmatch(r"[0-9]+(?:\.[0-9]+){2}", version), "SDK_CONFIGURATION_INVALID")
     need(returncode == 0 and len(stdout) + len(stderr) <= MAX_LOG, "SDK_PROCESS_FAILED")
     report = (stdout + b"\n" + stderr).decode("utf-8", errors="strict")
     banners = re.findall(r"Welcome to ZATCA E-Invoice Java SDK ([0-9.]+)", report)

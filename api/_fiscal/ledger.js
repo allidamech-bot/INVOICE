@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {sdkProofArtifact,readStoredSdkProof} from './sdk4-validation-evidence.js';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {assertCurrentApprovedSource} from './commercial-source.js';
@@ -38,7 +39,8 @@ function outbox(record){
     state:record.status==='queued'||record.status==='retryable'?'ready':record.status==='submitting'||record.status==='uncertain'?'hold':'closed',
     deadline:record.reportingDeadline};
 }
-export function createFiscalLedger(db){
+export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
+  if(sdkInstallationManifestSha256!==undefined&&(typeof sdkInstallationManifestSha256!=='string'||! /^[a-f0-9]{64}$/.test(sdkInstallationManifestSha256)))throw Error('FISCAL_OFFICIAL_VALIDATION_REQUIRED');
   if(!db||typeof db.runTransaction!=='function'||typeof db.doc!=='function')throw new Error('Admin transaction store required.');
   const receipts=createAttemptResponseStore(db);
   async function applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes){
@@ -60,6 +62,9 @@ export function createFiscalLedger(db){
           // Re-check immutable artifacts at the final CAS, not only before verification.
           readBytes(await tx.get(db.doc(issue.path+'/artifacts/prepared')),record.artifactDigest);
           readBytes(await tx.get(db.doc(issue.path+'/artifacts/snapshot')),record.snapshotDigest);
+          // Retain recovery for already submitted legacy records. A stored
+          // SDK proof, when present, must still match the originally queued XML.
+          await readStoredSdkProof(db,tx,issue.path,record);
         }
       }
     }
@@ -105,8 +110,8 @@ export function createFiscalLedger(db){
         return applyTransition(tx,authorizedScope,base,issue,documentId,saved.record,expectedVersion,event,saved.bytes??undefined,undefined);
       });
     },
-    async prepare(authorizedScope,input,xmlBytes,snapshotBytes,{approvedIntent=false}={}){
-      const base=scope(authorizedScope), initial=prepareFiscalIssue(input);
+    async prepare(authorizedScope,input,xmlBytes,snapshotBytes,{approvedIntent=false,sdkProof}={}){
+      const base=scope(authorizedScope), prepared=prepareFiscalIssue(input),proof=sdkProofArtifact(sdkProof,prepared,sdkInstallationManifestSha256),initial={...prepared,...(proof?{sdkValidationDigest:proof.sha256}:{})};
       assertScope(initial,authorizedScope);
       const xml=artifact(xmlBytes,initial.artifactDigest), snapshot=artifact(snapshotBytes,initial.snapshotDigest);
       const issue=db.doc(base+'/issues/'+id(initial.documentId));
@@ -125,7 +130,8 @@ export function createFiscalLedger(db){
         const existing=await tx.get(issue);
         if(existing.exists){
           const stored=existing.data();assertScope(stored,authorizedScope);
-          if(!immutableMatch(stored,initial))throw new Error('Fiscal document already bound to another immutable issue.');
+          if(!immutableMatch(stored,initial)||stored.sdkValidationDigest!==initial.sdkValidationDigest)throw new Error('Fiscal document already bound to another immutable issue.');
+          await readStoredSdkProof(db,tx,issue.path,stored,sdkInstallationManifestSha256);
           return stored;
         }
         const duplicate=await tx.get(uuid);
@@ -142,6 +148,7 @@ export function createFiscalLedger(db){
         tx.create(uuid,{workspaceId:initial.workspaceId,documentId:initial.documentId,egsId:initial.egsId});
         tx.create(db.doc(issue.path+'/artifacts/prepared'),xml);
         tx.create(db.doc(issue.path+'/artifacts/snapshot'),snapshot);
+        if(proof)tx.create(db.doc(issue.path+'/artifacts/sdk-validation'),proof);
         tx.create(db.doc(issue.path+'/events/1'),{version:1,status:'queued',at:initial.generatedAt});
         tx.create(queue,outbox(initial));
         tx.update(egs,{nextIcv,previousInvoiceHash:initial.invoiceHash});
@@ -164,6 +171,7 @@ export function createFiscalLedger(db){
         const expected=outbox(record), actual=job.exists?job.data():null;
         if(!actual||expected.state!=='ready'||Object.keys(expected).some(k=>actual[k]!==expected[k]))throw Error('Fiscal queue not ready.');
         const xmlBytes=readBytes(prepared,record.artifactDigest), snapshotBytes=readBytes(snapshot,record.snapshotDigest);
+        await readStoredSdkProof(db,tx,issue.path,record,sdkInstallationManifestSha256);
         const next=transitionFiscalIssue(record,expectedVersion,{kind:'start',attemptId,at});
         tx.create(db.doc(issue.path+'/events/'+String(next.version)),{version:next.version,status:next.status,kind:'start',attemptId,at,resultDigest:null});
         tx.update(issue,next);tx.update(queue,outbox(next));

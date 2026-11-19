@@ -8,6 +8,7 @@ import {createFiscalOutputService} from './fiscal-output.js';
 import {createFiscalAccounting} from './fiscal-accounting.js';
 import {createFiscalPeriodGuard} from './fiscal-period-guard.js';
 import {createIndependentFiscalPdfVerifier} from './pdf-archive-verifier.js';
+import {createSdk4LocalValidator} from './sdk4-local-validator.js';
 export function fiscalCommandConfig(env){
   const project=fiscalQaProject(env);
   if(env.LOUREX_FISCAL_COMMANDS_ENABLED!=='true')throw Error('FISCAL_COMMAND_UNAVAILABLE');
@@ -21,7 +22,8 @@ export function fiscalSimulationAdaptersConfigured(options){
   if(options===undefined)return false;
   if(!options||typeof options!=='object'||!options.preparation||!options.submission||!options.enrollment)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
   const {preparation:p,submission:s,enrollment:e}=options;
-  if([p.canonicalize,p.validateOfficial,p.resolveProtectedSession,s.resolveCredential,s.verifyPrepared,s.verifyAuthorityResult,e.resolveProtectedSession,e.verifyCredential,e.buildComplianceInvoice,e.verifyComplianceResult].some(fn=>typeof fn!=='function')||!p.policy)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
+  if([p.canonicalize,p.resolveProtectedSession,s.resolveCredential,s.verifyPrepared,s.verifyAuthorityResult,e.resolveProtectedSession,e.verifyCredential,e.buildComplianceInvoice,e.verifyComplianceResult].some(fn=>typeof fn!=='function')||!p.policy||!p.sdk||Object.hasOwn(p,'validateOfficial'))throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
+  try{createSdk4LocalValidator({...p.sdk,canonicalize:p.canonicalize});}catch{throw Error('FISCAL_VERIFICATION_UNAVAILABLE');}
   return true;
 }
 // Private operations are never reachable through parseFiscalCommand.
@@ -39,7 +41,7 @@ export async function getFiscalQaCommandRuntime({simulationAdapters,privateAccep
   if(app&&app.options.projectId!==project)throw Error('FISCAL_COMMAND_UNAVAILABLE');
   if(!app)app=initializeApp({projectId:project,credential:cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
-  const ledger=createFiscalLedger(db),accounting=createFiscalAccounting({db,verifySupplierSettlementEvidence:privateAdapters?.verifySupplierSettlementEvidence,verifyStockGlEvidence:privateAdapters?.verifyStockGlEvidence});
+  const ledger=createFiscalLedger(db,configured?{sdkInstallationManifestSha256:simulationAdapters.preparation.sdk.manifestSha256}:{}),accounting=createFiscalAccounting({db,verifySupplierSettlementEvidence:privateAdapters?.verifySupplierSettlementEvidence,verifyStockGlEvidence:privateAdapters?.verifyStockGlEvidence});
   const output=createFiscalOutputService({db,verifyPdf:privateAdapters?.pdf});
   const periodService=process.env.LOUREX_FISCAL_QA_PERIOD_ENABLED==='true'&&process.env.LOUREX_PERIOD_RULES_VERSION==='1'? (await import('../_accounting/period-store.js')).createPeriodService(db,{fiscalGuard:createFiscalPeriodGuard(db,{closeProof:accounting.closeProof})}):null;
   // Recovery never sends anything. A held attempt is transitioned only via the
@@ -58,7 +60,7 @@ export async function getFiscalQaCommandRuntime({simulationAdapters,privateAccep
     const {preparation:p,submission:s,enrollment:e}=simulationAdapters;
     const [{createCommercialFiscalPreparation},{getFiscalQaOnboardingRuntime}]=await Promise.all([import('./commercial-preparation.js'),import('./onboarding-runtime.js')]);
     // Explicit fields only: adapters cannot replace the command ledger/db.
-    prepare=createCommercialFiscalPreparation({db,ledger,canonicalize:p.canonicalize,validateOfficial:p.validateOfficial,resolveProtectedSession:p.resolveProtectedSession,policy:p.policy});
+    prepare=createCommercialFiscalPreparation({db,ledger,canonicalize:p.canonicalize,validateOfficial:createSdk4LocalValidator({...p.sdk,canonicalize:p.canonicalize}),resolveProtectedSession:p.resolveProtectedSession,policy:p.policy});
     const verifiers={resolveCredential:s.resolveCredential,verifyPrepared:s.verifyPrepared,verifyAuthorityResult:s.verifyAuthorityResult};
     submit=createFiscalSimulationWorker({ledger,...verifiers});
     reconcile=createFiscalReconciler({ledger,...verifiers});

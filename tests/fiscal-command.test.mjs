@@ -111,10 +111,10 @@ test('queued immutable issue survives unrelated cloud changes but not missing or
  assert.deepEqual(calls,[[scope,'doc',1]]);
 });
 test('server simulation composition is off by default and refuses partial verifier bundles',()=>{
- const fn=()=>{},preparation={canonicalize:fn,validateOfficial:fn,resolveProtectedSession:fn,policy:{}},submission={resolveCredential:fn,verifyPrepared:fn,verifyAuthorityResult:fn},enrollment={resolveProtectedSession:fn,verifyCredential:fn,buildComplianceInvoice:fn,verifyComplianceResult:fn};
+ const fn=()=>{},root=process.platform==='win32'?'C:\\qa':'/qa',sdk={pythonExecutable:root,installationRoot:root,manifestPath:root,javaHome:root,manifestSha256:'a'.repeat(64)},preparation={canonicalize:fn,sdk,resolveProtectedSession:fn,policy:{}},submission={resolveCredential:fn,verifyPrepared:fn,verifyAuthorityResult:fn},enrollment={resolveProtectedSession:fn,verifyCredential:fn,buildComplianceInvoice:fn,verifyComplianceResult:fn};
  assert.equal(fiscalSimulationAdaptersConfigured(undefined),false);
  assert.equal(fiscalSimulationAdaptersConfigured({preparation,submission,enrollment}),true);
- for(const x of [null,{}, {preparation,submission}, {preparation:{...preparation,validateOfficial:undefined},submission,enrollment}, {preparation,submission:{...submission,verifyAuthorityResult:true},enrollment}])assert.throws(()=>fiscalSimulationAdaptersConfigured(x),/VERIFICATION_UNAVAILABLE/);
+ for(const x of [null,{}, {preparation,submission}, {preparation:{...preparation,sdk:undefined},submission,enrollment}, {preparation:{...preparation,validateOfficial:fn},submission,enrollment}, {preparation,submission:{...submission,verifyAuthorityResult:true},enrollment}])assert.throws(()=>fiscalSimulationAdaptersConfigured(x),/VERIFICATION_UNAVAILABLE/);
 });
 
 import {privateAcceptanceAdaptersConfigured} from '../api/_fiscal/command-runtime.js';

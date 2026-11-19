@@ -29,8 +29,8 @@ const digest=b=>createHash('sha256').update(b).digest('hex');
 const hash=Buffer.alloc(32,1).toString('base64');
 const at='2026-11-18T10:00:00.000Z', later='2026-11-18T10:01:00.000Z';
 const input={...scope,egsId:'qa-egs',documentId:'qa-doc',uuid:'11111111-1111-4111-8111-111111111111',icv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH,invoiceHash:hash,artifactDigest:digest(xml),snapshotDigest:digest(snapshot),generatedAt:at,mode:'clearance'};
-function fixture(){
-  const s=store(), ledger=createFiscalLedger(s.db);
+function fixture(options={}){
+  const s=store(), ledger=createFiscalLedger(s.db,options);
   s.seed(base,{accountUid:scope.accountUid,workspaceId:scope.workspaceId,environment:'simulation',syntheticOnly:true});
   s.seed(base+'/egs/qa-egs',{...scope,egsId:'qa-egs',active:true,nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
   return {...s,ledger,prepare:(patch={})=>ledger.prepare(scope,{...input,...patch},xml,snapshot)};
@@ -188,4 +188,21 @@ test('worker archives unverified response without accepting it or replaying',asy
   const manifest=f.read(base+'/issues/qa-doc/events/3/artifacts/unverified-response');assert.equal(manifest.chunkCount,2);
   assert.equal(f.read(base+'/issues/qa-doc/artifacts/cleared'),undefined);
   await assert.rejects(f.worker(simScope,'qa-doc',3));assert.equal(f.calls(),1);
+});
+
+test('configured ledger requires pinned SDK evidence atomically before reserving a sequence or claiming transport',async()=>{
+ const pin='a'.repeat(64),f=fixture({sdkInstallationManifestSha256:pin}),proof={format:'LOUREX_SDK4_VALIDATION_V1',sdkVersion:'4.0.0',sdkArchiveSha256:'0e6f62f85c4f5d5da78dba7a9ec90566721e7efeef05dfb4514a159a8e66b1b9',installationManifestSha256:pin,kind:'standard-invoice',uuid:input.uuid,xmlSha256:input.artifactDigest,logSha256:'b'.repeat(64),stages:['XSD','EN','KSA','PIH']};
+ await assert.rejects(f.prepare(),/OFFICIAL_VALIDATION_REQUIRED/);
+ for(const p of [{...proof,installationManifestSha256:'c'.repeat(64)},{...proof,xmlSha256:'d'.repeat(64)},{...proof,stages:['XSD']}])await assert.rejects(f.ledger.prepare(scope,input,xml,snapshot,{sdkProof:p}),/OFFICIAL_VALIDATION_REQUIRED/);
+ assert.equal(f.size(),2);assert.equal(f.read(base+'/egs/qa-egs').nextIcv,'1');
+ const a=await f.ledger.prepare(scope,input,xml,snapshot,{sdkProof:proof}),path=base+'/issues/qa-doc/artifacts/sdk-validation',stored=f.read(path);
+ assert.equal(a.sdkValidationDigest,stored.sha256);assert.equal(digest(Buffer.from(stored.bytes,'base64')),stored.sha256);
+ assert.deepEqual(await f.ledger.prepare(scope,input,xml,snapshot,{sdkProof:proof}),a);assert.equal(f.size(),9);
+ f.seed(path,{...stored,bytes:Buffer.from('changed').toString('base64')});
+ await assert.rejects(f.ledger.claim(scope,'qa-doc',1,'attempt',later),/OFFICIAL_VALIDATION_REQUIRED/);assert.equal(f.read(base+'/outbox/qa-doc').state,'ready');
+ f.seed(path,stored);assert.equal((await f.ledger.claim(scope,'qa-doc',1,'attempt',later)).record.status,'submitting');
+});
+test('legacy queued artifacts cannot enter newly configured SDK-required transport',async()=>{
+ const f=fixture();await f.prepare();const guarded=createFiscalLedger(f.db,{sdkInstallationManifestSha256:'a'.repeat(64)});
+ await assert.rejects(guarded.claim(scope,'qa-doc',1,'attempt',later),/OFFICIAL_VALIDATION_REQUIRED/);assert.equal(f.read(base+'/issues/qa-doc').status,'queued');
 });

@@ -483,6 +483,8 @@ const CONTRACTS=[
   'tests/fiscal-xades-reference.test.mjs',
   'tests/fiscal-simplified-qr-reference.test.mjs',
   'tests/fiscal-sdk4-simplified-qr.test.mjs',
+  'tests/fiscal-sdk4-local-validator.test.mjs',
+  'tests/fiscal-sdk4-validation-evidence.test.mjs',
   'tests/fiscal-clearance-verifier.test.mjs',
   'tests/fiscal-authority-evidence.test.mjs',
   'tests/fiscal-authority-certificate.test.mjs',
