@@ -77,6 +77,7 @@ export function adjustedSupplierPaymentVoucher(purchase:PurchaseRecord,row:Fisca
   if(!row||!journal||purchase.status!=='posted'||!postedOnOrBefore(purchase,row.date)||row.currency!=='SAR'||purchase.currency!==row.currency||row.purchaseId!==purchase.id||row.workspaceId!==purchase.workspaceId||row.branchId!==purchase.branchId||row.supplierId!==purchase.supplierSnapshot?.sourceSupplierId||!purchase.number.trim()||!isIsoDate(row.date)||row.date>today||!storedMoney(row.amount)||row.reversalId!==null||row.reversalDate!==null||!/^[A-Za-z0-9_-]{1,128}$/.test(row.id)||!/^[A-Za-z0-9_-]{1,128}$/.test(row.treasuryEntryId)||!['bank','cash'].includes(row.accountKind))fail();
   purchasePayableSummary(purchase,payments,today,journal);
   const matches=journal.entries.filter(e=>e.id==='settlement:'+row.id);
-  if(matches.length!==1||matches[0].type!=='adjusted-payment'||matches[0].reference!==row.id||matches[0].date!==row.date||matches[0].debit!==row.amount||matches[0].credit!=='0.00')fail();
+  const match=matches[0];
+  if(matches.length!==1||!match||match.type!=='adjusted-payment'||match.reference!==row.id||match.date!==row.date||match.debit!==row.amount||match.credit!=='0.00')fail();
   return {kind:'supplier-disbursement',recordId:'settlement:'+row.id,sourceId:purchase.id,sourceNumber:purchase.number,paymentReference:row.treasuryEntryId,amount:row.amount,currency:row.currency,date:row.date,method:row.accountKind==='cash'?'cash':'other',notes:'',partyNameEn:purchase.supplierSnapshot?.nameEn||'',partyNameAr:purchase.supplierSnapshot?.nameAr||'',companyNameEn:company.nameEn,companyNameAr:company.nameAr,companyLogo:company.logoDataUrl,simulationSettlement:{treasuryEntryId:row.treasuryEntryId,accountKind:row.accountKind}};
 }
