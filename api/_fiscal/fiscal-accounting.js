@@ -9,7 +9,7 @@ import {inspectReturnPostings} from './return-postings.js';
 import {planPurchaseCostCorrection} from './purchase-cost-correction.mjs';
 import {fiscalSalesCoverage} from './fiscal-coverage.mjs';
 import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
-import {reconcileDomesticPurchase} from './purchase-reconciliation.mjs';
+import {reconcileDomesticPurchase,canReplayAdjustedSupplierPayable} from './purchase-reconciliation.mjs';
 import {createHash,randomBytes} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
@@ -405,7 +405,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,payableTotal:purchaseFinancialTotals(p).payableTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
              const balance=supplierSettlementTimeline({purchase:p,original,adjustments:corrections,payments:source.payload.supplierPayments,through:to});
              need(balance.paid===baseRecon.paid,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
-             if(baseRecon.legacyPayable===baseRecon.fiscalPayable&&baseRecon.paymentsMatch&&!balance.violations.length)apSources.set(p.id,{purchase:p,original,adjustments:corrections.filter(x=>x.amount.treatment==='domestic'),payments:source.payload.supplierPayments,through:to,legacyPayable:baseRecon.legacyPayable});
+             if(canReplayAdjustedSupplierPayable(baseRecon,balance))apSources.set(p.id,{purchase:p,original,adjustments:corrections.filter(x=>x.amount.treatment==='domestic'),payments:source.payload.supplierPayments,through:to,legacyPayable:baseRecon.legacyPayable});
              const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));
              let catalogCostCorrectionDate=null,valuationBridge=null;
              if(cost){

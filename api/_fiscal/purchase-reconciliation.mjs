@@ -25,7 +25,15 @@ export function reconcileDomesticPurchase({purchase,amount,landedTotal,payableTo
    if(p.voidedAt){const voidDate=String(p.voidedAt).slice(0,10);if(!day(voidDate)||voidDate<p.date){paymentsMatch=false;continue;}if(voidDate<=through)continue;}
    const n=money(p.amount);if(n<=0n){paymentsMatch=false;continue;}paid+=n;
  }
+ // Evidence integrity and the legacy gross cap are distinct. A verified
+ // supplier debit can extend liability without changing the original purchase.
+ const paymentEvidenceMatches=paymentsMatch;
  if(paid>gross)paymentsMatch=false;
  const fiscalCost=gross-deductible;
- return {legacyPayable:format(commercialPayable),fiscalPayable:format(gross),paid:format(paid),legacyOutstanding:format(commercialPayable-paid),fiscalOutstanding:format(gross-paid),legacyCost:format(legacy),fiscalCost:format(fiscalCost),costDifference:format(legacy-fiscalCost),expectedInboundStock:format(expectedStock),recordedInboundStock:format(actualStock),stockMatches,paymentsMatch,matched:commercialPayable===gross&&legacy===fiscalCost&&stockMatches&&paymentsMatch};
+ return {legacyPayable:format(commercialPayable),fiscalPayable:format(gross),paid:format(paid),legacyOutstanding:format(commercialPayable-paid),fiscalOutstanding:format(gross-paid),legacyCost:format(legacy),fiscalCost:format(fiscalCost),costDifference:format(legacy-fiscalCost),expectedInboundStock:format(expectedStock),recordedInboundStock:format(actualStock),stockMatches,paymentsMatch,paymentEvidenceMatches,matched:commercialPayable===gross&&legacy===fiscalCost&&stockMatches&&paymentsMatch};
+}
+
+// This is AP replay eligibility, not payment authorization or period closure.
+export function canReplayAdjustedSupplierPayable(reconciliation,timeline){
+ return reconciliation.paymentEvidenceMatches===true&&reconciliation.legacyPayable===reconciliation.fiscalPayable&&reconciliation.paid===timeline.paid&&Array.isArray(timeline.violations)&&timeline.violations.length===0;
 }

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {reconcileDomesticPurchase} from '../api/_fiscal/purchase-reconciliation.mjs';
+import {reconcileDomesticPurchase,canReplayAdjustedSupplierPayable} from '../api/_fiscal/purchase-reconciliation.mjs';
+import {supplierSettlementTimeline} from '../api/_fiscal/settlement-integrity.mjs';
+import {projectSupplierAPJournal} from '../api/_fiscal/supplier-ap-reconciliation.mjs';
 const scope={workspaceId:'w',branchId:'b',currency:'SAR'};
 const purchase={...scope,id:'p',number:'P-1',date:'2026-11-01',status:'posted',supplierSnapshot:{sourceSupplierId:'s'},items:[{savedItemId:'i',quantity:'2',unitCost:'57.50',landedUnitCost:'57.50'}]};
 const amount={kind:'invoice',treatment:'domestic',net:'100.00',vat:'15.00',gross:'115.00',deductibleVat:'0.00'};
@@ -15,3 +17,27 @@ test('duplicate, wrong supplier or excess payments do not reconcile',()=>{for(co
 test('untracked purchases do not fabricate stock, and mismatched gross is surfaced',()=>{const r=reconcileDomesticPurchase({...base,purchase:{...purchase,items:[{savedItemId:''}]},movements:[],landedTotal:'114.00'});assert.equal(r.stockMatches,true);assert.equal(r.recordedInboundStock,'0.00');assert.equal(r.matched,false);});
 
 test('typed purchase payable and inventory cost reconcile separately without a second deduction',()=>{const r=reconcileDomesticPurchase({...base,amount:{...amount,deductibleVat:'15.00'},purchase:{...purchase,items:[{...purchase.items[0],unitCost:'50.00',landedUnitCost:'50.00'}]},landedTotal:'100.00',payableTotal:'115.00',movements:[{...movement,unitCost:'50.00'}]});assert.equal(r.matched,true);assert.equal(r.fiscalPayable,'115.00');assert.equal(r.legacyCost,'100.00');assert.equal(r.recordedInboundStock,'100.00');assert.equal(r.costDifference,'0.00');assert.equal(r.legacyOutstanding,'85.00');});
+
+test('verified debit extends AP replay but does not authorize payment or clear the legacy close blocker',()=>{
+ const original={...scope,key:'purchase-p',source:'purchase',sourceId:purchase.id,originalId:null,taxDate:purchase.date,amount:{...amount,lines:[{account:'purchase-cost',side:'debit',amount:'115.00'},{account:'accounts-payable',side:'credit',amount:'115.00'}]}};
+ const debit={...original,key:'debit-1',originalId:purchase.id,taxDate:'2026-11-02',amount:{kind:'debit-note',treatment:'domestic',net:'20.00',vat:'3.00',gross:'23.00',deductibleVat:'0.00',lines:[{account:'purchase-cost',side:'debit',amount:'23.00'},{account:'accounts-payable',side:'credit',amount:'23.00'}]}};
+ const paid={...payment,date:'2026-11-03',amount:'130.00'};
+ const reconciliation=reconcileDomesticPurchase({...base,payments:[paid]});
+ const input={purchase,original,adjustments:[debit],payments:[paid],through:base.through};
+ const timeline=supplierSettlementTimeline(input);
+ assert.equal(reconciliation.paymentEvidenceMatches,true);
+ assert.equal(reconciliation.paymentsMatch,false);
+ assert.equal(reconciliation.matched,false);
+ assert.equal(canReplayAdjustedSupplierPayable(reconciliation,timeline),true);
+ const journal=projectSupplierAPJournal({...input,settlementJournals:[],legacyPayable:'115.00'});
+ assert.equal(journal.adjustedPayable,'138.00');assert.equal(journal.outstanding,'8.00');
+ assert.equal(canReplayAdjustedSupplierPayable(reconciliation,supplierSettlementTimeline({...input,adjustments:[]})),false);
+ assert.equal(canReplayAdjustedSupplierPayable(reconciliation,supplierSettlementTimeline({...input,payments:[{...paid,date:purchase.date}]})),false);
+ for(const payments of [[paid,paid],[{...paid,branchId:'wrong'}],[{...paid,supplierId:'wrong'}],[{...paid,purchaseNumber:'wrong'}]]){
+   const bad=reconcileDomesticPurchase({...base,payments});
+   assert.equal(bad.paymentEvidenceMatches,false);
+   assert.equal(canReplayAdjustedSupplierPayable(bad,timeline),false);
+ }
+ assert.equal(canReplayAdjustedSupplierPayable({...reconciliation,legacyPayable:'114.00'},timeline),false);
+ assert.equal(canReplayAdjustedSupplierPayable(reconciliation,{...timeline,paid:'129.00'}),false);
+});
