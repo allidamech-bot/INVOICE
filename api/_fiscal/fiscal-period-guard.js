@@ -1,3 +1,4 @@
+import {assertSettlementCashContinuity,assertSupplierSettlementContinuity} from './supplier-settlement-posting.mjs';
 import {assertAdvanceContinuity} from './advance-commercial.js';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
 import {assertSupplierSettlementTransition} from './settlement-integrity.mjs';
@@ -29,6 +30,7 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
    }
    if(input.operation!=='commit')continue;
    try{await assertAdvanceContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_ADVANCE_LOCKED');}
+   try{await assertSettlementCashContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_SETTLEMENT_CASH_LOCKED');}
    const a=new Map(before.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));
    const b=new Map(candidate.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));
    const changed=[...new Set([...a.keys(),...b.keys()])].filter(k=>!same(a.get(k),b.get(k)));
@@ -73,6 +75,10 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
        const adjustments=snapshot.docs.map(x=>{const r=x.data();if(r.key!==x.id)fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');return r;}).filter(x=>x.source==='purchase'&&x.key!==original.key);
        assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today:new Date().toISOString().slice(0,10)});
      }catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
+   }
+   if(changedPurchases.size){
+     if(!id(scope.selectedEgsId))fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+     try{await assertSupplierSettlementContinuity(db,tx,{accountUid:uid,workspaceId,egsId:scope.selectedEgsId,environment:'simulation'},candidate);}catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
    try{await assertFiscalCostContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_COST_HISTORY_LOCKED');}
    const oldReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m)),newReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m));

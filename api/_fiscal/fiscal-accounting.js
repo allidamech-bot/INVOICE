@@ -1,3 +1,4 @@
+import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity} from './supplier-settlement-posting.mjs';
 import {planAdvanceCommercial,verifyAdvanceReport} from './advance-commercial.js';
 import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
@@ -307,6 +308,14 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      return {status:'posted',key:'purchase-return-'+id};
    });
  }
+ async function postSupplierSettlement(s,id){
+   validateScope(s);need(typeof id==='string'&&ID.test(id));
+   return db.runTransaction(async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
+     const source=await published(db,tx,s,id);
+     return postSupplierSettlementJournal(db,tx,s,source,id,clock().slice(0,10));
+   });
+ }
  async function postPurchaseAdjustment(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
    const {purchaseTotals,purchaseFinancialTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
@@ -355,6 +364,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        need(!(await tx.get(ref)).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
        reservation={ref,row:{...s,key,digest:approval.evidenceDigest},old:null};
      }
+     if(treatment==='domestic')await assertSupplierSettlementContinuity(db,tx,s,source.payload,row);
      const result=await writePosting(tx,s,key,row,unique);
      tx.create(numberRef,{...s,key,digest:row.evidenceDigest});
      if(reservation){if(reservation.old)tx.update(reservation.ref,reservation.row);else tx.create(reservation.ref,reservation.row);}
@@ -464,14 +474,15 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
-     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
+     const supplierSettlements=await readSupplierSettlements(db,tx,s,source.payload,from,to);
+     return {supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
  async function closeProof(tx,s,through){
    const snapshot=await reportInTransaction(tx,s,'0001-01-01',through,{strictClose:true});
-   need(snapshot.unmatched===0&&snapshot.unpostedSales===0&&snapshot.pendingSales===0&&snapshot.unreviewedPurchases===0&&snapshot.pendingAdjustments.length===0&&snapshot.salesBlockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+   need(snapshot.unmatched===0&&snapshot.unpostedSales===0&&snapshot.pendingSales===0&&snapshot.unreviewedPurchases===0&&snapshot.pendingAdjustments.length===0&&snapshot.supplierSettlements.pending.length===0&&snapshot.salesBlockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,report,closeProof});
+ return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof});
 }

@@ -11,10 +11,11 @@ const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].ever
 export function parseFiscalCommand(v){
   need(v&&typeof v==='object'&&!Array.isArray(v),'INVALID_COMMAND');
   const op=v.operation,keys=['operation','workspaceId'];
-  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale','post-purchase','post-purchase-cost','post-purchase-adjustment','post-purchase-return','vat-report'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
+  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale','post-purchase','post-purchase-cost','post-purchase-adjustment','post-purchase-return','post-supplier-settlement','vat-report'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
   if(['document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale'].includes(op)){keys.push('documentId','documentRevision');need(id(v.documentId)&&version(v.documentRevision),'INVALID_COMMAND');}
   if(op==='post-purchase-adjustment'||op==='post-purchase-return'){keys.push('adjustmentId');need(id(v.adjustmentId),'INVALID_COMMAND');}
   if(op==='post-purchase'||op==='post-purchase-cost'){keys.push('purchaseId');need(id(v.purchaseId),'INVALID_COMMAND');}
+  if(op==='post-supplier-settlement'){keys.push('settlementId');need(id(v.settlementId),'INVALID_COMMAND');}
   if(op==='vat-report'){keys.push('from','to');need(typeof v.from==='string'&&typeof v.to==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.from)&&/^\d{4}-\d{2}-\d{2}$/.test(v.to),'INVALID_COMMAND');}
   if(op==='download'){keys.push('format');need(['xml','pdf'].includes(v.format),'INVALID_COMMAND');}
   if(op==='review'){keys.push('invoiceType','supplyDate','paymentMeans');need(['standard','simplified'].includes(v.invoiceType)&&typeof v.supplyDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.supplyDate)&&['10','30','42','48','1'].includes(v.paymentMeans),'INVALID_COMMAND');}
@@ -65,9 +66,10 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
       const r=await enrollment[method](identity,{workspaceId:s.workspaceId,egsId:s.egsId,...(op==='enroll'?{otp:cmd.otp}:{expectedVersion:cmd.expectedVersion})});
       return {environment:'simulation',state:r.state,version:r.version};
     }
-    if(op==='vat-report'||op==='post-purchase'||op==='post-purchase-cost'||op==='post-purchase-adjustment'||op==='post-purchase-return'||op==='post-sale'){
+    if(op==='vat-report'||op==='post-purchase'||op==='post-purchase-cost'||op==='post-purchase-adjustment'||op==='post-purchase-return'||op==='post-supplier-settlement'||op==='post-sale'){
       need(accounting,'FISCAL_ACCOUNTING_UNAVAILABLE');
       if(op==='vat-report')return accounting.report(s,cmd.from,cmd.to);
+      if(op==='post-supplier-settlement')return {environment:'simulation',...await accounting.postSupplierSettlement(s,cmd.settlementId)};
       if(op==='post-purchase-return')return {environment:'simulation',...await accounting.postPurchaseReturn(s,cmd.adjustmentId)};
       if(op==='post-purchase-adjustment')return {environment:'simulation',...await accounting.postPurchaseAdjustment(s,cmd.adjustmentId)};
       if(op==='post-purchase-cost')return {environment:'simulation',...await accounting.postPurchaseCost(s,cmd.purchaseId)};

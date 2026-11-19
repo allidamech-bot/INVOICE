@@ -86,3 +86,10 @@ test('supplier dispatch command accepts only approved adjustment identity from t
  for(const extra of [{adjustmentId:'a',quantity:'1'},{adjustmentId:'a',warehouseId:'injected'},{adjustmentId:'bad/path'}])await assert.rejects(f.execute(owner,cmd('post-purchase-return',extra)));
  await assert.rejects(f.execute({...owner,role:'viewer'},cmd('post-purchase-return',{adjustmentId:'a'})));assert.deepEqual(calls,[[scope,'a']]);
 });
+
+test('supplier settlement command only accepts owner and approved settlement identity',async()=>{
+ const calls=[];const f=fixture({accounting:{postSupplierSettlement:async(s,id)=>{calls.push([s,id]);return {status:'posted',key:'supplier-settlement-'+id};}}});
+ assert.deepEqual(await f.execute(owner,cmd('post-supplier-settlement',{settlementId:'s1'})),{environment:'simulation',status:'posted',key:'supplier-settlement-s1'});
+ for(const extra of [{settlementId:'s1',amount:'1.00'},{settlementId:'bad/path'},{settlementId:'s1',egsId:'other'}])await assert.rejects(f.execute(owner,cmd('post-supplier-settlement',extra)));
+ await assert.rejects(f.execute({...owner,role:'viewer'},cmd('post-supplier-settlement',{settlementId:'s1'})));assert.deepEqual(calls,[[scope,'s1']]);
+});

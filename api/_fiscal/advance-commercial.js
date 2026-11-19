@@ -1,3 +1,4 @@
+import {settlementCashClaim} from './supplier-settlement-posting.mjs';
 import {reviewDigest,currentPublishedFiscalSource} from './commercial-source.js';
 import {validateMeta,decodeWorkspace} from '../_accounting/period-format.js';
 import {simulationBase} from './simulation-scope.js';
@@ -22,7 +23,7 @@ export async function reserveAdvanceCash(db,tx,s,doc,scenario,issue){
  const binding={kind:'receipt',gross:scenario.gross,evidenceDigest:scenario.evidenceDigest,treasuryEntryId:scenario.treasuryEntryId};
  const cash=await verifyReceiptCash(db,tx,s,payload,doc,binding,proof,scenario.treasuryEntryDigest);need(cash.account.active===true&&doc.items.every(l=>l.stockTreatment==='non-stock'));
  const ref=reservationIndex(db,s,binding.treasuryEntryId);
- need(!(await tx.get(ref)).exists&&!(await tx.get(receiptIndex(db,s,binding.treasuryEntryId))).exists,'FISCAL_ADVANCE_CASH_ALREADY_CLAIMED');
+ need(!(await tx.get(ref)).exists&&!(await tx.get(receiptIndex(db,s,binding.treasuryEntryId))).exists&&!(await tx.get(settlementCashClaim(db,s,binding.treasuryEntryId))).exists,'FISCAL_ADVANCE_CASH_ALREADY_CLAIMED');
  const record={...s,documentId:doc.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,evidenceDigest:binding.evidenceDigest,treasuryEntryId:binding.treasuryEntryId,cashDigest:cash.cashDigest};
  return {write(tx){tx.create(ref,record);}};
 }
