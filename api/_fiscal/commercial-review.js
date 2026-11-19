@@ -53,7 +53,7 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
       }
       let correction={};
       if(d.role==='credit-note'){
-        const original=await resolveFiscalCreditOriginal(db,tx,s,d);
+        const original=contextRecord?.scenario?.kind==='advance-refund'?{}:await resolveFiscalCreditOriginal(db,tx,s,d);
         const remarks=typeof d.terms?.remarks==='string'?d.terms.remarks:'';
         const reasons=remarks.split('\n').filter(x=>x.startsWith('Reason / السبب: '));
         need(reasons.length===1&&reasons[0].slice('Reason / السبب: '.length).trim()&&remarks.includes('VAT treatment: source invoice tax / المعالجة الضريبية: ضريبة الفاتورة الأصلية')&&!remarks.includes('VAT treatment: unchanged VAT'),'FISCAL_CORRECTION_REASON_REQUIRED');

@@ -460,7 +460,8 @@ export interface DocumentAppearance {
 /** Immutable fiscal cash receipt or allocation; created by the trusted QA writer. */
 export type FiscalAdvanceBinding =
   | {kind:'receipt';net:string;vat:string;gross:string;evidenceDigest:string;treasuryEntryId:string}
-  | {kind:'settlement';net:string;vat:string;gross:string;evidenceDigest:string;allocations:{receiptId:string;net:string;vat:string;gross:string}[]};
+  | {kind:'settlement';net:string;vat:string;gross:string;evidenceDigest:string;allocations:{receiptId:string;net:string;vat:string;gross:string}[]}
+  | {kind:'refund';net:string;vat:string;gross:string;evidenceDigest:string;receiptId:string;treasuryEntryId:string;resultDigest:string;cashDigest:string};
 
 export interface LourexDocument extends WorkspaceScopeFields {
   fiscalAdvance?: FiscalAdvanceBinding;

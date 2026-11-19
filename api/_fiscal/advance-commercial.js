@@ -1,8 +1,11 @@
+import {createHash} from 'node:crypto';
+import {planCustomerAdvanceRefund} from './advance-refund-plan.mjs';
 import {settlementCashClaim} from './supplier-settlement-posting.mjs';
 import {reviewDigest,currentPublishedFiscalSource} from './commercial-source.js';
 import {validateMeta,decodeWorkspace} from '../_accounting/period-format.js';
 import {simulationBase} from './simulation-scope.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
+import {readApprovedIntent} from './issue-intent.js';
 import {loadCompiledFinance} from '../_accounting/compiled-finance-loader.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/;
 const need=(v,c='FISCAL_ADVANCE_COMMERCIAL_REQUIRED')=>{if(!v)throw Error(c);};
@@ -99,6 +102,65 @@ export async function planAdvanceCommercial(db,tx,s,source,p,a,m,model){
  need(net<=cents(model.net)&&vat<=cents(model.vat)&&cents(model.recognizedNet)===cents(model.net)-net&&cents(model.recognizedVat)===cents(model.vat)-vat&&money(net+vat)===m.candidate.prepaymentContext.prepaid&&money(cents(model.gross)-net-vat)===m.candidate.prepaymentContext.payable);
  return {binding:{kind:'settlement',net:money(net),vat:money(vat),gross:money(net+vat),evidenceDigest:a.record.resultDigest,allocations},write(){}};
 }
+// Resolve only a private, revision-bound refund instruction against the
+// current published wallet. Review and issuance both recheck the exact cash.
+export async function resolveAdvanceRefundEvidence(db,tx,s,d,instruction){
+ const base=simulationBase(s);
+ need(instruction?.kind==='advance-refund'&&Object.keys(instruction).length===2&&typeof instruction.evidenceDigest==='string'&&HEX.test(instruction.evidenceDigest)&&d.role==='credit-note'&&d.currency==='SAR'&&d.status==='draft'&&d.lifecycleStatus==='active'&&typeof d.creditForId==='string'&&ID.test(d.creditForId)&&d.creditForId!==d.id&&d.items.length>0&&d.items.every(l=>l.stockTreatment==='non-stock'&&!l.savedItemId));
+ const source=await currentPublishedFiscalSource(db,tx,s,d.id),meta=validateMeta(source.meta);need(meta.chunkCount<=24&&(!source.closedThrough||d.issueDate>source.closedThrough));
+ const chunks=[];for(let i=0;i<meta.chunkCount;i++)chunks.push(data(await tx.get(db.doc(source.root+'/periodGenerations/'+meta.revision+'/chunks/chunk-'+meta.revision+'-'+String(i).padStart(5,'0')))));
+ const payload=decodeWorkspace(meta,chunks),drafts=payload.documents.filter(x=>x.id===d.id),receipts=payload.documents.filter(x=>x.id===d.creditForId);
+ need(drafts.length===1&&equal(drafts[0],d)&&receipts.length===1,'FISCAL_ADVANCE_SOURCE_CHANGED');
+ const receipt=receipts[0],binding=receipt.fiscalAdvance;
+ need(binding?.kind==='receipt'&&receipt.status==='final'&&receipt.lifecycleStatus==='active'&&receipt.kind==='invoice'&&receipt.role==='standard'&&receipt.workspaceId===d.workspaceId&&receipt.branchId===d.branchId&&receipt.currency===d.currency&&receipt.number===d.creditForNumber&&receipt.issueDate<=d.issueDate&&receipt.customerSnapshot?.sourceCustomerId===d.customerSnapshot?.sourceCustomerId&&receipt.customerSnapshot?.vatTaxNumber===d.customerSnapshot?.vatTaxNumber&&receipt.companySnapshot?.vatNumber===d.companySnapshot?.vatNumber);
+ const posting=data(await tx.get(db.doc(base+'/accountingEntries/sale-'+receipt.id)));
+ need(same(posting,s)&&posting.commercialPosted===true&&posting.source==='sale'&&posting.key==='sale-'+receipt.id&&posting.sourceId===receipt.id&&posting.finalFingerprint===reviewDigest(receipt)&&equal(posting.advanceBinding,binding)&&posting.amount?.kind==='prepayment'&&posting.amount.net===binding.net&&posting.amount.vat===binding.vat&&posting.amount.gross===binding.gross);
+ const index=data(await tx.get(receiptIndex(db,s,binding.treasuryEntryId))),depositProof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+binding.evidenceDigest)));
+ need(same(index,s)&&index.documentId===receipt.id&&index.uuid===posting.uuid&&index.evidenceDigest===binding.evidenceDigest&&index.treasuryEntryId===binding.treasuryEntryId&&HEX.test(index.cashDigest));
+ await verifyReceiptCash(db,tx,s,payload,receipt,binding,depositProof,index.cashDigest);
+ const proof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+instruction.evidenceDigest)));
+ need(same(proof,s)&&proof.state==='approved'&&proof.kind==='advance-refund'&&proof.documentId===d.id&&proof.documentRevision===d.revision&&proof.receiptId===receipt.id&&proof.evidenceDigest===instruction.evidenceDigest&&proof.currency==='SAR'&&proof.customerId===d.customerSnapshot?.sourceCustomerId&&proof.creditFingerprint===reviewDigest(d)&&proof.receiptFingerprint===reviewDigest(receipt)&&cents(proof.net)>0n&&cents(proof.net)+cents(proof.vat)===cents(proof.gross)&&cents(proof.net)<=cents(binding.net)&&cents(proof.vat)<=cents(binding.vat)&&typeof proof.treasuryEntryId==='string'&&ID.test(proof.treasuryEntryId)&&HEX.test(proof.cashDigest)&&typeof proof.bytes==='string'&&proof.bytes.length<=700000);
+ const bytes=Buffer.from(proof.bytes,'base64');need(bytes.length>0&&bytes.toString('base64')===proof.bytes&&createHash('sha256').update(bytes).digest('hex')===proof.evidenceDigest);
+ const entries=payload.treasuryEntries.filter(x=>x.id===proof.treasuryEntryId);need(entries.length===1);const cash=entries[0];
+ need(cash.type==='withdrawal'&&cash.sourceType==='manual'&&!cash.sourceId&&!cash.toAccountId&&!cash.voidedAt&&typeof cash.fromAccountId==='string'&&ID.test(cash.fromAccountId)&&cash.workspaceId===d.workspaceId&&cash.branchId===d.branchId&&cash.currency===d.currency&&cash.date===d.issueDate&&cash.amount===proof.gross&&reviewDigest(advanceCashFacts(cash))===proof.cashDigest);
+ const accounts=payload.treasuryAccounts.filter(x=>x.id===cash.fromAccountId);need(accounts.length===1&&accounts[0].workspaceId===d.workspaceId&&accounts[0].branchId===d.branchId&&accounts[0].currency===d.currency&&accounts[0].active===true);
+ return {scenario:{...instruction,receiptId:receipt.id,net:proof.net,vat:proof.vat,gross:proof.gross,treasuryEntryId:proof.treasuryEntryId,cashDigest:proof.cashDigest},posting};
+}
+// Only trusted private evidence and the accepted authority result can
+// authorize a refund. Existing cash is claimed, never written a second time.
+// The same planner is replayed for reports, with the original approved draft.
+export async function planAdvanceRefundCommercial(db,tx,s,source,p,a,m,model,{historical=false}={}){
+ const d=p.document,v=p.review.scenario,base=simulationBase(s),payload=source.payload;
+ need(v?.kind==='advance-refund'&&d.role==='credit-note'&&d.currency==='SAR'&&p.review.invoiceType==='standard'&&a.record.status==='cleared'&&a.record.mode==='clearance'&&model.kind==='credit-note'&&m.invoice.kind==='credit-note'&&d.items.every(l=>l.stockTreatment==='non-stock'&&!l.savedItemId)&&p.review.originalDocumentId===d.creditForId&&ID.test(d.creditForId)&&HEX.test(v.evidenceDigest));
+ const matches=payload.documents.filter(x=>x.id===d.creditForId);need(matches.length===1);const receipt=matches[0];
+ need(receipt.fiscalAdvance?.kind==='receipt'&&receipt.id===v.receiptId);
+ const posting=data(await tx.get(db.doc(base+'/accountingEntries/sale-'+receipt.id)));
+ const original=await createAcceptedFiscalReader(db)(s,receipt.id,tx);
+ need(original.record.status==='cleared'&&original.record.uuid===p.review.original?.uuid&&original.record.uuid===posting?.uuid&&original.record.snapshotDigest===posting.snapshotDigest&&original.record.resultDigest===posting.evidenceDigest);
+ const originalIndex=data(await tx.get(receiptIndex(db,s,receipt.fiscalAdvance.treasuryEntryId)));
+ const depositProof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+receipt.fiscalAdvance.evidenceDigest)));
+ await verifyReceiptCash(db,tx,s,payload,receipt,receipt.fiscalAdvance,depositProof,originalIndex?.cashDigest);
+ const path=base+'/advanceBalances/'+receipt.id;
+ const capacity=data(await tx.get(db.doc(path))),reservation=data(await tx.get(db.doc(path+'/reservations/'+d.id)));
+ need(capacity?.binding?.artifactDigest===original.record.clearedArtifactDigest&&capacity.binding.version===original.record.version);
+ const proof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+v.evidenceDigest)));
+ need(same(proof,s)&&proof.state==='approved'&&proof.kind==='advance-refund'&&proof.documentId===d.id&&proof.documentRevision===d.revision&&proof.receiptId===receipt.id&&proof.evidenceDigest===v.evidenceDigest&&proof.currency==='SAR'&&proof.customerId===d.customerSnapshot?.sourceCustomerId&&proof.creditFingerprint===reviewDigest(d)&&proof.receiptFingerprint===reviewDigest(receipt)&&proof.net===model.net&&proof.vat===model.vat&&proof.gross===model.gross&&proof.treasuryEntryId===v.treasuryEntryId&&proof.cashDigest===v.cashDigest&&typeof proof.bytes==='string'&&proof.bytes.length<=700000);
+ const bytes=Buffer.from(proof.bytes,'base64');need(bytes.length>0&&bytes.toString('base64')===proof.bytes&&createHash('sha256').update(bytes).digest('hex')===v.evidenceDigest);
+ const reserved=data(await tx.get(reservationIndex(db,s,proof.treasuryEntryId))),scenarioClaim=data(await tx.get(db.doc('fiscalPrivateV1/'+s.accountUid+'/scenarioClaims/'+v.evidenceDigest)));
+ need(same(reserved,s)&&reserved.kind==='advance-refund'&&reserved.receiptId===receipt.id&&reserved.documentId===d.id&&reserved.uuid===a.record.uuid&&reserved.snapshotDigest===a.record.snapshotDigest&&reserved.evidenceDigest===v.evidenceDigest&&reserved.treasuryEntryId===proof.treasuryEntryId&&reserved.cashDigest===proof.cashDigest);
+ need(same(scenarioClaim,s)&&scenarioClaim.kind==='advance-refund'&&scenarioClaim.state==='reserved'&&scenarioClaim.documentId===d.id&&scenarioClaim.uuid===a.record.uuid&&scenarioClaim.snapshotDigest===a.record.snapshotDigest&&scenarioClaim.gross===model.gross);
+ const cashRef=settlementCashClaim(db,s,proof.treasuryEntryId),cash=data(await tx.get(cashRef));
+ need(!(await tx.get(receiptIndex(db,s,proof.treasuryEntryId))).exists);
+ const cashClaim={...s,key:'sale-'+d.id,kind:'advance-refund',cashDigest:proof.cashDigest};
+ need(historical?equal(cash,cashClaim):!cash,'FISCAL_ADVANCE_CASH_ALREADY_CLAIMED');
+ const creditAcceptance={...s,kind:'credit-note',status:a.record.status,documentId:d.id,sourceFingerprint:reviewDigest(d),uuid:a.record.uuid,originalUuid:p.review.original.uuid,resultDigest:a.record.resultDigest,snapshotDigest:a.record.snapshotDigest,category:p.review.taxCategory,rate:p.review.taxRate,net:model.net,vat:model.vat,gross:model.gross};
+ const review={...s,state:'approved',kind:'advance-refund',receiptId:receipt.id,creditId:d.id,creditResultDigest:a.record.resultDigest,receiptFingerprint:proof.receiptFingerprint,creditFingerprint:proof.creditFingerprint,net:proof.net,vat:proof.vat,gross:proof.gross,evidenceDigest:v.evidenceDigest,treasuryEntryId:proof.treasuryEntryId,cashDigest:proof.cashDigest};
+ const result=planCustomerAdvanceRefund({scope:s,receipt,receiptPosting:posting,receiptCashClaim:originalIndex,credit:d,creditAcceptance,review,capacity,reservation,treasuryEntries:payload.treasuryEntries,treasuryAccounts:payload.treasuryAccounts,through:d.issueDate,closedThrough:historical?null:source.closedThrough});
+ const withdrawal=payload.treasuryEntries.find(x=>x.id===result.treasuryEntryId);
+ if(!historical)need(payload.treasuryAccounts.find(x=>x.id===withdrawal.fromAccountId)?.active===true);
+ const binding={kind:'refund',net:result.net,vat:result.vat,gross:result.gross,evidenceDigest:result.evidenceDigest,receiptId:result.receiptId,treasuryEntryId:result.treasuryEntryId,resultDigest:result.resultDigest,cashDigest:result.cashDigest};
+ return {binding,lines:result.lines,write(tx){need(!historical);tx.create(cashRef,cashClaim);}};
+}
 export async function assertAdvanceContinuity(db,tx,{accountUid,workspaceId},before,candidate){
  const priorCash=new Map((before.treasuryEntries??[]).filter(e=>e.workspaceId===workspaceId).map(e=>[e.id,e])),nextCash=new Map((candidate.treasuryEntries??[]).filter(e=>e.workspaceId===workspaceId).map(e=>[e.id,e]));
  const changed=[...priorCash].filter(([id,e])=>!nextCash.has(id)||!equal(advanceCashFacts(e),advanceCashFacts(nextCash.get(id))));
@@ -128,10 +190,10 @@ export async function assertAdvanceContinuity(db,tx,{accountUid,workspaceId},bef
  }
  const beforeDocs=(before.documents??[]).filter(d=>d.workspaceId===workspaceId&&d.fiscalAdvance!==undefined),afterDocs=(candidate.documents??[]).filter(d=>d.workspaceId===workspaceId&&d.fiscalAdvance!==undefined);
  need(beforeDocs.length===afterDocs.length&&beforeDocs.every(d=>equal(d,afterDocs.find(x=>x.id===d.id))),'FISCAL_ADVANCE_LOCKED');
- for(const d of beforeDocs){const b=d.fiscalAdvance;if(b.kind!=='receipt')continue;const a=(before.treasuryEntries??[]).find(e=>e.id===b.treasuryEntryId),z=(candidate.treasuryEntries??[]).find(e=>e.id===b.treasuryEntryId);need(a&&z&&equal(advanceCashFacts(a),advanceCashFacts(z)),'FISCAL_ADVANCE_CASH_LOCKED');}
+ for(const d of beforeDocs){const b=d.fiscalAdvance;if(!['receipt','refund'].includes(b.kind))continue;const a=(before.treasuryEntries??[]).find(e=>e.id===b.treasuryEntryId),z=(candidate.treasuryEntries??[]).find(e=>e.id===b.treasuryEntryId);need(a&&z&&equal(advanceCashFacts(a),advanceCashFacts(z)),'FISCAL_ADVANCE_CASH_LOCKED');}
  if(afterDocs.length){const [{assertFiscalAdvanceIntegrity},{calculateTotals}]=await Promise.all(['advance','money'].map(loadCompiledFinance));assertFiscalAdvanceIntegrity(candidate,d=>calculateTotals(d.items,d.adjustments));}
 }
-export async function verifyAdvanceReport(db,tx,s,payload,through){
+export async function verifyAdvanceReport(db,tx,s,payload,through,{mapCommercialFiscalInvoice}={}){
  const docs=payload.documents.filter(d=>d.workspaceId===s.workspaceId&&d.fiscalAdvance!==undefined),base=simulationBase(s);need(docs.length<=200);
  if(!docs.length)return [];
  const [{assertFiscalAdvanceIntegrity,fiscalAdvanceBalances},{calculateTotals}]=await Promise.all(['advance','money'].map(loadCompiledFinance));assertFiscalAdvanceIntegrity(payload,d=>calculateTotals(d.items,d.adjustments));
@@ -145,16 +207,26 @@ export async function verifyAdvanceReport(db,tx,s,payload,through){
      const idx=data(await tx.get(receiptIndex(db,s,b.treasuryEntryId))),proof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+b.evidenceDigest)));
      need(same(idx,issuerScope)&&idx.documentId===d.id&&idx.uuid===posting.uuid&&idx.evidenceDigest===b.evidenceDigest&&idx.treasuryEntryId===b.treasuryEntryId);
      await verifyReceiptCash(db,tx,issuerScope,payload,d,b,proof,idx.cashDigest);
+   }else if(b.kind==='refund'){
+     need(typeof mapCommercialFiscalInvoice==='function');
+     const accepted=await createAcceptedFiscalReader(db)(issuerScope,d.id,tx),intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+d.id)),issuerScope,d.id),p=intent.payload;
+     need(accepted.snapshot.equals(intent.bytes)&&accepted.record.snapshotDigest===posting.snapshotDigest&&accepted.record.resultDigest===posting.evidenceDigest&&accepted.record.uuid===posting.uuid&&reviewDigest(p.document)===posting.sourceFingerprint);
+     const m=mapCommercialFiscalInvoice({scope:issuerScope,document:p.document,issuer:p.issuer,review:p.review,identity:{documentId:d.id,uuid:accepted.record.uuid,icv:accepted.record.icv,previousInvoiceHash:accepted.record.previousInvoiceHash,generatedAt:accepted.record.generatedAt}});
+     const t=m.candidate.totals,model={kind:m.invoice.kind,net:t.taxExclusiveTotal,vat:t.vatTotal,gross:t.taxInclusiveTotal};
+     const plan=await planAdvanceRefundCommercial(db,tx,issuerScope,{payload},p,accepted,m,model,{historical:true});
+     need(equal(b,plan.binding)&&equal(posting.amount.lines,plan.lines)&&posting.amount.vatSar===b.vat&&posting.amount.recognizedNet===b.net&&posting.amount.recognizedVat===b.vat);
    }else need(b.evidenceDigest===posting.evidenceDigest);
  }
- for(const d of docs.filter(d=>d.issueDate<=through&&d.fiscalAdvance.kind==='settlement')){
+ for(const d of docs.filter(d=>d.issueDate<=through&&['settlement','refund'].includes(d.fiscalAdvance.kind))){
    const posting=postings.get(d.id),issuerScope={...s,egsId:posting.egsId};
-   for(const a of d.fiscalAdvance.allocations){
+   const refund=d.fiscalAdvance.kind==='refund';
+   for(const a of refund?[d.fiscalAdvance]:d.fiscalAdvance.allocations){
      const receipt=docs.find(x=>x.id===a.receiptId),original=postings.get(a.receiptId);
      need(receipt&&original&&receipt.fiscalAdvance.kind==='receipt');
      const path=base+'/advanceBalances/'+a.receiptId;
      const balance=data(await tx.get(db.doc(path))),claim=data(await tx.get(db.doc(path+'/reservations/'+d.id)));
-     assertAdvanceAllocationClaim(issuerScope,receipt,original,{documentId:d.id,uuid:posting.uuid,snapshotDigest:posting.snapshotDigest},claim,balance,a);
+     if(!refund)assertAdvanceAllocationClaim(issuerScope,receipt,original,{documentId:d.id,uuid:posting.uuid,snapshotDigest:posting.snapshotDigest},claim,balance,a);
+     else need(same(claim,issuerScope)&&claim.kind==='advance-refund'&&same(balance,issuerScope));
      const prior=used.get(a.receiptId)??{net:0n,vat:0n},next={net:prior.net+cents(a.net),vat:prior.vat+cents(a.vat)};
      need(next.net<=cents(balance.reserved.net)&&next.vat<=cents(balance.reserved.vat),'FISCAL_ADVANCE_BALANCE_INVALID');
      used.set(a.receiptId,next);

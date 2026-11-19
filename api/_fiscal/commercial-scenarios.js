@@ -1,4 +1,4 @@
-import {reserveAdvanceCash,planSharedAdvanceCapacity} from './advance-commercial.js';
+import {reserveAdvanceCash,planSharedAdvanceCapacity,resolveAdvanceRefundEvidence} from './advance-commercial.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
@@ -35,6 +35,14 @@ async function advance(db,tx,s,d,r,allocation){
 // Only private, source-revision-bound scenario instructions are resolved. A
 // browser cannot choose a statutory subtype, amount of receipt or allocation.
 export async function resolveCommercialScenario(db,tx,s,d,r,instruction){
+  if(instruction?.kind==='advance-refund'){
+    need(d.role==='credit-note'&&d.kind==='invoice'&&d.currency==='SAR'&&r.invoiceType==='standard'&&r.buyer?.vatNumber&&d.customerSnapshot?.sourceCustomerId&&!r.fiscalContext);
+    const {scenario,posting}=await resolveAdvanceRefundEvidence(db,tx,s,d,instruction);
+    const {reference,binding,cap}=await advance(db,tx,s,d,r,{documentId:d.creditForId,net:scenario.net,vat:scenario.vat});
+    need(reference.status==='cleared'&&reference.number===d.creditForNumber&&reference.issueDate<=d.issueDate&&posting.uuid===binding.uuid&&posting.snapshotDigest===binding.snapshotDigest&&posting.evidenceDigest===binding.resultDigest);
+    const original={number:reference.number,uuid:reference.uuid,issueDate:reference.issueDate,mode:reference.mode,sellerVat:reference.sellerVat,buyerVat:reference.buyerVat};
+    return {originalDocumentId:d.creditForId,original,originalTax:{category:reference.category,rate:reference.rate,...(r.reasonCode?{reasonCode:r.reasonCode}:{})},originalBinding:{...s,documentId:d.creditForId,uuid:binding.uuid,version:binding.version,snapshotDigest:binding.snapshotDigest,resultDigest:binding.resultDigest},originalTotals:{...cap,gross:posting.amount.gross},scenario};
+  }
   need(d.role==='standard'&&d.kind==='invoice'&&d.currency==='SAR'&&r.invoiceType==='standard'&&r.buyer?.vatNumber&&d.customerSnapshot?.sourceCustomerId&&instruction&&typeof instruction==='object');
   if(instruction.kind==='debit-note'){
     need(fields(instruction,['kind','originalDocumentId','originalNumber','evidenceDigest'])&&typeof instruction.originalDocumentId==='string'&&ID.test(instruction.originalDocumentId)&&instruction.originalDocumentId!==d.id);
@@ -57,13 +65,20 @@ export async function resolveCommercialScenario(db,tx,s,d,r,instruction){
 }
 export async function planCommercialScenario(db,tx,s,payload,issue){
   const d=payload.document,r=payload.review,v=r.scenario;
-  need(v&&['debit-note','advance-receipt','advance-settlement'].includes(v.kind));
-  const instruction=v.kind==='debit-note'?{kind:v.kind,originalDocumentId:v.originalDocumentId,originalNumber:v.originalNumber,evidenceDigest:v.evidenceDigest}:v.kind==='advance-receipt'?{kind:v.kind,evidenceDigest:v.evidenceDigest}:{kind:v.kind,allocations:v.allocations};
+  need(v&&['debit-note','advance-receipt','advance-settlement','advance-refund'].includes(v.kind));
+  const instruction=v.kind==='debit-note'?{kind:v.kind,originalDocumentId:v.originalDocumentId,originalNumber:v.originalNumber,evidenceDigest:v.evidenceDigest}:['advance-receipt','advance-refund'].includes(v.kind)?{kind:v.kind,evidenceDigest:v.evidenceDigest}:{kind:v.kind,allocations:v.allocations};
   const actual=await resolveCommercialScenario(db,tx,s,d,r,instruction);
   for(const k of Object.keys(actual))need(equal(r[k],actual[k]),'FISCAL_SCENARIO_CHANGED');
   // Recompute original model at the final atomic issuance boundary to enforce
   // exact evidence totals, XML references and settlement limits.
   mapCommercialFiscalInvoice({scope:s,document:d,issuer:payload.issuer,review:r,identity:{documentId:issue.documentId,uuid:issue.uuid,icv:issue.icv,previousInvoiceHash:issue.previousInvoiceHash,generatedAt:issue.generatedAt}});
+  if(v.kind==='advance-refund'){
+    const ref=db.doc('fiscalPrivateV1/'+s.accountUid+'/scenarioClaims/'+v.evidenceDigest);
+    need(!(await tx.get(ref)).exists,'FISCAL_SCENARIO_EVIDENCE_ALREADY_RESERVED');
+    const {binding,cap}=await advance(db,tx,s,d,r,{documentId:v.receiptId,net:v.net,vat:v.vat});
+    const plan=await planSharedAdvanceCapacity(db,tx,s,{receiptId:v.receiptId,binding,cap,documentId:d.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,net:v.net,vat:v.vat,refund:{treasuryEntryId:v.treasuryEntryId,cashDigest:v.cashDigest,evidenceDigest:v.evidenceDigest}});
+    return {write(tx){plan.write(tx);tx.create(ref,{...s,kind:v.kind,documentId:d.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,gross:v.gross,state:'reserved'});}};
+  }
   if(v.kind!=='advance-settlement'){
     const ref=db.doc('fiscalPrivateV1/'+s.accountUid+'/scenarioClaims/'+v.evidenceDigest);
     need(!(await tx.get(ref)).exists,'FISCAL_SCENARIO_EVIDENCE_ALREADY_RESERVED');

@@ -1,4 +1,4 @@
-import {fiscalRecognizedTax} from './fiscal-advance-commercial.js';
+import {fiscalRecognizedTax,fiscalRefundMatchesReceipt} from './fiscal-advance-commercial.js';
 import type { LourexDocument } from '../types.js';
 import { calculateTotals, decimalToScaled, normalizeDecimalInput } from './money.js';
 import { accountedInvoiceCreditNotes } from './payments.js';
@@ -84,7 +84,7 @@ export function outputVatDocuments(documents:LourexDocument[]):LourexDocument[]{
   const seen=new Set<string>();
   for(const invoice of invoices){
     if(!seen.has(invoice.id)){seen.add(invoice.id);result.push(invoice);}
-    for(const credit of accountedInvoiceCreditNotes(invoice,documents))if(!seen.has(credit.id)){seen.add(credit.id);result.push(credit);}
+    for(const credit of [...accountedInvoiceCreditNotes(invoice,documents),...documents.filter(c=>fiscalRefundMatchesReceipt(invoice,c))])if(!seen.has(credit.id)){seen.add(credit.id);result.push(credit);}
   }
   return result;
 }

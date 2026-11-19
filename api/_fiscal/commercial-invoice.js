@@ -33,7 +33,7 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   assertFiscalIssuerIdentity(issuer,scope,d.issueDate);
   require(issuer.issuerCountry==='SA'&&issuer.saRegime==='phase-2'&&issuer.vatNumber===r.seller?.vatNumber&&trim(issuer.legalName)===trim(r.seller?.name),'FISCAL_ISSUER_NOT_VERIFIED');
   const scenario=r.scenario;
-  require(scenario===undefined||d.role==='standard'&&scenario&&['debit-note','advance-receipt','advance-settlement'].includes(scenario.kind)&&d.currency==='SAR'&&r.invoiceType==='standard'&&r.fiscalContext===undefined,'FISCAL_SPECIAL_SCENARIO_INVALID');
+  require(scenario===undefined||scenario&&(d.role==='standard'&&['debit-note','advance-receipt','advance-settlement'].includes(scenario.kind)||d.role==='credit-note'&&scenario.kind==='advance-refund')&&d.currency==='SAR'&&r.invoiceType==='standard'&&r.fiscalContext===undefined,'FISCAL_SPECIAL_SCENARIO_INVALID');
   const kind=d.role==='credit-note'?'credit-note':scenario?.kind==='debit-note'?'debit-note':scenario?.kind==='advance-receipt'?'prepayment':'invoice';
   require(kind==='debit-note'?!!r.original&&r.originalDocumentId===scenario.originalDocumentId&&typeof r.correctionReason==='string'&&r.correctionReason.trim().length>0&&!d.creditForId:kind==='credit-note'?typeof d.creditForId==='string'&&d.creditForId!==d.id&&r.originalDocumentId===d.creditForId&&r.original?.number===d.creditForNumber&&typeof r.correctionReason==='string'&&r.correctionReason.trim().length>0:!d.creditForId&&!r.original&&!r.originalDocumentId&&!r.correctionReason,'FISCAL_ORIGINAL_REQUIRED');
   const route=resolveFiscalRoute(kind==='prepayment'?'invoice':kind,issuer,r.invoiceType);
@@ -79,6 +79,7 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   if(scenario?.kind==='debit-note'||scenario?.kind==='advance-receipt'){
     require(typeof scenario.evidenceDigest==='string'&&/^[a-f0-9]{64}$/.test(scenario.evidenceDigest)&&scenario.gross===commercial.grandTotal&&commercial.grandTotal!=='0.00','FISCAL_SCENARIO_EVIDENCE_MISMATCH');
   }
+  if(scenario?.kind==='advance-refund')require(scenario.receiptId===d.creditForId&&typeof scenario.evidenceDigest==='string'&&/^[a-f0-9]{64}$/.test(scenario.evidenceDigest)&&typeof scenario.cashDigest==='string'&&/^[a-f0-9]{64}$/.test(scenario.cashDigest)&&typeof scenario.treasuryEntryId==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(scenario.treasuryEntryId)&&d.items.every(l=>l.stockTreatment==='non-stock'&&!l.savedItemId)&&scenario.gross===commercial.grandTotal,'FISCAL_ADVANCE_REFUND_EVIDENCE_MISMATCH');
   if(scenario?.kind==='advance-receipt'){
     delete invoice.supplyDate;
     context.prepayment={kind:'receipt',uuid:identity.uuid,receivedAt:scenario.receivedAt,receivedGross:scenario.gross,evidenceDigest:scenario.evidenceDigest};
@@ -90,6 +91,7 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   const candidate=buildFiscalCandidate(invoice,context);
   const t=candidate.totals;
   require(t.lineNetTotal===commercial.subtotal&&t.documentAllowances===commercial.discount&&t.documentCharges===commercial.shipping&&t.vatTotal===commercial.tax&&t.taxInclusiveTotal===commercial.grandTotal,'FISCAL_COMMERCIAL_TOTAL_MISMATCH');
+  if(scenario?.kind==='advance-refund')require(scenario.net===t.taxExclusiveTotal&&scenario.vat===t.vatTotal&&scenario.gross===t.taxInclusiveTotal,'FISCAL_ADVANCE_REFUND_EVIDENCE_MISMATCH');
   require(decimalToScaled(t.taxInclusiveTotal,2)>0n||kind==='invoice','FISCAL_ZERO_CORRECTION');
   return {invoice,candidate,commercial,context,mode:route.route==='sa-clearance'?'clearance':'reporting'};
 }

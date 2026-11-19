@@ -1,5 +1,5 @@
 import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation} from './supplier-settlement-posting.mjs';
-import {planAdvanceCommercial,verifyAdvanceReport} from './advance-commercial.js';
+import {planAdvanceCommercial,planAdvanceRefundCommercial,verifyAdvanceReport} from './advance-commercial.js';
 import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
 import {supplierSettlementTimeline,commercialFiscalPostingPolicy} from './settlement-integrity.mjs';
@@ -80,7 +80,7 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
  const p=source.payload,final={...doc,status:'final',...(advance?{fiscalAdvance:advance.binding}:{})},before=p;
  const [{postIssuedInvoiceStock},{approvalGate},{assertCustomerCreditLimit},{assertDocumentLifecycleInvariant,createDocumentEvent},{assertInvoicePaymentInvariant},{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity},{isNonNegativeFinancialDecimalInput}]=await Promise.all(['stock','governance','commercial','lifecycle','payments','period','backup','money'].map(loadCompiledFinance));
  // Special fiscal subtypes must never be disguised as a commercial sale.
- need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock')||policyMode==='advance-receipt'&&advance?.binding.kind==='receipt'&&model.kind==='prepayment'||policyMode==='advance-settlement'&&advance?.binding.kind==='settlement'&&model.kind==='invoice','FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
+ need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock')||policyMode==='advance-receipt'&&advance?.binding.kind==='receipt'&&model.kind==='prepayment'||policyMode==='advance-settlement'&&advance?.binding.kind==='settlement'&&model.kind==='invoice'||policyMode==='advance-refund'&&advance?.binding.kind==='refund'&&model.kind==='credit-note','FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
  const policy=approvalGate(p,{action:'issue-document',entityType:'document',entityId:doc.id,entityLabel:doc.number,entityUpdatedAt:doc.updatedAt||''});
  need(policy.allowed,'FISCAL_COMMERCIAL_APPROVAL_REQUIRED');
  assertCustomerCreditLimit(final,p.customers,p.documents,p.payments);
@@ -99,7 +99,8 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
    cost+=stockCostCents(m.quantity.slice(1),m.unitCost);
  }
  if(advance){const [{assertFiscalAdvanceIntegrity},{calculateTotals}]=await Promise.all(['advance','money'].map(loadCompiledFinance));assertFiscalAdvanceIntegrity(candidate,d=>calculateTotals(d.items,d.adjustments));}
- const modelLines=policyMode==='advance-receipt'?model.lines.map(l=>l.account==='advance-receipt-clearing'?{...l,account:'cash-bank'}:l):model.lines;
+ const modelLines=policyMode==='advance-refund'?advance.lines:policyMode==='advance-receipt'?model.lines.map(l=>l.account==='advance-receipt-clearing'?{...l,account:'cash-bank'}:l):model.lines;
+ if(policyMode==='advance-refund')need(newMovements.length===0&&cost===0n,'FISCAL_ADVANCE_REFUND_STOCK_INVALID');
  const accounting={...model,lines:journal([...modelLines,entry('cost-of-sales','debit',cost),entry('inventory','credit',cost)])};
  assertPostedStockRestoreContinuity(before,candidate);assertClosedPeriodUnchanged(before,candidate,source.control.boundaries);
  // Check retained closed report digests as well as the before/after guard.
@@ -157,7 +158,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
          need(same(original,s)&&original.amount?.kind==='prepayment'&&original.source==='sale','FISCAL_ADVANCE_POSTING_REQUIRED');
        }
      }
-     const scenario=p.review.scenario,advance=['advance-receipt','advance-settlement'].includes(scenario?.kind)?await planAdvanceCommercial(db,tx,s,source,p,a,m,amount):null;
+     const scenario=p.review.scenario,advance=scenario?.kind==='advance-refund'?await planAdvanceRefundCommercial(db,tx,s,source,p,a,m,amount):['advance-receipt','advance-settlement'].includes(scenario?.kind)?await planAdvanceCommercial(db,tx,s,source,p,a,m,amount):null;
      const policyMode=advance?scenario.kind:commercialFiscalPostingPolicy(d,amount,scenario);
      const compatibleCost=d.currency==='SAR'||d.items.every(line=>line.stockTreatment==='non-stock'||(line.stockTreatment==='tracked'&&source.payload.savedItems.some(item=>item.id===line.savedItemId&&item.lastCostCurrency===d.currency)));
      const plan=policyMode!=='private-only'&&compatibleCost?await planCommercialFinalization(db,tx,s,source,d,amount,policyMode,advance):null;
@@ -469,7 +470,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      for(const m of source.payload.inventoryMovements.filter(x=>x.workspaceId===s.workspaceId&&isFiscalPurchaseReturn(x)))need(returnMovementIds.has(m.id),'FISCAL_PURCHASE_RETURN_CONFLICT');
      for(const item of dispatchReviews.docs){const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment==='simulation'&&r.adjustmentId===item.id&&day(r.date),'FISCAL_PURCHASE_RETURN_CONFLICT');if(r.state==='approved'&&r.date>=from&&r.date<=to&&!dispatches.docs.some(x=>x.id===item.id))pendingPurchaseReturns.push({adjustmentId:item.id,date:r.date});}
      unmatched+=pendingPurchaseReturns.length;
-     const advanceBalances=await verifyAdvanceReport(db,tx,s,source.payload,to);
+     const advanceBalances=await verifyAdvanceReport(db,tx,s,source.payload,to,{mapCommercialFiscalInvoice});
      const approvedAdjustments=await tx.get(db.collection(base+'/purchaseAdjustments').limit(201));
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
