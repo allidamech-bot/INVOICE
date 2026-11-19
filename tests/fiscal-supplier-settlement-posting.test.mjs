@@ -36,3 +36,7 @@ test('blocks closed periods, forged evidence, reused cash and subsequent supplie
  await f.post('offset');await f.post('refund');const bad={...f.payload,supplierPayments:[...f.payload.supplierPayments,f.pay(f.b,'late','2026-11-14','100.00')]};await assert.rejects(f.run(tx=>assertSupplierSettlementContinuity(f.db,tx,s,bad)));
  const edited={...f.payload,treasuryEntries:[{...f.cash,amount:'15.00'}]};await assert.rejects(f.run(tx=>assertSettlementCashContinuity(f.db,tx,s,f.payload,edited)));
 });
+
+test('historical report contains no future settlement or pending action beyond range',async()=>{
+ const f=fixture();await f.post('offset');await f.post('refund');const r=await f.run(tx=>readSupplierSettlements(f.db,tx,s,f.payload,'2026-11-01','2026-11-11'));assert.equal(r.journals.length,0);assert.equal(r.balances.find(x=>x.purchaseId==='a').supplierCredit,'46.00');assert.equal(r.balances.find(x=>x.purchaseId==='b').outstanding,'115.00');
+});

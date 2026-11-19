@@ -76,7 +76,8 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
        assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today:new Date().toISOString().slice(0,10)});
      }catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
-   if(changedPurchases.size){
+   const oldCashAccounts=(before.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId),newCashAccounts=(candidate.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId);
+   if(changedPurchases.size||!same(oldCashAccounts,newCashAccounts)){
      try{await assertSupplierSettlementContinuity(db,tx,{accountUid:uid,workspaceId,egsId:id(scope.selectedEgsId)?scope.selectedEgsId:'unselected',environment:'simulation'},candidate);}catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
    try{await assertFiscalCostContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_COST_HISTORY_LOCKED');}
