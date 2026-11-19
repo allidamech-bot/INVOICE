@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {todayIso} from '../dist/src/lib/id.js';
 import {createPurchase,createPurchaseItem,createSupplier} from '../dist/src/lib/operations.js';
-import {purchasePayableSummary,supplierAccounts,supplierPayablesByCurrency,supplierStatement,voidSupplierPayment,normalizeSupplierPayment,assertSupplierPaymentInvariant} from '../dist/src/lib/payables.js';
+import {purchasePayableSummary,supplierPaymentEntryCapacity,supplierAccounts,supplierPayablesByCurrency,supplierStatement,voidSupplierPayment,normalizeSupplierPayment,assertSupplierPaymentInvariant} from '../dist/src/lib/payables.js';
 import {treasuryProjection} from '../dist/src/lib/treasury-ledger.js';
 
 function fixture(){
@@ -202,4 +202,27 @@ test('voiding a supplier payment retains earlier balances but excludes it from c
   assert.throws(()=>voidSupplierPayment(voided,'void twice'),/already voided/);
   const reversed={...purchase,status:'reversed',reversedAt:'2026-10-21T12:00:00.000Z'};
   assert.doesNotThrow(()=>assertSupplierPaymentInvariant([reversed],[supplier],[voided]));
+});
+
+test('verified AP balances constrain existing payment entry without granting elevated authority',()=>{
+  const {supplier,purchase:raw,earlier,later}=fixture();
+  const purchase={...raw,workspaceId:'w',branchId:'b'};
+  const paid={...earlier,workspaceId:'w',branchId:'b',supplierId:supplier.id};
+  const future={...later,workspaceId:'w',branchId:'b',supplierId:supplier.id};
+  const through='2026-10-09';
+  const journal=(adjusted,outstanding,entries)=>({purchaseId:purchase.id,number:purchase.number,workspaceId:'w',branchId:'b',supplierId:supplier.id,currency:'USD',through,originalPayable:'1000.00',adjustedPayable:adjusted,paid:'200.00',settlementDelta:'0.00',outstanding,supplierCredit:'0.00',entries});
+  const debit=journal('1200.00','1000.00',[{credit:'1200.00',debit:'200.00'}]);
+  const credit=journal('600.00','400.00',[{credit:'600.00',debit:'200.00'}]);
+  assert.equal(supplierPaymentEntryCapacity(purchase,[paid],through,debit),'800.00');
+  assert.equal(supplierPaymentEntryCapacity(purchase,[paid],through,credit),'400.00');
+  assert.equal(supplierPaymentEntryCapacity(purchase,[paid,future],through,debit),'300.00');
+  assert.equal(supplierPaymentEntryCapacity(purchase,[paid],through),'800.00');
+  assert.equal(supplierPaymentEntryCapacity({...purchase,status:'draft'},[],through),'0.00');
+  assert.throws(()=>supplierPaymentEntryCapacity(purchase,[paid],through,{...debit,branchId:'other'}));
+  assert.throws(()=>supplierPaymentEntryCapacity(purchase,[paid],through,{...debit,through:'2026-10-08'}));
+  assert.throws(()=>supplierPaymentEntryCapacity(purchase,[paid],through,{...debit,outstanding:'1001.00'}));
+  assert.throws(()=>supplierPaymentEntryCapacity(purchase,[paid,paid],through,debit));
+  const fullyPaid={...paid,amount:'1000.00'};
+  const remainder={...debit,paid:'1000.00',outstanding:'200.00',entries:[{credit:'1200.00',debit:'1000.00'}]};
+  assert.equal(supplierPaymentEntryCapacity(purchase,[fullyPaid],through,remainder),'0.00');
 });

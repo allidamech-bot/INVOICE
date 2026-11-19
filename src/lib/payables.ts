@@ -157,6 +157,17 @@ export function purchasePayableSummary(purchase:PurchaseRecord,payments:Supplier
   return{purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchaseSupplierId(purchase),currency:cleanCurrency(purchase.currency),date:purchase.date,dueDate:purchase.dueDate,total:centsString(total),paid:centsString(paid),remaining:centsString(remaining),state,daysOverdue:days,agingBucket:supplierAgingBucketFor(purchase.dueDate,today)};
 }
 
+// Entry eligibility can only narrow the legacy write authority. The verified AP
+// journal is a read model, never an unsigned authorization to exceed gross.
+export function supplierPaymentEntryCapacity(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso(),journal?:FiscalSupplierPayableJournal):string{
+  if(purchase.status!=='posted'||!postedOnOrBefore(purchase,today))return '0.00';
+  const remaining=decimalToScaled(purchasePayableSummary(purchase,payments,today,journal).remaining,2);
+  const reserved=effectiveSupplierPaymentsForPurchase(purchase,payments).reduce((sum,payment)=>sum+paymentCents(payment),0n);
+  const originalAvailable=liabilityCents(purchase)-reserved;
+  const capacity=remaining<originalAvailable?remaining:originalAvailable;
+  return centsString(capacity>0n?capacity:0n);
+}
+
 export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),supplierId='',journals?:ReadonlyMap<string,FiscalSupplierPayableJournal>):CurrencyPayableSummary[]{
   assertUniquePostedPurchaseSources(purchases,today);
   assertUniqueEffectiveSupplierPaymentSources(purchases,payments,today);
