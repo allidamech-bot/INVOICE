@@ -461,6 +461,7 @@ const CONTRACTS=[
   'tests/fiscal-purchase-return.test.mjs',
   'tests/fiscal-settlement-integrity.test.mjs',
   'tests/fiscal-supplier-commercial-settlements.test.mjs',
+  'tests/purchase-tax.test.mjs',
   'tests/fiscal-advance-refund-plan.test.mjs',
   'tests/fiscal-lot-cost-bridge.test.mjs',
   'tests/fiscal-cost-continuity.test.mjs',

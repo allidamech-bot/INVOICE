@@ -168,6 +168,7 @@ export function previewSourceBoundFinanceCycle(
     if(!scopeMatches(purchase,controls)||purchase.status!=='posted'
       ||purchase.date>controls.asOfDate)
       fail('Only active posted same-currency purchases are supported.');
+    if(purchase.purchaseTax?.mode==='tax'&&decimalToScaled(purchase.purchaseTax.deductibleVat,2)>0n)fail('This inventory/AP preview requires a separate recoverable VAT journal.');
     const summary=purchasePayableSummary(purchase,[...supplierPayments],controls.asOfDate);
     if(cents(summary.total)!==cents(purchaseTotals(purchase).landedTotal))
       fail('Original supplier payable does not match purchase source.');

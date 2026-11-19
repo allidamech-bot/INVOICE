@@ -160,7 +160,7 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
         await page.getByRole('tab',{name:'Purchases'}).click();
         const createPurchase=page.locator('#operations-panel-purchases .ta-ops-panel-head').getByRole('button',{name:'New Purchase',exact:true});
         assert.equal(await createPurchase.count(),1,'Purchase header exposes one canonical create action');
-        await createPurchase.click();
+        await createPurchase.click();await page.locator('.purchase-choice-ordinary').click();
         const editor=page.locator('.ta-ops-split>.ta-ops-editor');await editor.waitFor();
         const metrics=await editor.evaluate(el=>{const r=el.getBoundingClientRect(),scroll=el.querySelector('.ta-ops-editor-scroll'),footer=el.querySelector('.ta-ops-editor-actions');return{bottom:r.bottom,scrollHeight:scroll.scrollHeight,scrollClient:scroll.clientHeight,footerTop:footer.getBoundingClientRect().top,footerBottom:footer.getBoundingClientRect().bottom,viewport:innerHeight};});
         assert.ok(metrics.footerBottom<=metrics.viewport+1,`Purchase actions stay onscreen: ${JSON.stringify(metrics)}`);
@@ -222,7 +222,7 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
         await operations.page.getByRole('tab',{name:'المشتريات'}).click();
         const createPurchase=operations.page.locator('#operations-panel-purchases .ta-ops-panel-head').getByRole('button',{name:'شراء جديد',exact:true});
         assert.equal(await createPurchase.count(),1,'RTL purchase header exposes one canonical create action');
-        await createPurchase.click();
+        await createPurchase.click();await operations.page.locator('.purchase-choice-ordinary').click();
         const editor=operations.page.locator('.ta-ops-split>.ta-ops-editor');await editor.waitFor();
         const box=await editor.boundingBox(),footer=await editor.locator('.ta-ops-editor-actions').boundingBox();
         assert.ok(box.x>=0&&box.x+box.width<=320,`320px purchase editor fits: ${JSON.stringify(box)}`);

@@ -37,7 +37,7 @@ const output='visual-qa-output/workspace-closeout-batch3';
    const save=editor.getByRole('button',{name:text('Save Supplier','حفظ المورد'),exact:true});await touch(save);await save.click();
    await page.waitForFunction(()=>window.financialFixture.state.suppliers.length===1);
    assert.equal(await page.evaluate(()=>window.financialFixture.state.suppliers[0].nameEn),'Reviewed Source');
-   await page.locator('#operations-tab-purchases').click();await page.locator('.ta-ops-empty').getByRole('button',{name:text('New Purchase','شراء جديد'),exact:true}).click();
+   await page.locator('#operations-tab-purchases').click();await page.locator('.ta-ops-empty').getByRole('button',{name:text('New Purchase','شراء جديد'),exact:true}).click();await page.locator('.purchase-choice-ordinary').click();
    await page.locator('.ta-ops-purchase-editor').waitFor();assert.equal(await page.evaluate(()=>window.financialFixture.state.purchases.length),0,'opening a reviewed draft cannot post or persist it');await bounds('purchase create');
    await page.screenshot({path:`${output}/purchase-${width}-${lang}-${theme}.png`,animations:'disabled'});
    await page.goto(`http://127.0.0.1:4173/tests/visual/workspace-ux-batch3.html?lang=${lang}&theme=${theme}&vault=1`,{waitUntil:'networkidle'});

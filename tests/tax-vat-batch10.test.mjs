@@ -29,11 +29,11 @@ test('Tax reporting stays currency and rate separated with no hidden FX or purch
   assert.doesNotMatch(engine,/PurchaseRecord|SupplierPaymentRecord|exchangeRate|fxRate|convertCurrency/);
 });
 
-test('Tax center explicitly scopes Input VAT out until Purchase VAT exists',async()=>{
+test('Tax center distinguishes recorded input VAT from statutory claims',async()=>{
   const component=await read('src/components/TaxVatCenter.tsx');
-  assert.match(component,/Output VAT only/);
-  assert.match(component,/Purchase VAT is not represented in the purchase accounting model yet/);
-  assert.match(component,/does not calculate or claim Input VAT/);
+  assert.match(component,/Commercial VAT register/);
+  assert.match(component,/Input VAT is recorded from posted supplier tax invoices/);
+  assert.match(component,/no authority verification or statutory claim is implied/);
   assert.match(component,/Currencies shown separately/);
   assert.match(component,/Credit notes are shown as negative values/);
 });

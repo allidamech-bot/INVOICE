@@ -1,3 +1,4 @@
+import {assertPurchaseTax} from '../lib/purchase-tax.js';
 import {calculateTotals} from '../lib/money.js';
 import {assertFiscalAdvanceIntegrity} from '../lib/fiscal-advance-commercial.js';
 import type { DocumentKind, EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
@@ -141,6 +142,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   })) : [];
 
   migrated.purchases = Array.isArray((vault as any).purchases) ? (vault as any).purchases.map((purchase:any)=>({
+    ...(purchase?.purchaseTax!==undefined?{purchaseTax:structuredClone(purchase.purchaseTax)}:{}),
     id:stringValue(purchase?.id),number:stringValue(purchase?.number),date:stringValue(purchase?.date),dueDate:stringValue(purchase?.dueDate,stringValue(purchase?.date)),supplierSnapshot:purchase?.supplierSnapshot&&typeof purchase.supplierSnapshot==='object'?{
       sourceSupplierId:stringValue(purchase.supplierSnapshot.sourceSupplierId),nameEn:stringValue(purchase.supplierSnapshot.nameEn),nameAr:stringValue(purchase.supplierSnapshot.nameAr),contactPerson:stringValue(purchase.supplierSnapshot.contactPerson),address:stringValue(purchase.supplierSnapshot.address),city:stringValue(purchase.supplierSnapshot.city),country:stringValue(purchase.supplierSnapshot.country),phone:stringValue(purchase.supplierSnapshot.phone),email:stringValue(purchase.supplierSnapshot.email),vatTaxNumber:stringValue(purchase.supplierSnapshot.vatTaxNumber),commercialRegistration:stringValue(purchase.supplierSnapshot.commercialRegistration)
     }:null,currency:cleanCurrency(purchase?.currency,migrated.appSettings.smartDefaults.currency||'USD'),items:Array.isArray(purchase?.items)?purchase.items.map((item:any)=>({
@@ -356,6 +358,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.payments.map(p => p.id), 'payment');
   unique(migrated.savedItems.map(i=>i.id),'saved item');
   for (const document of migrated.documents) unique(document.items.map(i => i.id), 'item');
+  for(const purchase of migrated.purchases)assertPurchaseTax(purchase);
   assertFiscalAdvanceIntegrity(migrated,d=>calculateTotals(d.items,d.adjustments));
   return migrated;
 }

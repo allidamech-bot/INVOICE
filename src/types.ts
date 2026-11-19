@@ -143,7 +143,11 @@ export interface PurchaseItem {
   previousCostCurrency: string;
 }
 
+export type PurchaseTaxDetails = {mode:'ordinary'|'tax';invoiceReference:string;vat:string;deductibleVat:string};
+
 export interface PurchaseRecord extends WorkspaceScopeFields {
+  /** Optional on legacy purchases. Item costs and landed charges are VAT-exclusive when present. */
+  purchaseTax?:PurchaseTaxDetails;
   id: string;
   number: string;
   date: string;

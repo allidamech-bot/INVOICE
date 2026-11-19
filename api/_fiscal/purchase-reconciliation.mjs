@@ -6,9 +6,9 @@ const value=(q,c)=>(q*scaled(c,12)+50000000000000n)/100000000000000n;
 const scope=(a,b)=>a.workspaceId===b.workspaceId&&a.branchId===b.branchId&&a.currency===b.currency;
 // This proves original inbound cost and supplier-payment consistency only.
 // It never allocates recoverable VAT to lines or treats a preview as a filing.
-export function reconcileDomesticPurchase({purchase,amount,landedTotal,movements,payments,through}){
+export function reconcileDomesticPurchase({purchase,amount,landedTotal,payableTotal=landedTotal,movements,payments,through}){
  if(!day(through)||!day(purchase.date)||purchase.date>through||purchase.status!=='posted'||amount.kind!=='invoice'||amount.treatment!=='domestic'||!purchase.supplierSnapshot?.sourceSupplierId)throw Error('FISCAL_RECON_PURCHASE_INVALID');
- const legacy=money(landedTotal),gross=money(amount.gross),net=money(amount.net),vat=money(amount.vat),deductible=money(amount.deductibleVat);
+ const legacy=money(landedTotal),commercialPayable=money(payableTotal),gross=money(amount.gross),net=money(amount.net),vat=money(amount.vat),deductible=money(amount.deductibleVat);
  if(net+vat!==gross||deductible>vat)throw Error('FISCAL_RECON_PURCHASE_INVALID');
  let expectedStock=0n,actualStock=0n,paid=0n,stockMatches=true,paymentsMatch=true;
  const expected=new Map(),actual=new Map(),movementIds=new Set(),paymentIds=new Set();
@@ -27,5 +27,5 @@ export function reconcileDomesticPurchase({purchase,amount,landedTotal,movements
  }
  if(paid>gross)paymentsMatch=false;
  const fiscalCost=gross-deductible;
- return {legacyPayable:format(legacy),fiscalPayable:format(gross),paid:format(paid),legacyOutstanding:format(legacy-paid),fiscalOutstanding:format(gross-paid),legacyCost:format(legacy),fiscalCost:format(fiscalCost),costDifference:format(legacy-fiscalCost),expectedInboundStock:format(expectedStock),recordedInboundStock:format(actualStock),stockMatches,paymentsMatch,matched:legacy===gross&&legacy===fiscalCost&&stockMatches&&paymentsMatch};
+ return {legacyPayable:format(commercialPayable),fiscalPayable:format(gross),paid:format(paid),legacyOutstanding:format(commercialPayable-paid),fiscalOutstanding:format(gross-paid),legacyCost:format(legacy),fiscalCost:format(fiscalCost),costDifference:format(legacy-fiscalCost),expectedInboundStock:format(expectedStock),recordedInboundStock:format(actualStock),stockMatches,paymentsMatch,matched:commercialPayable===gross&&legacy===fiscalCost&&stockMatches&&paymentsMatch};
 }

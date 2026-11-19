@@ -169,12 +169,12 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
  }
  async function postPurchase(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
-   const {purchaseTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
+   const {purchaseTotals,purchaseFinancialTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
    return db.runTransaction(async tx=>{
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,id),matches=source.payload.purchases.filter(p=>p.id===id);
      need(matches.length===1);const p=matches[0],approval=data(await tx.get(db.doc(base+'/purchaseVatReviews/'+id)));
-     need(p.workspaceId===s.workspaceId&&p.status==='posted'&&p.currency==='SAR'&&purchaseAccountingIsValid(p)&&VAT.test(p.supplierSnapshot?.vatTaxNumber??'')&&same(approval,s)&&approval.state==='approved'&&approval.purchaseId===id&&approval.sourceFingerprint===reviewDigest(p)&&approval.supplierVat===p.supplierSnapshot.vatTaxNumber&&VAT.test(approval.issuerVat)&&HEX.test(approval.evidenceDigest)&&approval.kind==='invoice'&&approval.documentNumber===p.number&&approval.issueDate===p.date&&day(approval.taxDate)&&p.date<=approval.taxDate,'FISCAL_PURCHASE_REVIEW_REQUIRED');
+     need(p.workspaceId===s.workspaceId&&p.status==='posted'&&p.currency==='SAR'&&purchaseAccountingIsValid(p)&&VAT.test(p.supplierSnapshot?.vatTaxNumber??'')&&same(approval,s)&&approval.state==='approved'&&approval.purchaseId===id&&approval.sourceFingerprint===reviewDigest(p)&&approval.supplierVat===p.supplierSnapshot.vatTaxNumber&&VAT.test(approval.issuerVat)&&HEX.test(approval.evidenceDigest)&&approval.kind==='invoice'&&p.purchaseTax?.mode!=='ordinary'&&approval.documentNumber===(p.purchaseTax?.mode==='tax'?p.purchaseTax.invoiceReference.trim():p.number)&&approval.issueDate===p.date&&day(approval.taxDate)&&p.date<=approval.taxDate,'FISCAL_PURCHASE_REVIEW_REQUIRED');
      const proof=data(await tx.get(db.doc(base+'/purchaseVatEvidence/'+approval.evidenceDigest)));
      need(same(proof,s)&&proof.state==='verified'&&proof.digest===approval.evidenceDigest&&typeof proof.bytes==='string'&&proof.bytes.length<=700000,'FISCAL_PURCHASE_EVIDENCE_REQUIRED');
      const bytes=Buffer.from(proof.bytes,'base64');need(bytes.length>0&&bytes.toString('base64')===proof.bytes&&sha(bytes)===proof.digest,'FISCAL_PURCHASE_EVIDENCE_INVALID');
@@ -185,7 +185,9 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      // Existing purchase totals are landed cost AND payable. Recognize only
      // when actual gross matches them, retaining a visible stock-basis mismatch
      // if deductible VAT is included in that legacy cost.
-     need(purchaseTotals(p).landedTotal===amount.gross,'FISCAL_PURCHASE_GROSS_MISMATCH');
+     const recorded=purchaseFinancialTotals(p);
+     need(recorded.payableTotal===amount.gross,'FISCAL_PURCHASE_GROSS_MISMATCH');
+     if(p.purchaseTax?.mode==='tax')need(recorded.net===amount.net&&recorded.vat===amount.vat&&recorded.deductibleVat===amount.deductibleVat&&recorded.landedTotal===money(cents(amount.gross)-cents(amount.deductibleVat)),'FISCAL_PURCHASE_RECORDED_TAX_MISMATCH');
      need(!(await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+id))).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
      const key='purchase-'+id,prior=data(await tx.get(postingRef(db,s,key)));if(!prior)availablePeriod(source,approval.taxDate);
      const row={...s,key,source:'purchase',sourceId:id,sourceRevision:p.updatedAt,documentNumber:p.number,issueDate:p.date,taxDate:approval.taxDate,currency:'SAR',category:approval.category,rate:approval.rate,counterpartyVat:approval.supplierVat,issuerVat:approval.issuerVat,originalId:null,uuid:null,evidenceDigest:approval.evidenceDigest,snapshotDigest:approval.sourceFingerprint,sourceFingerprint:approval.sourceFingerprint,amount};
@@ -207,6 +209,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const original=data(await tx.get(postingRef(db,s,'purchase-'+id))),review=data(await tx.get(db.doc(base+'/purchaseCostReviews/'+id)));
      need(p&&p.workspaceId===s.workspaceId&&p.status==='posted'&&same(original,s)&&original.source==='purchase'&&original.sourceId===id&&original.amount.kind==='invoice'&&original.amount.treatment==='domestic'&&original.sourceFingerprint===reviewDigest(p),'FISCAL_PURCHASE_SOURCE_MISMATCH');
      need(same(review,s)&&review.state==='approved'&&review.purchaseId===id&&review.originalEvidenceDigest===original.evidenceDigest&&review.sourceFingerprint===original.sourceFingerprint&&day(review.effectiveDate)&&review.effectiveDate>=original.taxDate&&Array.isArray(review.allocations)&&HEX.test(review.allocationDigest)&&review.allocationDigest===reviewDigest(review.allocations),'FISCAL_COST_REVIEW_REQUIRED');
+     need(p.purchaseTax===undefined,'FISCAL_PURCHASE_COST_ALREADY_TYPED');
      const ref=db.doc(base+'/purchaseCostCorrections/'+id),prior=data(await tx.get(ref));
      if(prior){
        need(same(prior,s)&&prior.purchaseId===id&&prior.originalEvidenceDigest===original.evidenceDigest&&prior.sourceFingerprint===original.sourceFingerprint&&prior.reviewDigest===reviewDigest(review),'FISCAL_PURCHASE_COST_CONFLICT');
@@ -306,7 +309,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
  }
  async function postPurchaseAdjustment(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
-   const {purchaseTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
+   const {purchaseTotals,purchaseFinancialTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
    return db.runTransaction(async tx=>{
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,id);
@@ -346,7 +349,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        // Only one reviewed tax treatment per underlying purchase is permitted
        // by this narrow model; invoices spanning multiple declarations require
        // explicit allocation before they are accepted.
-       need(approval.originalId===undefined&&approval.kind==='invoice'&&purchaseTotals(p).landedTotal===approval.net,'FISCAL_PURCHASE_TAX_BASE_MISMATCH');
+       need(p.purchaseTax===undefined&&approval.originalId===undefined&&approval.kind==='invoice'&&purchaseTotals(p).landedTotal===approval.net,'FISCAL_PURCHASE_TAX_BASE_MISMATCH');
        need(!(await tx.get(postingRef(db,s,'purchase-'+p.id))).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
        const ref=db.doc(base+'/purchaseTreatmentClaims/'+p.id);
        need(!(await tx.get(ref)).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
@@ -360,7 +363,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
  }
  async function reportInTransaction(tx,s,from,to,{strictClose=false}={}){
      validateScope(s);need(day(from)&&day(to)&&from<=to);
-     const {purchaseTotals}=await loadCompiledFinance('operations');
+     const {purchaseTotals,purchaseFinancialTotals}=await loadCompiledFinance('operations');
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,'report');
      const collection=db.collection(base+'/accountingEntries');
@@ -387,7 +390,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              need(linked.docs.length<=200,'FISCAL_REPORT_LIMIT');
              const corrections=[];
              for(const item of linked.docs){const x=item.data();if(x.source!=='purchase')continue;need(day(x.taxDate)&&x.key===item.id,'FISCAL_PURCHASE_SOURCE_MISMATCH');if(x.taxDate<=to&&x.key!==original.key){journal(x.amount.lines);corrections.push(x);}}
-             const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
+             const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,payableTotal:purchaseFinancialTotals(p).payableTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
              const balance=supplierSettlementTimeline({purchase:p,original,adjustments:corrections,payments:source.payload.supplierPayments,through:to});
              need(balance.paid===baseRecon.paid,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
              const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));

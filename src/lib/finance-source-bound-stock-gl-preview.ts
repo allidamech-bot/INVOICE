@@ -84,6 +84,7 @@ export function inspectSourceBoundStockGl(
       if(!purchase||purchase.items.length!==1
         ||purchase.items[0]?.savedItemId!==movement.itemId)
         deny('Receipt AP counterpart needs a complete single-line tracked purchase; multi-line allocation needs separate policy.');
+      if(purchase.purchaseTax?.mode==='tax'&&decimalToScaled(purchase.purchaseTax.deductibleVat,2)>0n)deny('This two-account inventory preview does not support recoverable input VAT.');
       let payableCents:bigint;
       try{payableCents=decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
       catch{deny('Original posted purchase total and landed expenses are invalid.');}

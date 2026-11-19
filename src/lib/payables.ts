@@ -1,7 +1,7 @@
 import type { PaymentMethod, PurchaseRecord, Supplier, SupplierPaymentRecord } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
 import { decimalToScaled, isDecimalInput, isFinancialDecimalInput } from './money.js';
-import { purchaseTotals } from './operations.js';
+import { purchaseFinancialTotals } from './operations.js';
 
 export type PayablesAgingBucket='current'|'days1to30'|'days31to60'|'days61to90'|'days90plus';
 export type SupplierPayableState='draft'|'unpaid'|'partial'|'paid'|'overdue'|'reversed';
@@ -33,7 +33,7 @@ function paymentCents(payment:SupplierPaymentRecord):bigint{
   if(amount<=0n)throw new Error('Recorded supplier payment amount must be positive. Review the payment before reporting.');
   return amount;
 }
-function liabilityCents(purchase:PurchaseRecord):bigint{return decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
+function liabilityCents(purchase:PurchaseRecord):bigint{return decimalToScaled(purchaseFinancialTotals(purchase).payableTotal,2);}
 function paymentKnownOnOrBefore(payment:SupplierPaymentRecord,asOf:string):boolean{
   if(!asOf)return true;
   if(payment.date>asOf)return false;

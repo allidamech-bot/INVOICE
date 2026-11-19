@@ -1,3 +1,4 @@
+import {assertUniquePurchaseTaxReference} from '../lib/purchase-tax.js';
 import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput } from '../lib/money.js';
@@ -405,6 +406,7 @@ function purchaseCore(purchase:PurchaseRecord):string{
 // The reporting grammar remains backward-compatible for stored purchases.
 // Reject malformed *new or changed* monetary fields before a draft is saved.
 function guardPurchaseMoneyChanges(before:PurchaseRecord|undefined,wanted:PurchaseRecord):void{
+  if(before&&before.purchaseTax?.mode!==wanted.purchaseTax?.mode)throw new Error('An existing purchase tax type cannot be changed.');
   for(const field of ['freight','duty','otherCosts'] as const){
     const amount=wanted[field]||'0';
     if((!before||wanted[field]!==before[field])&&!isNonNegativeFinancialDecimalInput(amount))
@@ -725,6 +727,7 @@ function guardSavedItemInventoryRemoval(base:VaultPayload,intended:VaultPayload,
 }
 function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
   const errors=validatePurchase(purchase,savedItems);if(errors.length)throw new Error(errors[0]);
+  assertUniquePurchaseTaxReference(purchase,purchases);
   const number=purchase.number.trim().toLowerCase();
   if(purchases.some(other=>other.id!==purchase.id&&other.number.trim().toLowerCase()===number))throw new Error('Purchase number already exists.');
   const sourceMovements=movements.filter(movement=>movement.sourceId===purchase.id&&(movement.type==='purchase'||movement.type==='purchase-reversal'));
