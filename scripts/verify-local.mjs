@@ -494,6 +494,7 @@ const CONTRACTS=[
   'tests/fiscal-managed-enrollment.test.mjs',
   'tests/fiscal-protected-signing.test.mjs',
   'tests/fiscal-pdfa.test.mjs',
+  'tests/fiscal-pdf-archive-verifier.test.mjs',
   'tests/fiscal-accepted-issue.test.mjs',
   'tests/fiscal-special-context.test.mjs',
   'tests/fiscal-attempt-recovery.test.mjs',

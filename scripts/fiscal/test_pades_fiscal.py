@@ -9,6 +9,8 @@ from test_render_fiscal import fixture, UUID, QR
 from render_fiscal import render_fiscal
 from package_pdfa import embed_invoice, sha
 from pades_fiscal import prepare, signed_attributes, finish, verify_signature, prove_preserved, prepare_managed, finish_managed
+from pades_cli import verify_archive, encode
+from unittest.mock import patch
 
 class PadesTest(unittest.TestCase):
     @classmethod
@@ -37,6 +39,25 @@ class PadesTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'PADES_SCOPE_MISMATCH'): prepare_managed(self.xml,manifest,self.certs,self.at,'/missing/verapdf','311111111111113')
         r,s=utils.decode_dss_signature(self.signature); raw=r.to_bytes(32,'big')+s.to_bytes(32,'big')
         with self.assertRaisesRegex(ValueError,'VERAPDF_UNAVAILABLE'): finish_managed(self.staged,self.xml,self.certs,self.at,len(self.pdf),{'status':'offline-pdfa-package-candidate','pdfDigest':sha(self.pdf),'xmlDigest':sha(self.xml)},raw,'/missing/verapdf')
+    def test_independent_archive_gate_binds_visible_pdf_and_signature(self):
+        # Structural XML certificate fixture only, not an authority-signed XML.
+        from defusedxml import ElementTree
+        import xml.etree.ElementTree as ET
+        root=ElementTree.fromstring(self.xml)
+        ds='http://www.w3.org/2000/09/xmldsig#'
+        sig=ET.SubElement(root,'{'+ds+'}Signature')
+        ET.SubElement(ET.SubElement(ET.SubElement(sig,'{'+ds+'}KeyInfo'),'{'+ds+'}X509Data'),'{'+ds+'}X509Certificate').text=encode(self.certs[0])
+        xml=ET.tostring(root,encoding='utf-8')
+        original=embed_invoice(render_fiscal(xml),xml,UUID,self.at)
+        staged=prepare(original,self.at)
+        signed=finish(staged,self.certs,self.key.sign(signed_attributes(staged,self.certs),ec.ECDSA(hashes.SHA256())))
+        d={'xml':encode(xml),'pdf':encode(signed),'certs':[encode(x) for x in self.certs],'at':self.at.isoformat(),'validator':'/missing/verapdf','mode':'simplified','uuid':UUID}
+        with self.assertRaisesRegex(ValueError,'VERAPDF_UNAVAILABLE'): verify_archive(d)
+        # Structural regression only; mock validation does not prove PDF/A.
+        with patch('pades_cli.validate_pdfa3b',return_value='a'*64):
+            self.assertEqual(verify_archive(d)['pdfDigest'],sha(signed))
+            for bad in ({**d,'pdf':encode(original)},{**d,'pdf':encode(signed+b'\n')},{**d,'certs':[encode(self.certs[1]),encode(self.certs[0])]},{**d,'xml':encode(self.xml)},{**d,'uuid':'00000000-0000-0000-0000-000000000000'},{**d,'at':(self.at+timedelta(seconds=10)).isoformat()}):
+                with self.assertRaises(Exception): verify_archive(bad)
     def test_standard_invoice_not_stamped_by_egs(self):
         xml=fixture('01'); manifest={'uuid':UUID,'mode':'standard','status':'cleared','xmlDigest':sha(xml),'generatedAt':self.at.isoformat(),'environment':'simulation'}
         with self.assertRaisesRegex(ValueError,'PADES_SCOPE_MISMATCH'): prepare_managed(xml,manifest,self.certs,self.at,'/missing/verapdf','300000000000003')

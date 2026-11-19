@@ -7,6 +7,7 @@ import {createFiscalReconciler} from './reconciliation.js';
 import {createFiscalOutputService} from './fiscal-output.js';
 import {createFiscalAccounting} from './fiscal-accounting.js';
 import {createFiscalPeriodGuard} from './fiscal-period-guard.js';
+import {createIndependentFiscalPdfVerifier} from './pdf-archive-verifier.js';
 export function fiscalCommandConfig(env){
   const project=fiscalQaProject(env);
   if(env.LOUREX_FISCAL_COMMANDS_ENABLED!=='true')throw Error('FISCAL_COMMAND_UNAVAILABLE');
@@ -23,15 +24,23 @@ export function fiscalSimulationAdaptersConfigured(options){
   if([p.canonicalize,p.validateOfficial,p.resolveProtectedSession,s.resolveCredential,s.verifyPrepared,s.verifyAuthorityResult,e.resolveProtectedSession,e.verifyCredential,e.buildComplianceInvoice,e.verifyComplianceResult].some(fn=>typeof fn!=='function')||!p.policy)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
   return true;
 }
-export async function getFiscalQaCommandRuntime({simulationAdapters}={}){
+// Private operations are never reachable through parseFiscalCommand.
+export function privateAcceptanceAdaptersConfigured(options){
+  if(options===undefined)return null;
+  if(!options||typeof options!=='object'||Array.isArray(options)||!Object.keys(options).length||Object.keys(options).some(k=>!['pdf','verifySupplierSettlementEvidence'].includes(k))||Object.hasOwn(options,'verifySupplierSettlementEvidence')&&typeof options.verifySupplierSettlementEvidence!=='function'||Object.hasOwn(options,'pdf')&&!options.pdf)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
+  return Object.freeze({...(options.pdf===undefined?{}:{pdf:createIndependentFiscalPdfVerifier(options.pdf)}),verifySupplierSettlementEvidence:options.verifySupplierSettlementEvidence});
+}
+export async function getFiscalQaCommandRuntime({simulationAdapters,privateAcceptanceAdapters}={}){
   const configured=fiscalSimulationAdaptersConfigured(simulationAdapters);
+  const privateAdapters=privateAcceptanceAdaptersConfigured(privateAcceptanceAdapters);
   const {project,account}=fiscalCommandConfig(process.env);
   const [{initializeApp,getApps,cert},{getFirestore},{getAuth},{createCommercialIssueApproval},{createCommercialReview}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js'),import('./commercial-review.js')]);
   const name='lourex-fiscal-qa-command';let app=getApps().find(a=>a.name===name);
   if(app&&app.options.projectId!==project)throw Error('FISCAL_COMMAND_UNAVAILABLE');
   if(!app)app=initializeApp({projectId:project,credential:cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
-  const ledger=createFiscalLedger(db),accounting=createFiscalAccounting({db});
+  const ledger=createFiscalLedger(db),accounting=createFiscalAccounting({db,verifySupplierSettlementEvidence:privateAdapters?.verifySupplierSettlementEvidence});
+  const output=createFiscalOutputService({db,verifyPdf:privateAdapters?.pdf});
   const periodService=process.env.LOUREX_FISCAL_QA_PERIOD_ENABLED==='true'&&process.env.LOUREX_PERIOD_RULES_VERSION==='1'? (await import('../_accounting/period-store.js')).createPeriodService(db,{fiscalGuard:createFiscalPeriodGuard(db,{closeProof:accounting.closeProof})}):null;
   // Recovery never sends anything. A held attempt is transitioned only via the
   // ledger's versioned, five-minute recovery transaction.
@@ -57,5 +66,5 @@ export async function getFiscalQaCommandRuntime({simulationAdapters}={}){
     if(!onboarding.enrollment)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
     enrollment=onboarding.enrollment;
   }
-  return {periodService,verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output:createFiscalOutputService({db}),accounting,recover,reconcile,submit,prepare,enrollment})};
+  return {periodService,verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output,accounting,recover,reconcile,submit,prepare,enrollment}),...(privateAdapters?.pdf?{archiveVerifiedPdf:output.archivePdf}:{}),...(accounting.provisionSupplierSettlement?{provisionSupplierSettlement:accounting.provisionSupplierSettlement}:{})};
 }

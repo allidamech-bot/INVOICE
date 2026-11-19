@@ -59,6 +59,40 @@ async function allProjections(db,tx,s,payload,posted,approval,through,extraAdjus
  for(const egsId of groups){const p=await projection(db,tx,{...s,egsId},payload,posted.filter(x=>x.egsId===egsId),approval?.egsId===egsId?approval:null,through,extraAdjustment);balances.push(...p.balances);journals.push(...p.journals);}
  return {balances,journals:journals.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))};
 }
+// Private evidence provisioning. The trusted service must independently verify
+// the evidence and bind it to the current decoded publication. No journal or
+// cash claim is written here; posting remains the sole financial writer.
+export async function provisionVerifiedSupplierSettlement(db,tx,s,source,id,today,bytes,verified){
+ need(ID.test(id)&&day(today)&&Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=500000);
+ const digest=hash(bytes),a=verified?.approval;
+ need(verified?.valid===true&&verified.evidenceDigest===digest&&HEX.test(verified.verificationDigest??'')&&verified.sourceRevision===source.meta.revision&&verified.sourceSha256===source.meta.sha256&&verified.periodGeneration===source.control.generation&&same(a,s)&&a.id===id&&a.state==='approved'&&day(a.date)&&a.date<=today&&!Object.hasOwn(a,'evidenceDigest'));
+ need(['refund','offset','adjusted-payment','adjusted-payment-reversal'].includes(a.kind)&&typeof a.amount==='string'&&/^(?:0|[1-9][0-9]{0,17})\.\d{2}$/.test(a.amount)&&a.amount!=='0.00'&&ID.test(a.sourcePurchaseId)&&HEX.test(a.sourceFingerprint));
+ const keys=['accountUid','workspaceId','egsId','environment','id','state','kind','date','amount','branchId','currency','supplierId','sourcePurchaseId','sourceFingerprint',...(a.kind==='offset'?['targetPurchaseId','targetFingerprint']:['treasuryEntryId','cashDigest']),...(a.kind==='adjusted-payment-reversal'?['reversesSettlementId']:[])];
+ need(Object.keys(a).length===keys.length&&keys.every(k=>Object.hasOwn(a,k)));
+ const base=simulationBase(s),approval={...a,evidenceDigest:digest},reviewRef=db.doc(base+'/supplierSettlementReviews/'+id),proofRef=db.doc(base+'/supplierSettlementEvidence/'+digest);
+ const proof={...s,state:'verified',digest,bytes:bytes.toString('base64'),settlement:a,verificationDigest:verified.verificationDigest};
+ const prior=data(await tx.get(reviewRef)),oldProof=data(await tx.get(proofRef));
+ if(prior||oldProof){
+  need(prior&&oldProof&&equal(prior,approval)&&equal(oldProof,proof),'FISCAL_SETTLEMENT_REVIEW_CONFLICT');
+  return {status:'approved',settlementId:id};
+ }
+ need(!source.closedThrough||a.date>source.closedThrough,'FISCAL_PERIOD_CLOSED');
+ const all=await collectionRows(db,tx,base+'/supplierSettlementReviews');
+ need(all.length<MAX&&all.every(({row})=>row.evidenceDigest!==digest&&(!a.treasuryEntryId||row.treasuryEntryId!==a.treasuryEntryId)),'FISCAL_SETTLEMENT_REVIEW_CONFLICT');
+ const posted=await loadPosted(db,tx,s);
+ need(posted.length<MAX&&!(await tx.get(evidenceClaim(db,s,digest))).exists,'FISCAL_SETTLEMENT_EVIDENCE_DUPLICATE');
+ if(a.kind!=='offset'){
+  need(ID.test(a.treasuryEntryId)&&!(await tx.get(settlementCashClaim(db,s,a.treasuryEntryId))).exists&&!(await tx.get(accountRef(db,s,'advanceTreasuryReservations',a.treasuryEntryId))).exists&&!(await tx.get(accountRef(db,s,'advanceTreasuryIndex',a.treasuryEntryId))).exists,'FISCAL_ADVANCE_CASH_ALREADY_CLAIMED');
+ }
+ const full=await allProjections(db,tx,s,source.payload,posted,approval,'9999-12-31');
+ need(full.journals.some(j=>j.id===id),'FISCAL_SETTLEMENT_REVIEW_CONFLICT');
+ if(a.kind==='adjusted-payment'){
+  const current=await allProjections(db,tx,s,source.payload,posted,approval,today);
+  need(current.balances.find(b=>b.purchaseId===a.sourcePurchaseId)?.supplierCredit==='0.00');
+ }
+ tx.create(reviewRef,approval);tx.create(proofRef,proof);
+ return {status:'approved',settlementId:id};
+}
 // Called inside the same transaction that will record the journal and claims.
 // Only server-approved immutable evidence may authorize a refund or offset.
 export async function postSupplierSettlement(db,tx,s,source,id,today){

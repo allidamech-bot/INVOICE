@@ -1,5 +1,5 @@
 import {projectSupplierAPJournal} from './supplier-ap-reconciliation.mjs';
-import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation} from './supplier-settlement-posting.mjs';
+import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation,provisionVerifiedSupplierSettlement} from './supplier-settlement-posting.mjs';
 import {planAdvanceCommercial,planAdvanceRefundCommercial,verifyAdvanceReport} from './advance-commercial.js';
 import {planReviewedLotCostBridge,replayPostedCostAllocation} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
@@ -125,7 +125,7 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
 // Private append-only VAT subledger. It is not a substitute for the existing
 // commercial accounting model; commercial stock/payables publication is a
 // separate verified operation, and reconciliation reports explicitly track it.
-export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
+export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),verifySupplierSettlementEvidence}){
  const accepted=createAcceptedFiscalReader(db);
  async function writePosting(tx,s,key,row,uniqueKey,publish){
    const ref=postingRef(db,s,key),prior=data(await tx.get(ref)),uniqueRef=db.doc('fiscalPrivateV1/'+s.accountUid+'/accountingEvidence/'+uniqueKey),unique=data(await tx.get(uniqueRef));
@@ -315,6 +315,20 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      tx.update(db.doc(source.root+'/accounting/control'),{generation:source.control.generation+1,updatedAt:encoded.meta.updatedAt});
      return {status:'posted',key:'purchase-return-'+id};
    });
+ }
+ // Trusted service only; not a browser command. External verification is
+ // performed outside transaction retries, then bound to publication CAS.
+ async function provisionSupplierSettlement(identity,s,id,evidence){
+   validateScope(s);need(identity?.role==='owner'&&identity.uid===s.accountUid&&typeof id==='string'&&ID.test(id)&&typeof verifySupplierSettlementEvidence==='function'&&Buffer.isBuffer(evidence)&&evidence.length>0&&evidence.length<=500000,'FISCAL_SUPPLIER_SETTLEMENT_REVIEW_REQUIRED');
+   const bytes=Buffer.from(evidence);
+   const read=async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true&&workspace.selectedEgsId===s.egsId);
+     return published(db,tx,s,id);
+   };
+   const first=await db.runTransaction(read),binding={sourceRevision:first.meta.revision,sourceSha256:first.meta.sha256,periodGeneration:first.control.generation};
+   const verified=await verifySupplierSettlementEvidence({scope:Object.freeze({...s}),settlementId:id,source:Object.freeze({...binding}),bytes:Buffer.from(bytes)});
+   need(verified&&Object.keys(binding).every(k=>verified[k]===binding[k]),'FISCAL_SUPPLIER_SETTLEMENT_REVIEW_REQUIRED');
+   return db.runTransaction(async tx=>provisionVerifiedSupplierSettlement(db,tx,s,await read(tx),id,clock().slice(0,10),bytes,verified));
  }
  async function postSupplierSettlement(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
@@ -521,5 +535,5 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl});
+ return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl,...(typeof verifySupplierSettlementEvidence==='function'?{provisionSupplierSettlement}:{})});
 }

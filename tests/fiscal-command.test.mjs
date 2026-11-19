@@ -116,3 +116,14 @@ test('server simulation composition is off by default and refuses partial verifi
  assert.equal(fiscalSimulationAdaptersConfigured({preparation,submission,enrollment}),true);
  for(const x of [null,{}, {preparation,submission}, {preparation:{...preparation,validateOfficial:undefined},submission,enrollment}, {preparation,submission:{...submission,verifyAuthorityResult:true},enrollment}])assert.throws(()=>fiscalSimulationAdaptersConfigured(x),/VERIFICATION_UNAVAILABLE/);
 });
+
+import {privateAcceptanceAdaptersConfigured} from '../api/_fiscal/command-runtime.js';
+test('private release adapters are not public commands and are disabled by default',async()=>{
+ assert.equal(privateAcceptanceAdaptersConfigured(undefined),null);
+ assert.throws(()=>privateAcceptanceAdaptersConfigured({pdf:{}}));
+ assert.throws(()=>privateAcceptanceAdaptersConfigured({verifySupplierSettlementEvidence:true}));
+ const fn=async()=>({valid:false});
+ assert.equal(privateAcceptanceAdaptersConfigured({verifySupplierSettlementEvidence:fn}).verifySupplierSettlementEvidence,fn);
+ const f=fixture();
+ for(const operation of ['provision-supplier-settlement','archive-pdf'])await assert.rejects(f.execute(owner,cmd(operation,{})));
+});

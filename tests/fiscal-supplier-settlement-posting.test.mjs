@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
 import {supplierRefundCashFacts} from '../api/_fiscal/supplier-commercial-settlements.mjs';
-import {postSupplierSettlement,readSupplierSettlements,assertSupplierSettlementContinuity,assertSettlementCashContinuity,settlementCashClaim,assertPostedSupplierPaymentTransition,mergeSupplierSettlementReconciliation} from '../api/_fiscal/supplier-settlement-posting.mjs';
+import {postSupplierSettlement,readSupplierSettlements,assertSupplierSettlementContinuity,assertSettlementCashContinuity,settlementCashClaim,assertPostedSupplierPaymentTransition,mergeSupplierSettlementReconciliation,provisionVerifiedSupplierSettlement} from '../api/_fiscal/supplier-settlement-posting.mjs';
 const s={accountUid:'u',workspaceId:'w',egsId:'e',environment:'simulation'},base='fiscalPrivateV1/u/workspaces/w',party={workspaceId:'w',branchId:'b',currency:'SAR'};
 function fixture(){
  const a={...party,id:'a',number:'A',date:'2026-11-01',status:'posted',supplierSnapshot:{sourceSupplierId:'supplier'}},b={...a,id:'b',number:'B'};
@@ -85,4 +85,21 @@ test('adjusted payment voucher follows posted cash evidence and exact historical
  const reversed=(await read('2026-11-01','2026-11-19')).vouchers[0];assert.equal(reversed.reversalId,'reverse-adjusted');assert.equal(reversed.reversalDate,deposit.date);
  const altered={...f.payload,treasuryEntries:f.payload.treasuryEntries.map(e=>e.id==='withdrawal'?{...e,amount:'24.00'}:e)};
  await assert.rejects(f.run(tx=>readSupplierSettlements(f.db,tx,s,altered,'2026-11-01','2026-11-19')));
+});
+
+test('private approval provisions verified review and evidence atomically, never posts a second cash entry',async()=>{
+ const f=fixture(),path=base+'/supplierSettlementReviews/offset',old=f.rows.get(path);
+ f.rows.delete(path);f.rows.delete(base+'/supplierSettlementEvidence/'+old.evidenceDigest);
+ const {evidenceDigest,...approval}=old,bytes=Buffer.from('independent proof offset');
+ const source={payload:f.payload,meta:{revision:'revision-current',sha256:'a'.repeat(64)},control:{generation:3},closedThrough:null};
+ const verified={valid:true,evidenceDigest,verificationDigest:'b'.repeat(64),sourceRevision:source.meta.revision,sourceSha256:source.meta.sha256,periodGeneration:3,approval};
+ const provision=(proof=verified,src=source)=>f.run(tx=>provisionVerifiedSupplierSettlement(f.db,tx,s,src,'offset','2026-11-19',bytes,proof));
+ const before=f.rows.size;
+ for(const patch of [{valid:false},{sourceRevision:'stale'},{periodGeneration:2},{evidenceDigest:'c'.repeat(64)},{approval:{...approval,branchId:'other'}},{approval:{...approval,amount:'47.00'}},{approval:{...approval,privateKey:'never'}}])await assert.rejects(provision({...verified,...patch}));
+ await assert.rejects(provision(verified,{...source,closedThrough:approval.date}));
+ assert.equal(f.rows.size,before);
+ assert.deepEqual(await provision(),{status:'approved',settlementId:'offset'});assert.equal(f.rows.size,before+2);
+ assert.deepEqual(await provision(),{status:'approved',settlementId:'offset'});assert.equal(f.rows.size,before+2);
+ assert.equal(f.rows.has(base+'/supplierSettlementPostings/offset'),false);
+ await f.post('offset');assert.ok(f.rows.has(base+'/supplierSettlementPostings/offset'));
 });
