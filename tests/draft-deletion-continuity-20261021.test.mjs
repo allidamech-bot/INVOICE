@@ -1,3 +1,4 @@
+import {assertInvoiceMode,needsSaudiFiscalIssuance,withInvoiceMode} from '../dist/src/lib/invoice-mode.js';
 import test from 'node:test';
 import {fiscalQaInvoice} from '../dist/src/lib/fiscal-document-client.js';
 import assert from 'node:assert/strict';
@@ -85,7 +86,7 @@ async function persistence(f){
   assert.ok(start>=0&&end>start);
   let stored={uid:'qa-audit-account',localRevision:'qa-r1',payload:structuredClone(f.full)},rejectCas=false,writes=0,syncs=0;
   const toasts=[],shares=[];
-  const context={exports:{},fiscalQaInvoice,Error,Promise,structuredClone,scopeVault,applyWorkspaceScope,overlayWorkspaceScope,mergeVaultIntent,
+  const context={exports:{},assertInvoiceMode,needsSaudiFiscalIssuance,fiscalQaInvoice,Error,Promise,structuredClone,scopeVault,applyWorkspaceScope,overlayWorkspaceScope,mergeVaultIntent,
     auditedDocument,isDeliveryLinkedInvoice,sameDocumentContent,t:en=>en,
     confirmedSalesDeliveries,salesOrderForQuotation,assertInvoicePaymentInvariant,assertCustomerCreditLimit,
     approvalGate,assertDocumentLifecycleInvariant,createDocumentEvent,documentUsesCommercialDefaults,

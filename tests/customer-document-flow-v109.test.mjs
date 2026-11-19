@@ -23,7 +23,7 @@ test('customer workspace exposes direct quote and invoice actions', async () => 
 test('app reserves the normal number and snapshots the selected customer', async () => {
   const source = await read('src/app/App.tsx');
   assert.match(source, /customerSnapshotFrom/);
-  assert.match(source, /newDocumentForCustomer=async\(kind:DocumentKind,customer:Customer\)/);
+  assert.match(source, /newDocumentForCustomer=async\(kind:DocumentKind,customer:Customer,mode\?:InvoiceMode\)/);
   assert.match(source, /await this\.reserveDocument\(kind\)/);
   assert.match(source, /customerSnapshot:customerSnapshotFrom\(customer\)/);
   assert.match(source, /onNewDocument=\{this\.newDocumentForCustomer\}/);

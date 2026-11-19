@@ -52,7 +52,7 @@ test('v312 preserves new kinds through vault reload and keeps accounting scoped'
 
 test('v312 output titles are centralized and PWA recognizes every new kind',async()=>{
   const [renderer,entry]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('public/document-entry-v302.js')]);
-  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role\)/);
+  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role,doc\.invoiceMode\)/);
   for(const kind of ['rfq','proforma-invoice','delivery-note','payment-receipt','statement-account'])assert.ok(entry.includes(`kind='${kind}'`)||entry.includes(`'${kind}'`));
 });
 

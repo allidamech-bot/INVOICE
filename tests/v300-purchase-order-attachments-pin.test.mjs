@@ -31,7 +31,7 @@ test('purchase orders have a genuine supplier document type, own numbering and p
   assert.match(types,/purchase-order/);
   assert.match(docs,/purchaseOrderPrefix/);
   assert.match(vault,/supplierSnapshot/);
-  assert.match(template,/documentKindTitle\(doc\.kind,doc\.role\)/);
+  assert.match(template,/documentKindTitle\(doc\.kind,doc\.role,doc\.invoiceMode\)/);
 });
 
 test('image and PDF attachments remain in the encrypted document payload with bounded uploads',async()=>{

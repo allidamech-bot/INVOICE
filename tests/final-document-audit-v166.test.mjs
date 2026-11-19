@@ -10,7 +10,7 @@ test('new quotation, invoice and customer drafts are durably stored before the e
   const create=app.slice(app.indexOf('private newDocument=async('),app.indexOf('private newDocumentForCustomer=async('));
   const customer=app.slice(app.indexOf('private newDocumentForCustomer=async('),app.indexOf('private saveDocument=async('));
   assert.match(create,/if\(this\.documentCreateBusy\|\|!confirmWorkspaceDeparture\(\)\)return/);
-  assert.match(create,/await reservation;await this\.persist\(\{\.\.\.vault,documents:\[\.\.\.vault\.documents,doc\]\}\)/);
+  assert.match(create,/await reservation;const doc=mode\?withInvoiceMode\(blank,mode\):blank;await this\.persist\(\{\.\.\.vault,documents:\[\.\.\.vault\.documents,doc\]\}\)/);
   assert.ok(create.indexOf('await this.persist(')<create.indexOf("this.setState({screen:'editor'"),
     'draft must be stored before entering the editor');
   assert.match(customer,/const prepared=applyCustomerCommercialDefaults/);
