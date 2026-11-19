@@ -1,4 +1,4 @@
-import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity} from './supplier-settlement-posting.mjs';
+import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation} from './supplier-settlement-posting.mjs';
 import {planAdvanceCommercial,verifyAdvanceReport} from './advance-commercial.js';
 import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
@@ -475,6 +475,19 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
      const supplierSettlements=await readSupplierSettlements(db,tx,s,source.payload,from,to);
+     const settledByPurchase=new Map(supplierSettlements.balances.map(b=>[b.purchaseId,b]));
+     need(settledByPurchase.size===supplierSettlements.balances.length,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+     const settlementReconciliations=new Map();
+     for(const [purchaseId,reconciliation] of purchaseBalances){
+       const b=settledByPurchase.get(purchaseId);
+       if(b)settlementReconciliations.set(reconciliation,mergeSupplierSettlementReconciliation(reconciliation,b));
+     }
+     for(const r of rows){
+       const previous=r.reconciliation,next=settlementReconciliations.get(previous);
+       if(!next)continue;
+       r.reconciliation=next;
+       if(previous.matched&&!next.matched)unmatched++;
+     }
      return {supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}

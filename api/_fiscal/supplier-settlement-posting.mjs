@@ -99,6 +99,36 @@ export async function assertSupplierSettlementContinuity(db,tx,s,payload,extraAd
  const posted=await loadPosted(db,tx,s);
  if(posted.length)await allProjections(db,tx,s,payload,posted,null,'9999-12-31',extraAdjustment);
 }
+// Compare the actual post-offset payable both before and after a new wallet
+// publication. A backdated payment can be valid on its stated date yet
+// consume credit already applied by an offset, or create a fresh current
+// supplier credit. Subsequent approved tax adjustments are not cash mutations.
+export async function assertPostedSupplierPaymentTransition(db,tx,s,before,candidate,today){
+ need(day(today));
+ const posted=await loadPosted(db,tx,s);
+ if(!posted.length)return;
+ const previous=await allProjections(db,tx,s,before,posted,null,today);
+ await allProjections(db,tx,s,candidate,posted,null,'9999-12-31');
+ const next=await allProjections(db,tx,s,candidate,posted,null,today);
+ const map=new Map(previous.balances.map(b=>[b.purchaseId,b]));
+ const cents=v=>{need(typeof v==='string'&&/^(?:0|[1-9]\d{0,17})\.\d{2}$/.test(v));return BigInt(v.replace('.',''));};
+ for(const b of next.balances){
+  const old=map.get(b.purchaseId);
+  need(old&&old.supplierId===b.supplierId&&old.currency===b.currency,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+  need(cents(b.paid)<=cents(old.paid)||cents(b.supplierCredit)===0n,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+ }
+}
+// Bring the authoritative settlement projection into the existing purchase
+// reconciliation, without pretending that the commercial AP journal has
+// already been migrated. A mismatch must remain visible and prevent closure.
+export function mergeSupplierSettlementReconciliation(reconciliation,balance){
+ const cents=v=>{need(typeof v==='string'&&/^-?(?:0|[1-9]\d{0,17})\.\d{2}$/.test(v));return BigInt(v.replace('.',''));};
+ const fmt=n=>(n<0n?'-':'')+String((n<0n?-n:n)/100n)+'.'+String((n<0n?-n:n)%100n).padStart(2,'0');
+ need(reconciliation.adjustedPayable===balance.adjustedPayable&&reconciliation.paid===balance.paid,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+ const delta=cents(balance.settlementDelta),out=cents(reconciliation.adjustedOutstanding)+delta,remaining=cents(balance.outstanding),credit=cents(balance.supplierCredit);
+ need(remaining>=0n&&credit>=0n&&(remaining===0n||credit===0n)&&remaining-credit===out,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+ return {...reconciliation,settlementDelta:fmt(delta),settledOutstanding:fmt(remaining),settledSupplierCredit:fmt(credit),matched:reconciliation.matched&&delta===0n};
+}
 export async function assertSettlementCashContinuity(db,tx,s,before,candidate){
  const previous=(before.treasuryEntries??[]).filter(e=>e.workspaceId===s.workspaceId),next=(candidate.treasuryEntries??[]).filter(e=>e.workspaceId===s.workspaceId);
  const map=new Map(next.map(e=>[e.id,e]));need(map.size===next.length);

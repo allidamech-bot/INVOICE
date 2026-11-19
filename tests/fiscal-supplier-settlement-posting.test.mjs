@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
 import {supplierRefundCashFacts} from '../api/_fiscal/supplier-commercial-settlements.mjs';
-import {postSupplierSettlement,readSupplierSettlements,assertSupplierSettlementContinuity,assertSettlementCashContinuity,settlementCashClaim} from '../api/_fiscal/supplier-settlement-posting.mjs';
+import {postSupplierSettlement,readSupplierSettlements,assertSupplierSettlementContinuity,assertSettlementCashContinuity,settlementCashClaim,assertPostedSupplierPaymentTransition,mergeSupplierSettlementReconciliation} from '../api/_fiscal/supplier-settlement-posting.mjs';
 const s={accountUid:'u',workspaceId:'w',egsId:'e',environment:'simulation'},base='fiscalPrivateV1/u/workspaces/w',party={workspaceId:'w',branchId:'b',currency:'SAR'};
 function fixture(){
  const a={...party,id:'a',number:'A',date:'2026-11-01',status:'posted',supplierSnapshot:{sourceSupplierId:'supplier'}},b={...a,id:'b',number:'B'};
@@ -39,4 +39,27 @@ test('blocks closed periods, forged evidence, reused cash and subsequent supplie
 
 test('historical report contains no future settlement or pending action beyond range',async()=>{
  const f=fixture();await f.post('offset');await f.post('refund');const r=await f.run(tx=>readSupplierSettlements(f.db,tx,s,f.payload,'2026-11-01','2026-11-11'));assert.equal(r.journals.length,0);assert.equal(r.balances.find(x=>x.purchaseId==='a').supplierCredit,'46.00');assert.equal(r.balances.find(x=>x.purchaseId==='b').outstanding,'115.00');
+});
+
+test('backdated new cash cannot create an excess after an already posted offset and later tax credit',async()=>{
+ const f=fixture();await f.post('offset');
+ const original=f.rows.get(base+'/accountingEntries/purchase-b');
+ f.rows.set(base+'/accountingEntries/credit-b',{...original,key:'credit-b',originalId:'b',taxDate:'2026-11-15',amount:{kind:'credit-note',treatment:'domestic',net:'20.00',vat:'3.00',deductibleVat:'0.00',gross:'23.00'}});
+ const candidate=amount=>({...f.payload,supplierPayments:[...f.payload.supplierPayments,f.pay(f.b,'backdated','2026-11-11',amount)]});
+ // Historical replay alone allows the payment, which was within the
+ // liability on the date given; a new publication must not create a credit.
+ await f.run(tx=>assertSupplierSettlementContinuity(f.db,tx,s,candidate('70.00')));
+ await assert.rejects(f.run(tx=>assertPostedSupplierPaymentTransition(f.db,tx,s,f.payload,candidate('70.00'),'2026-11-19')),/FISCAL_SETTLEMENT_REVIEW_REQUIRED/);
+ await f.run(tx=>assertPostedSupplierPaymentTransition(f.db,tx,s,f.payload,candidate('62.00'),'2026-11-19'));
+ await f.run(tx=>assertPostedSupplierPaymentTransition(f.db,tx,s,candidate('70.00'),candidate('70.00'),'2026-11-19'));
+});
+test('existing purchase reconciliation shows real net outstanding and credit after offset without false accounting match',()=>{
+ const r={adjustedPayable:'115.00',adjustedOutstanding:'115.00',paid:'0.00',matched:true};
+ const b={adjustedPayable:'115.00',paid:'0.00',settlementDelta:'-30.00',outstanding:'85.00',supplierCredit:'0.00'};
+ assert.deepEqual(mergeSupplierSettlementReconciliation(r,b),{...r,settlementDelta:'-30.00',settledOutstanding:'85.00',settledSupplierCredit:'0.00',matched:false});
+ assert.throws(()=>mergeSupplierSettlementReconciliation(r,{...b,outstanding:'84.00'}));
+ assert.throws(()=>mergeSupplierSettlementReconciliation(r,{...b,paid:'1.00'}));
+ assert.throws(()=>mergeSupplierSettlementReconciliation(r,{...b,supplierCredit:'1.00'}));
+ const credit={adjustedPayable:'69.00',paid:'115.00',adjustedOutstanding:'-46.00',matched:false};
+ assert.equal(mergeSupplierSettlementReconciliation(credit,{adjustedPayable:'69.00',paid:'115.00',settlementDelta:'30.00',outstanding:'0.00',supplierCredit:'16.00'}).settledSupplierCredit,'16.00');
 });
