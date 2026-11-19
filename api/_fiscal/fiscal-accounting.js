@@ -19,7 +19,7 @@ import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js'
 import {validateMeta,decodeWorkspace,encodeWorkspace} from '../_accounting/period-format.js';
 import {loadCompiledFinance} from '../_accounting/compiled-finance-loader.js';
 import {previewFiscalCostReclassification} from '../_accounting/finance-gl-atomic-contract.js';
-import {inspectPublishedStockGlReview} from './stock-gl-review.mjs';
+import {inspectPublishedStockGlReview,provisionIndependentStockGlReview} from './stock-gl-review.mjs';
 const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/,VAT=/^3[0-9]{13}3$/;
 const data=s=>s.exists?s.data():null;
 const need=(ok,c='FISCAL_ACCOUNTING_INVALID')=>{if(!ok)throw Error(c);};
@@ -125,7 +125,7 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
 // Private append-only VAT subledger. It is not a substitute for the existing
 // commercial accounting model; commercial stock/payables publication is a
 // separate verified operation, and reconciliation reports explicitly track it.
-export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),verifySupplierSettlementEvidence}){
+export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),verifySupplierSettlementEvidence,verifyStockGlEvidence}){
  const accepted=createAcceptedFiscalReader(db);
  async function writePosting(tx,s,key,row,uniqueKey,publish){
    const ref=postingRef(db,s,key),prior=data(await tx.get(ref)),uniqueRef=db.doc('fiscalPrivateV1/'+s.accountUid+'/accountingEvidence/'+uniqueKey),unique=data(await tx.get(uniqueRef));
@@ -520,6 +520,15 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),ve
      }
      return {supplierPayableJournals,supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
+ async function provisionStockGlReview(identity,s,branchId,itemId,evidence){
+   validateScope(s);need(identity?.role==='owner'&&identity.uid===s.accountUid&&ID.test(branchId)&&ID.test(itemId)&&typeof verifyStockGlEvidence==='function'&&Buffer.isBuffer(evidence)&&evidence.length>0&&evidence.length<=500000,'FISCAL_STOCK_GL_REVIEW_INVALID');
+   const bytes=Buffer.from(evidence),today=clock().slice(0,10);
+   const read=async tx=>{const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true&&workspace.selectedEgsId===s.egsId);return published(db,tx,s,itemId);};
+   const source=await db.runTransaction(read),binding={sourceRevision:source.meta.revision,sourceSha256:source.meta.sha256,periodGeneration:source.control.generation};
+   const proof=await verifyStockGlEvidence({scope:Object.freeze({...s}),branchId,itemId,asOfDate:today,source:Object.freeze({...binding}),bytes:Buffer.from(bytes)});
+   need(proof&&Object.keys(binding).every(k=>proof[k]===binding[k])&&clock().slice(0,10)===today,'FISCAL_STOCK_GL_REVIEW_INVALID');
+   return db.runTransaction(async tx=>{const current=await read(tx);return provisionIndependentStockGlReview({db,tx,scope:s,source:current,branchId,itemId,loadCompiledFinance,today},bytes,proof);});
+ }
  async function inspectStockGl(s,branchId,itemId){
    validateScope(s);need(ID.test(branchId)&&ID.test(itemId));
    return db.runTransaction(async tx=>{
@@ -535,5 +544,5 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),ve
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl,...(typeof verifySupplierSettlementEvidence==='function'?{provisionSupplierSettlement}:{})});
+ return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl,...(typeof verifySupplierSettlementEvidence==='function'?{provisionSupplierSettlement}:{}),...(typeof verifyStockGlEvidence==='function'?{provisionStockGlReview}:{})});
 }
