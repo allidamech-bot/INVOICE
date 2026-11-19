@@ -19,6 +19,7 @@ import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js'
 import {validateMeta,decodeWorkspace,encodeWorkspace} from '../_accounting/period-format.js';
 import {loadCompiledFinance} from '../_accounting/compiled-finance-loader.js';
 import {previewFiscalCostReclassification} from '../_accounting/finance-gl-atomic-contract.js';
+import {inspectPublishedStockGlReview} from './stock-gl-review.mjs';
 const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/,VAT=/^3[0-9]{13}3$/;
 const data=s=>s.exists?s.data():null;
 const need=(ok,c='FISCAL_ACCOUNTING_INVALID')=>{if(!ok)throw Error(c);};
@@ -505,6 +506,14 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      }
      return {supplierPayableJournals,supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
+ async function inspectStockGl(s,branchId,itemId){
+   validateScope(s);need(ID.test(branchId)&&ID.test(itemId));
+   return db.runTransaction(async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
+     const source=await published(db,tx,s,itemId);
+     return inspectPublishedStockGlReview({db,tx,scope:s,source,branchId,itemId,loadCompiledFinance,today:clock().slice(0,10)});
+   });
+ }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
  async function closeProof(tx,s,through){
    const snapshot=await reportInTransaction(tx,s,'0001-01-01',through,{strictClose:true});
@@ -512,5 +521,5 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof});
+ return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl});
 }
