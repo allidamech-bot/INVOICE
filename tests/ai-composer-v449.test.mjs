@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const index=read('index.html');
@@ -167,4 +168,37 @@ test('v449 voice is explicit, permission-aware and transcribes without auto-send
   assert.match(vercel,/microphone=\(self\)/);
   assert.doesNotMatch(vercel,/microphone=\(\)/);
   assert.doesNotMatch(vercel,/camera=\(self\)/);
+});
+
+test('Morning Brief waits for its own committed React mount and never dispatches into a replaced panel',()=>{
+  const start=js.indexOf('function withDailyReady('),end=js.indexOf('function clickInternalAction(',start);
+  assert.ok(start>=0&&end>start);
+  class HTMLElement{}
+  const first=new HTMLElement(),second=new HTMLElement();
+  let panel=first,ready=false,events=[],timers=[],statuses=[],closed=0;
+  for(const p of [first,second]){p.isConnected=true;p.querySelector=selector=>{assert.equal(selector,'[data-lourex-daily-command-center-mount][data-lourex-daily-ready="true"]');return ready?{isConnected:true}:null;};}
+  const sandbox={HTMLElement,PANEL:'#lourex-ai-panel',document:{querySelector:()=>panel},window:{setTimeout:fn=>timers.push(fn),dispatchEvent:e=>events.push(e.type)},Event:class{constructor(type){this.type=type;}},closeMenu:()=>closed++,composerStatus:(...args)=>statuses.push(args),withWorkflowReady:()=>assert.fail('Morning Brief must not depend on unrelated buttons')};
+  vm.runInNewContext(js.slice(start,end)+';globalThis.open=directEvent;',sandbox);
+  sandbox.open('lourex-ai-open-daily');assert.deepEqual(events,[]);assert.equal(timers.length,1);
+  ready=true;timers.shift()();assert.deepEqual(events,['lourex-ai-open-daily']);assert.equal(closed,1);
+  ready=false;sandbox.open('lourex-ai-open-daily');panel=second;ready=true;timers.shift()();assert.equal(events.length,1);
+  ready=false;sandbox.open('lourex-ai-open-daily');while(timers.length)timers.shift()();assert.equal(events.length,1);assert.equal(statuses.at(-1)[2],'loadingTools');
+});
+
+test('Morning Brief root is marked ready only after React commits and repaired independently',()=>{
+  const workflows=read('public/lourex-ai-workflows.js');
+  const start=workflows.indexOf('function mountDailyTool('),end=workflows.indexOf('async function repairDailyTool(',start);
+  assert.ok(start>=0&&end>start);
+  const form={},compose={isConnected:true,insertBefore(node,before){assert.equal(before,form);node.isConnected=true;}};
+  form.parentNode=compose;
+  let created=0,commits=[],unmounted=0;
+  const sandbox={document:{createElement(){created++;return {dataset:{},isConnected:false,remove(){this.isConnected=false;}};}},window:{React:{createElement:(Component,props)=>({Component,props})},ReactDOM:{render(element,node,callback){assert.equal(element.props.launcher,false);commits.push(callback);},unmountComponentAtNode(){unmounted++;}}}};
+  vm.runInNewContext('let dailyMount=null;'+workflows.slice(start,end)+';globalThis.mount=mountDailyTool;globalThis.current=()=>dailyMount;',sandbox);
+  sandbox.mount(compose,form,'Daily');const first=sandbox.current();assert.equal(first.dataset.lourexDailyReady,undefined);
+  sandbox.mount(compose,form,'Daily');assert.equal(created,1);
+  commits.shift()();assert.equal(first.dataset.lourexDailyReady,'true');
+  first.remove();sandbox.mount(compose,form,'Daily');assert.equal(created,2);assert.notEqual(sandbox.current(),first);
+  const next=sandbox.current();next.remove();commits.shift()();assert.equal(next.dataset.lourexDailyReady,undefined);
+  assert.equal(unmounted,0);
+  assert.match(workflows,/if\(mount\)\{if\(!dailyMount\)void repairDailyTool\(panel,compose,form\);return;\}/);
 });

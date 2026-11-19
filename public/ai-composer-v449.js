@@ -118,7 +118,18 @@
     setPlusMenuOpen(menu,plus,false);
     if(focusPlus&&plus instanceof HTMLButtonElement)plus.focus({preventScroll:true});
   }
-  function directEvent(name){withWorkflowReady(panel=>{closeMenu();window.dispatchEvent(new Event(name));composerStatus(panel,'','');});}
+  function withDailyReady(callback,attempt=0,originPanel=null){
+    const panel=document.querySelector(PANEL);if(!(panel instanceof HTMLElement))return;
+    const origin=originPanel||panel;if(panel!==origin||!origin.isConnected)return;
+    const ready=panel.querySelector('[data-lourex-daily-command-center-mount][data-lourex-daily-ready="true"]');
+    if(ready?.isConnected){callback(panel);return;}
+    if(attempt<40){window.setTimeout(()=>withDailyReady(callback,attempt+1,origin),75);return;}
+    composerStatus(panel,'error','loadingTools',3200);
+  }
+  function directEvent(name){
+    const ready=name==='lourex-ai-open-daily'?withDailyReady:withWorkflowReady;
+    ready(panel=>{closeMenu();window.dispatchEvent(new Event(name));composerStatus(panel,'','');});
+  }
   function clickInternalAction(panel,action,attempt=0){if(!panel.isConnected||document.querySelector(PANEL)!==panel){delete document.documentElement.dataset.lourexAiInternalRoute;return;}const candidates=workflowActionLabels(action);const modals=Array.from(document.querySelectorAll('.modal-backdrop')).reverse();let target=null;for(const modal of modals){const buttons=Array.from(modal.querySelectorAll('.ta-customer-modal-actions button'));target=buttonByLabels(buttons,candidates);if(target)break;}if(target instanceof HTMLButtonElement){target.click();delete document.documentElement.dataset.lourexAiInternalRoute;return;}if(attempt<40){window.setTimeout(()=>clickInternalAction(panel,action,attempt+1),25);return;}delete document.documentElement.dataset.lourexAiInternalRoute;composerStatus(panel,'error','actionUnavailable',3200);}
   function routeThroughWorkflowMenu(action){withWorkflowReady(panel=>{const tools=workflowLauncher(panel,'tools');if(!(tools instanceof HTMLButtonElement)){composerStatus(panel,'error','actionUnavailable',3200);return;}closeMenu();document.documentElement.dataset.lourexAiInternalRoute='true';tools.click();window.requestAnimationFrame(()=>clickInternalAction(panel,action));window.setTimeout(()=>{delete document.documentElement.dataset.lourexAiInternalRoute;},1800);});}
   function openInbox(){withWorkflowReady(panel=>{closeMenu();const button=workflowLauncher(panel,'inbox');if(button instanceof HTMLButtonElement)button.click();else composerStatus(panel,'error','actionUnavailable',3200);});}
