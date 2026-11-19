@@ -24,7 +24,7 @@ async function loadPosted(db,tx,s){
   need(ID.test(id)&&sameWorkspace(row,s)&&row.key==='supplier-settlement-'+id&&row.approval?.id===id&&same(row.approval,row)&&row.approval.state==='approved'&&HEX.test(row.approval.evidenceDigest),'FISCAL_SETTLEMENT_POSTING_CONFLICT');
   const claim=data(await tx.get(evidenceClaim(db,s,row.approval.evidenceDigest)));
   need(same(claim,row)&&claim.key===row.key&&claim.digest===reviewDigest(row.approval),'FISCAL_SETTLEMENT_POSTING_CONFLICT');
-  if(row.approval.kind==='refund'){
+  if(['refund','adjusted-payment','adjusted-payment-reversal'].includes(row.approval.kind)){
    const cash=data(await tx.get(settlementCashClaim(db,s,row.approval.treasuryEntryId)));
    need(same(cash,row)&&cash.key===row.key&&cash.cashDigest===row.approval.cashDigest,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
   }
@@ -74,12 +74,18 @@ export async function postSupplierSettlement(db,tx,s,source,id,today){
  need(posted.length<MAX&&(!source.closedThrough||approval.date>source.closedThrough),'FISCAL_PERIOD_CLOSED');
  const evidenceRef=evidenceClaim(db,s,evidenceDigest);need(!(await tx.get(evidenceRef)).exists,'FISCAL_SETTLEMENT_EVIDENCE_DUPLICATE');
  let cashRef;
- if(approval.kind==='refund'){
+ if(approval.kind==='adjusted-payment-reversal')need(posted.some(x=>x.approval.id===approval.reversesSettlementId&&x.approval.kind==='adjusted-payment'),'FISCAL_SETTLEMENT_REVERSAL_REQUIRED');
+ if(['refund','adjusted-payment','adjusted-payment-reversal'].includes(approval.kind)){
   need(ID.test(approval.treasuryEntryId));cashRef=settlementCashClaim(db,s,approval.treasuryEntryId);
   need(!(await tx.get(cashRef)).exists&&!(await tx.get(accountRef(db,s,'advanceTreasuryReservations',approval.treasuryEntryId))).exists&&!(await tx.get(accountRef(db,s,'advanceTreasuryIndex',approval.treasuryEntryId))).exists,'FISCAL_ADVANCE_CASH_ALREADY_CLAIMED');
  }
  const full=await allProjections(db,tx,s,source.payload,posted,approval,'9999-12-31'),journal=full.journals.find(j=>j.id===id);
  need(journal&&journal.lines.length===2&&journal.lines[0].side==='debit'&&journal.lines[1].side==='credit'&&journal.lines.every(l=>l.amount===approval.amount));
+ // A newly approved backdated withdrawal must not create a current credit.
+ if(approval.kind==='adjusted-payment'){
+  const current=await allProjections(db,tx,s,source.payload,posted,approval,today);
+  need(current.balances.find(x=>x.purchaseId===approval.sourcePurchaseId)?.supplierCredit==='0.00','FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+ }
  tx.create(db.doc(base+'/supplierSettlementPostings/'+id),{...s,key,approval,journal});
  tx.create(evidenceRef,{...s,key,digest:reviewDigest(approval)});
  if(cashRef)tx.create(cashRef,{...s,key,cashDigest:approval.cashDigest});
@@ -90,7 +96,7 @@ export async function readSupplierSettlements(db,tx,s,payload,from,to){
  const rows=await collectionRows(db,tx,simulationBase(s)+'/supplierSettlementReviews'),ids=new Set(posted.map(x=>x.approval.id)),pending=[];
  for(const {id,row} of rows){
   if(row.state!=='approved')continue;
-  need(ID.test(id)&&row.id===id&&sameWorkspace(row,s)&&day(row.date)&&['refund','offset'].includes(row.kind));
+  need(ID.test(id)&&row.id===id&&sameWorkspace(row,s)&&day(row.date)&&['refund','offset','adjusted-payment','adjusted-payment-reversal'].includes(row.kind));
   if(!ids.has(id)&&row.date<=to)pending.push({id,date:row.date,kind:row.kind,selectedIssuer:row.egsId===s.egsId});
  }
  return {balances:result.balances,journals:result.journals.filter(j=>j.date>=from),pending:pending.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))};

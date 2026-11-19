@@ -16,7 +16,7 @@ export function supplierRefundCashFacts(e){
 // transfers liability. Neither creates a fictitious supplier payment.
 export function projectSupplierCommercialSettlements({scope,sources,settlements,treasuryEntries,treasuryAccounts,reservedCashIds=[],through}){
  need(day(through)&&scope?.environment==='simulation'&&id(scope.accountUid)&&id(scope.workspaceId)&&id(scope.egsId)&&Array.isArray(sources)&&Array.isArray(settlements)&&sources.length<=200&&settlements.length<=200);
- const byId=new Map(),delta=new Map(),events=new Map(),usedProof=new Set(),usedCash=new Set(reservedCashIds),usedIds=new Set(),journals=[];
+ const byId=new Map(),delta=new Map(),events=new Map(),usedProof=new Set(),usedCash=new Set(reservedCashIds),usedIds=new Set(),journals=[],reversed=new Set();
  const event=d=>{if(!events.has(d))events.set(d,[]);return events.get(d);};
  for(const s of sources){
   const p=s.purchase,o=s.original;need(id(p?.id)&&!byId.has(p.id)&&id(p.workspaceId)&&id(p.branchId)&&id(p.supplierSnapshot?.sourceSupplierId)&&p.workspaceId===scope.workspaceId&&p.currency==='SAR'&&p.status==='posted'&&day(p.date)&&o?.accountUid===scope.accountUid&&o.workspaceId===scope.workspaceId&&o.egsId===scope.egsId&&o.environment===scope.environment&&o.sourceFingerprint===reviewDigest(p)&&o.sourceId===p.id&&o.amount?.kind==='invoice'&&Array.isArray(s.adjustments)&&Array.isArray(s.payments));
@@ -27,17 +27,20 @@ export function projectSupplierCommercialSettlements({scope,sources,settlements,
   event(p.date);
  }
  for(const r of settlements){
-  need(r&&id(r.id)&&!usedIds.has(r.id)&&r.state==='approved'&&r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId&&r.environment===scope.environment&&['refund','offset'].includes(r.kind)&&day(r.date)&&hex(r.evidenceDigest)&&!usedProof.has(r.evidenceDigest)&&cents(r.amount)>0n);
+  need(r&&id(r.id)&&!usedIds.has(r.id)&&r.state==='approved'&&r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId&&r.environment===scope.environment&&['refund','offset','adjusted-payment','adjusted-payment-reversal'].includes(r.kind)&&day(r.date)&&hex(r.evidenceDigest)&&!usedProof.has(r.evidenceDigest)&&cents(r.amount)>0n);
   usedIds.add(r.id);usedProof.add(r.evidenceDigest);
   const src=byId.get(r.sourcePurchaseId);need(src&&r.sourceFingerprint===src.original.sourceFingerprint&&r.date>=src.purchase.date&&r.supplierId===src.purchase.supplierSnapshot.sourceSupplierId&&r.branchId===src.purchase.branchId&&r.currency===src.purchase.currency);
+  need(r.kind==='adjusted-payment-reversal'?id(r.reversesSettlementId):!r.reversesSettlementId);
   if(r.kind==='offset'){
    const target=byId.get(r.targetPurchaseId);need(target&&target!==src&&same(src.purchase,target.purchase)&&r.targetFingerprint===target.original.sourceFingerprint&&r.date>=target.purchase.date&&!r.treasuryEntryId&&!r.cashDigest);
   }else{
    need(!r.targetPurchaseId&&!r.targetFingerprint&&id(r.treasuryEntryId)&&hex(r.cashDigest)&&!usedCash.has(r.treasuryEntryId));
    usedCash.add(r.treasuryEntryId);
    const rows=treasuryEntries.filter(e=>e.id===r.treasuryEntryId);need(rows.length===1);const e=rows[0];
-   need(e.type==='deposit'&&e.sourceType==='manual'&&!e.sourceId&&!e.fromAccountId&&!e.voidedAt&&id(e.toAccountId)&&e.date===r.date&&e.amount===r.amount&&e.workspaceId===r.workspaceId&&e.branchId===r.branchId&&e.currency===r.currency&&r.cashDigest===reviewDigest(supplierRefundCashFacts(e)));
-   const acc=treasuryAccounts.filter(a=>a.id===e.toAccountId);need(acc.length===1&&acc[0].workspaceId===r.workspaceId&&acc[0].branchId===r.branchId&&acc[0].currency===r.currency);
+   const outbound=r.kind==='adjusted-payment',accountId=outbound?e.fromAccountId:e.toAccountId;
+   need(e.type===(outbound?'withdrawal':'deposit')&&e.sourceType==='manual'&&!e.sourceId&&!e.voidedAt&&id(accountId)&&!(outbound?e.toAccountId:e.fromAccountId)&&e.date===r.date&&e.amount===r.amount&&e.workspaceId===r.workspaceId&&e.branchId===r.branchId&&e.currency===r.currency&&r.cashDigest===reviewDigest(supplierRefundCashFacts(e)));
+   const acc=treasuryAccounts.filter(a=>a.id===accountId);need(acc.length===1&&acc[0].workspaceId===r.workspaceId&&acc[0].branchId===r.branchId&&acc[0].currency===r.currency);
+   if(r.kind!=='refund')need(['bank','cash'].includes(acc[0].kind));
   }
   event(r.date).push(r);
  }
@@ -52,8 +55,22 @@ export function projectSupplierCommercialSettlements({scope,sources,settlements,
    const newCash=s.payments.some(p=>p.purchaseId===key&&p.date===d&&(!p.voidedAt||p.voidedAt.slice(0,10)>d));
    if(newCash)need(outstanding(key,d)>=0n);
   }
-  for(const r of events.get(d).sort((a,b)=>a.id.localeCompare(b.id))){
+  for(const r of events.get(d).sort((a,b)=>Number(a.kind==='adjusted-payment-reversal')-Number(b.kind==='adjusted-payment-reversal')||a.id.localeCompare(b.id))){
    const amount=cents(r.amount),src=r.sourcePurchaseId;
+   if(r.kind==='adjusted-payment'){
+    const source=byId.get(src),balance=raw(source,d),legacy=cents(source.original.amount.gross)-cents(balance.paid),available=outstanding(src,d)-(legacy>0n?legacy:0n);
+    need(cents(balance.debitAdjustments)>0n&&available>=amount);
+    delta.set(src,delta.get(src)-amount);
+    journals.push({id:r.id,date:d,kind:r.kind,treasuryEntryId:r.treasuryEntryId,lines:[{account:'accounts-payable',side:'debit',amount:r.amount,purchaseId:src},{account:'cash-bank',side:'credit',amount:r.amount}]});
+    continue;
+   }
+   if(r.kind==='adjusted-payment-reversal'){
+    const prior=settlements.find(x=>x.id===r.reversesSettlementId),posted=journals.find(x=>x.id===r.reversesSettlementId);
+    need(prior?.kind==='adjusted-payment'&&posted&&prior.sourcePurchaseId===src&&prior.sourceFingerprint===r.sourceFingerprint&&prior.amount===r.amount&&prior.date<=r.date&&!reversed.has(prior.id));
+    reversed.add(prior.id);delta.set(src,delta.get(src)+amount);
+    journals.push({id:r.id,date:d,kind:r.kind,treasuryEntryId:r.treasuryEntryId,lines:[{account:'cash-bank',side:'debit',amount:r.amount},{account:'accounts-payable',side:'credit',amount:r.amount,purchaseId:src}]});
+    continue;
+   }
    need(outstanding(src,d)<=-amount);
    delta.set(src,delta.get(src)+amount);
    const credit={account:'accounts-payable',side:'credit',amount:r.amount,purchaseId:src};

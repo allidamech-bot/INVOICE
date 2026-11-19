@@ -29,9 +29,9 @@ export function projectSupplierAPJournal({purchase,original,adjustments,payments
  let delta=0n;
  for(const j of settlementJournals){
    if(j.date>through)continue;const lines=j.lines.filter(x=>x.account==='accounts-payable'&&x.purchaseId===purchase.id);if(!lines.length)continue;
-   need(['refund','offset'].includes(j.kind)&&lines.length===1&&j.lines.length===2&&j.lines[0].side==='debit'&&j.lines[1].side==='credit'&&j.lines[0].amount===j.lines[1].amount&&cents(lines[0].amount)>0n);
+   need(['refund','offset','adjusted-payment','adjusted-payment-reversal'].includes(j.kind)&&lines.length===1&&j.lines.length===2&&j.lines[0].side==='debit'&&j.lines[1].side==='credit'&&j.lines[0].amount===j.lines[1].amount&&cents(lines[0].amount)>0n);
    const n=cents(lines[0].amount)*(lines[0].side==='credit'?1n:-1n);delta+=n;
-   add('settlement:'+j.id,j.date,j.kind==='refund'?'supplier-refund':'supplier-offset',j.id,n);
+   add('settlement:'+j.id,j.date,j.kind==='refund'?'supplier-refund':j.kind==='adjusted-payment'?'adjusted-payment':j.kind==='adjusted-payment-reversal'?'adjusted-payment-reversal':'supplier-offset',j.id,n);
  }
  const timeline=supplierSettlementTimeline({purchase,original,adjustments,payments,through});
  const expected=cents(timeline.adjustedOutstanding)+delta;

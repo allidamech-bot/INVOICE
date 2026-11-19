@@ -18,3 +18,23 @@ test('offset and real refund consume supplier credit, reduce target debt and bal
 test('as-of date keeps future settlements out of historical balances',()=>{const p=projectSupplierCommercialSettlements({...args,through:'2026-11-11'});assert.equal(p.balances[0].supplierCredit,'46.00');assert.equal(p.balances[1].outstanding,'115.00');assert.equal(p.journals.length,0);});
 test('rejects over-allocation and a new payment against previously offset debt',()=>{assert.throws(()=>projectSupplierCommercialSettlements({...args,settlements:[{...offset,amount:'47.00'}]}));assert.throws(()=>projectSupplierCommercialSettlements({...args,sources:[sources[0],{...sources[1],payments:[payment(b,'100.00','2026-11-14','pb')]}]}));});
 test('requires exact supplier, source evidence and a unique real nonvoided cash deposit',()=>{for(const bad of [{...args,treasuryEntries:[]},{...args,treasuryEntries:[{...deposit,voidedAt:'2026-11-14T00:00:00Z'}]},{...args,reservedCashIds:['cash']},{...args,settlements:[{...offset,targetFingerprint:'0'.repeat(64)}]},{...args,settlements:[{...offset,supplierId:'wrong'}]},{...args,settlements:[refund,{...refund,id:'other',evidenceDigest:'c'.repeat(64)}]}])assert.throws(()=>projectSupplierCommercialSettlements(bad));});
+
+test('approved adjusted payment consumes only debit-created excess against actual existing withdrawal',()=>{
+ const debit={...ob,key:'debit-b',originalId:b.id,taxDate:'2026-11-10',amount:{kind:'debit-note',treatment:'domestic',net:'20.00',vat:'3.00',deductibleVat:'0.00',gross:'23.00'}};
+ const withdrawal={...deposit,id:'withdrawal',type:'withdrawal',fromAccountId:'bank',toAccountId:'',amount:'23.00'};
+ const settle={...approved,sourcePurchaseId:b.id,sourceFingerprint:ob.sourceFingerprint,id:'adjusted-payment',kind:'adjusted-payment',date:withdrawal.date,amount:withdrawal.amount,evidenceDigest:'d'.repeat(64),treasuryEntryId:withdrawal.id,cashDigest:reviewDigest(supplierRefundCashFacts(withdrawal))};
+ const input={...args,sources:[{...sources[1],adjustments:[debit]}],treasuryEntries:[withdrawal],treasuryAccounts:[{...party,id:'bank',kind:'bank'}],settlements:[settle]};
+ const p=projectSupplierCommercialSettlements(input);
+ assert.equal(p.balances[0].outstanding,'115.00');assert.equal(p.balances[0].paid,'0.00');assert.equal(p.balances[0].settlementDelta,'-23.00');
+ assert.deepEqual(p.journals[0].lines,[{account:'accounts-payable',side:'debit',amount:'23.00',purchaseId:b.id},{account:'cash-bank',side:'credit',amount:'23.00'}]);
+ assert.equal(projectSupplierCommercialSettlements({...input,through:'2026-11-11'}).balances[0].outstanding,'138.00');
+ for(const bad of [{...input,sources:[sources[1]]},{...input,treasuryEntries:[{...withdrawal,type:'deposit'}]},{...input,treasuryEntries:[{...withdrawal,amount:'24.00'}]},{...input,reservedCashIds:[withdrawal.id]},{...input,settlements:[settle,{...settle,id:'duplicate',evidenceDigest:'f'.repeat(64)}]}])assert.throws(()=>projectSupplierCommercialSettlements(bad));
+ const tooMuch={...withdrawal,id:'excess',amount:'24.00'};
+ assert.throws(()=>projectSupplierCommercialSettlements({...input,treasuryEntries:[tooMuch],settlements:[{...settle,amount:'24.00',treasuryEntryId:tooMuch.id,cashDigest:reviewDigest(supplierRefundCashFacts(tooMuch))}]}));
+ const back={...deposit,id:'return',date:'2026-11-15',amount:'23.00'};
+ const reversal={...settle,id:'reversal',kind:'adjusted-payment-reversal',date:back.date,evidenceDigest:'e'.repeat(64),treasuryEntryId:back.id,cashDigest:reviewDigest(supplierRefundCashFacts(back)),reversesSettlementId:settle.id};
+ const reversed={...input,treasuryEntries:[withdrawal,back],settlements:[settle,reversal]};
+ const q=projectSupplierCommercialSettlements(reversed);assert.equal(q.balances[0].outstanding,'138.00');assert.equal(q.balances[0].settlementDelta,'0.00');assert.equal(q.journals.length,2);
+ assert.throws(()=>projectSupplierCommercialSettlements({...reversed,settlements:[reversal]}));
+ const another={...back,id:'return2'};assert.throws(()=>projectSupplierCommercialSettlements({...reversed,treasuryEntries:[withdrawal,back,another],settlements:[settle,reversal,{...reversal,id:'reversal2',evidenceDigest:'f'.repeat(64),treasuryEntryId:another.id,cashDigest:reviewDigest(supplierRefundCashFacts(another))}]}));
+});
