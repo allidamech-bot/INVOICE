@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {hashArtifact,hashCanonicalInvoice} from './fiscal-artifacts.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
-import {buildManagedSimplifiedQrReference} from './simplified-qr-reference.js';
+import {buildManagedSdk4SimplifiedStamp} from './sdk4-xades-candidate.js';
 
 // Server-only preparation command. Source is an immutable, separately approved
 // private intent, never a request's monetary fields or a client-selected route.
@@ -43,7 +43,7 @@ export function createCommercialFiscalPreparation({db,ledger,canonicalize,valida
       need(typeof resolveProtectedSession==='function'&&policy,'FISCAL_SIGNING_NOT_CONFIGURED');
       const session=await resolveProtectedSession(scope,structuredClone(p.issuer));
       need(session?.scope&&['accountUid','workspaceId','egsId','environment'].every(k=>session.scope[k]===scope[k])&&session.issuerVat===p.issuer.vatNumber,'FISCAL_SIGNING_SCOPE_MISMATCH');
-      const signed=await buildManagedSimplifiedQrReference({invoice:mapped.invoice,session,policy,canonicalize});
+      const signed=await buildManagedSdk4SimplifiedStamp({unsigned:bytes,session,policy,canonicalize});
       need(signed.invoiceHash===invoiceHash,'FISCAL_SIGNED_HASH_MISMATCH');
       bytes=Buffer.from(signed.bytes);
     }

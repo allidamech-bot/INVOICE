@@ -4,6 +4,8 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {requireProtectedSigningSession} from './protected-signing.js';
 import {verifySimplifiedQrReference} from './simplified-qr-reference.js';
+import {verifySdk4SimplifiedStamp,sdk4StampSigningTime} from './sdk4-xades-candidate.js';
+import {buildDomesticFiscalCandidate} from './ubl-draft.js';
 import {hashCanonicalInvoice,hashArtifact} from './fiscal-artifacts.js';
 
 // Internal offline reference only. Trusted caller resolves immutable reported
@@ -20,10 +22,22 @@ function command(python,op,payload){
   if(r.error||r.status!==0)throw Error('PADES_PIPELINE_FAILED');
   return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(r.stdout));
 }
+// Only after accepted artifact binding; preserve verification of older archived
+// reference stamps, while newly prepared invoices use the SDK4 candidate.
+function verifyAcceptedStamp({invoice,original,chain,record,policy,canonicalize,session}){
+  if(original.includes(Buffer.from('Type="http://www.w3.org/2000/09/xmldsig#SignatureProperties"'))){
+    try{
+      const at=sdk4StampSigningTime(original),lower=new Date(record.generatedAt).toISOString().slice(0,19)+'.000Z';
+      if(at<lower||at>session.at)return false;
+      return verifySdk4SimplifiedStamp({unsigned:buildDomesticFiscalCandidate(invoice).bytes,bytes:original,leafDer:chain[0],at,policy,canonicalize});
+    }catch{return false;}
+  }
+  return verifySimplifiedQrReference({invoice,bytes:original,chain,at:record.generatedAt,policy,canonicalize});
+}
 export async function buildManagedFiscalPdfReference({record,invoice,xml,session,policy,canonicalize,pythonExecutable,validator}){
   const s=requireProtectedSigningSession(session),chain=s.chainDer;
   if(!record||record.status!=='reported'||record.mode!=='reporting'||!DIGEST.test(record.resultDigest??'')||['accountUid','workspaceId','egsId'].some(k=>record[k]!==s.scope[k])||invoice?.mode!=='simplified'||invoice.seller?.vatNumber!==s.issuerVat||record.uuid!==invoice.uuid||record.icv!==invoice.icv||record.previousInvoiceHash!==invoice.previousInvoiceHash||typeof pythonExecutable!=='string'||!isAbsolute(pythonExecutable)||typeof validator!=='string'||!isAbsolute(validator)||typeof canonicalize!=='function')throw Error('PADES_SCOPE_MISMATCH');
-  const original=Buffer.from(xml);if(hashArtifact(original)!==record.artifactDigest||hashCanonicalInvoice(canonicalize(original,'invoice'))!==record.invoiceHash||!verifySimplifiedQrReference({invoice,bytes:original,chain,at:record.generatedAt,policy,canonicalize}))throw Error('PADES_XML_NOT_VERIFIED');
+  const original=Buffer.from(xml);if(hashArtifact(original)!==record.artifactDigest||hashCanonicalInvoice(canonicalize(original,'invoice'))!==record.invoiceHash||!verifyAcceptedStamp({invoice,original,chain,record,policy,canonicalize,session:s}))throw Error('PADES_XML_NOT_VERIFIED');
   const common={xml:encoded(original),certs:chain.map(encoded),at:s.at,validator};
   const manifest={uuid:record.uuid,mode:'simplified',status:'reported',xmlDigest:record.artifactDigest,generatedAt:record.generatedAt,environment:'simulation'};
   const p=command(pythonExecutable,'prepare',{...common,manifest,issuerVat:s.issuerVat});
