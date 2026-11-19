@@ -18,6 +18,7 @@ import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
 import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js';
 import {validateMeta,decodeWorkspace,encodeWorkspace} from '../_accounting/period-format.js';
 import {loadCompiledFinance} from '../_accounting/compiled-finance-loader.js';
+import {previewFiscalCostReclassification} from '../_accounting/finance-gl-atomic-contract.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/,VAT=/^3[0-9]{13}3$/;
 const data=s=>s.exists?s.data():null;
 const need=(ok,c='FISCAL_ACCOUNTING_INVALID')=>{if(!ok)throw Error(c);};
@@ -216,6 +217,9 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const ref=db.doc(base+'/purchaseCostCorrections/'+id),prior=data(await tx.get(ref));
      if(prior){
        need(same(prior,s)&&prior.purchaseId===id&&prior.originalEvidenceDigest===original.evidenceDigest&&prior.sourceFingerprint===original.sourceFingerprint&&prior.reviewDigest===reviewDigest(review),'FISCAL_PURCHASE_COST_CONFLICT');
+       const replay=replayPostedCostAllocation({purchase:p,amount:original.amount,record:prior,review,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems,digest:reviewDigest});
+       const bridge=previewFiscalCostReclassification({scope:s,purchase:p,original,plan:{...prior.plan,valuationBridge:replay.valuationBridge},effectiveDate:prior.effectiveDate});
+       if(prior.glBridge!==undefined)need(equal(prior.glBridge,bridge),'FISCAL_PURCHASE_COST_CONFLICT');
        return {status:'posted',key:'purchase-cost-'+id};
      }
      const correctionDate=clock().slice(0,10);need(review.effectiveDate===correctionDate,'FISCAL_COST_REVIEW_REQUIRED');availablePeriod(source,correctionDate);
@@ -251,7 +255,8 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        plan={...plan,valuationBridge:{inventoryRelief:money(inventory),cogsRelief:'0.00',expenseRelief:money(cents(plan.deductibleVat)-inventory)}};
      }
      plan={...plan,historyBindings:history.map(m=>({movementId:m.id,digest:reviewDigest(m)}))};
-     need(Buffer.byteLength(JSON.stringify(plan))<=300000,'FISCAL_REPORT_LIMIT');
+     const glBridge=previewFiscalCostReclassification({scope:s,purchase:p,original,plan,effectiveDate:correctionDate});
+     need(Buffer.byteLength(JSON.stringify({plan,glBridge}))<=300000,'FISCAL_REPORT_LIMIT');
      const updates=new Map(plan.updates.map(x=>[x.itemId,x]));
      const candidate={...source.payload,savedItems:source.payload.savedItems.map(x=>updates.has(x.id)?{...x,lastUnitCost:updates.get(x.id).correctedUnitCost,updatedAt:clock()}:x)};
      const [{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity}]=await Promise.all(['period','backup'].map(loadCompiledFinance));
@@ -263,7 +268,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const revision=randomBytes(16).toString('hex'),encoded=encodeWorkspace(candidate,revision);need(encoded.chunks.length<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
      const meta={...encoded.meta,parentRevision:source.meta.revision,chunkStorage:'period-generations-v1'};
      // Write-once allocation and catalog basis publication in the same CAS.
-     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,committedAt:clock(),sourceRevision:source.meta.revision,publishedRevision:revision,plan});
+     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,committedAt:clock(),sourceRevision:source.meta.revision,publishedRevision:revision,plan,glBridge});
      for(const chunk of encoded.chunks)tx.create(db.doc(source.root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0')),chunk);
      tx.create(db.doc(source.root+'/workspaceHistory/'+source.meta.revision),{...source.meta,archivedAt:encoded.meta.updatedAt});
      tx.update(db.doc(source.root+'/workspace/meta'),meta);
@@ -407,7 +412,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              need(balance.paid===baseRecon.paid,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
              if(canReplayAdjustedSupplierPayable(baseRecon,balance))apSources.set(p.id,{purchase:p,original,adjustments:corrections.filter(x=>x.amount.treatment==='domestic'),payments:source.payload.supplierPayments,through:to,legacyPayable:baseRecon.legacyPayable});
              const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));
-             let catalogCostCorrectionDate=null,valuationBridge=null;
+             let catalogCostCorrectionDate=null,valuationBridge=null,glBridge=null;
              if(cost){
                need(same(cost,original)&&cost.purchaseId===p.id&&cost.originalEvidenceDigest===original.evidenceDigest&&cost.sourceFingerprint===original.sourceFingerprint&&day(cost.effectiveDate)&&cost.plan?.grossPayable===original.amount.gross&&cost.plan?.deductibleVat===original.amount.deductibleVat&&cost.plan?.correctedCost===baseRecon.fiscalCost,'FISCAL_PURCHASE_COST_CONFLICT');
                if(cost.effectiveDate<=to){catalogCostCorrectionDate=cost.effectiveDate;
@@ -418,11 +423,13 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
                    need(same(review,original)&&review.originalEvidenceDigest===original.evidenceDigest&&review.sourceFingerprint===original.sourceFingerprint,'FISCAL_PURCHASE_COST_CONFLICT');
                    const replay=replayPostedCostAllocation({purchase:p,amount:original.amount,record:cost,review,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems,digest:reviewDigest});
                    valuationBridge=replay.valuationBridge;
+                   glBridge=previewFiscalCostReclassification({scope:original,purchase:p,original,plan:{...cost.plan,valuationBridge},effectiveDate:cost.effectiveDate});
+                   if(cost.glBridge!==undefined)need(equal(cost.glBridge,glBridge),'FISCAL_PURCHASE_COST_CONFLICT');
                  }
                }
              }
              // The full legacy valuation/COGS bridge is not yet reconciled.
-             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,valuationBridge,paymentViolations:balance.violations,matched:baseRecon.matched&&corrections.length===0&&balance.violations.length===0});
+             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,valuationBridge,glBridge,paymentViolations:balance.violations,matched:baseRecon.matched&&corrections.length===0&&balance.violations.length===0});
            }
            reconciliation=purchaseBalances.get(p.id);
          }
