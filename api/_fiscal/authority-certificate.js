@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 
 // Offline CRL-only PKIX verifier. Trust pins and policy MUST come from a
-// separately authorized simulation configuration, never returned XML or a browser.
+// separately authorized environment configuration, never returned XML or a browser.
 const digest=b=>createHash('sha256').update(b).digest('hex');
 const HEX=/^[a-f0-9]{64}$/;
 const OID=/^[012](?:\.(?:0|[1-9][0-9]{0,9})){2,20}$/;
@@ -27,10 +27,10 @@ function crlPem(bytes,at){
   if(!Number.isFinite(from)||!Number.isFinite(to)||from>at||at>=to||to-from>7*DAY)throw Error('INVALID_CRL_TIME');
   return openssl(['crl','-inform','DER','-outform','PEM'],bytes);
 }
-export function verifyAuthorityCertificate({environment,chainDer,crlsDer,trust,signedAt,observedAt}){
+function verifyInEnvironment({environment,chainDer,crlsDer,trust,signedAt,observedAt},expected){
   let dir;
   try{
-    if(environment!=='simulation'||trust?.environment!==environment||!HEX.test(trust.rootDigest??'')||!Array.isArray(trust.authoritySignerDigests)||!trust.authoritySignerDigests.length||trust.authoritySignerDigests.length>32||trust.authoritySignerDigests.some(x=>typeof x!=='string'||!HEX.test(x))||typeof trust.policyOid!=='string'||!OID.test(trust.policyOid)||!['secp256k1','prime256v1'].includes(trust.curve))return false;
+    if(environment!==expected||trust?.environment!==environment||!HEX.test(trust.rootDigest??'')||!Array.isArray(trust.authoritySignerDigests)||!trust.authoritySignerDigests.length||trust.authoritySignerDigests.length>32||trust.authoritySignerDigests.some(x=>typeof x!=='string'||!HEX.test(x))||typeof trust.policyOid!=='string'||!OID.test(trust.policyOid)||!['secp256k1','prime256v1'].includes(trust.curve))return false;
     const at=date(signedAt),observed=date(observedAt);if(at>observed)return false;
     if(!Array.isArray(chainDer)||chainDer.length<2||chainDer.length>8||!Array.isArray(crlsDer)||crlsDer.length!==chainDer.length-1)return false;
     const chain=chainDer.map(b=>{const c=new X509Certificate(der(b,32768));if(!c.raw.equals(b))throw Error('INVALID_CERT');return c;});
@@ -54,3 +54,6 @@ export function verifyAuthorityCertificate({environment,chainDer,crlsDer,trust,s
     return true;
   }catch{return false;}finally{if(dir)rmSync(dir,{recursive:true,force:true});}
 }
+
+export const verifyAuthorityCertificate=input=>verifyInEnvironment(input,'simulation');
+export const verifyProductionAuthorityCertificate=input=>verifyInEnvironment(input,'production');

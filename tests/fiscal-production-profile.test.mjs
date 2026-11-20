@@ -64,7 +64,7 @@ test('published company loader only reads owner directory and requires committed
   const meta={chunkStorage:'period-generations-v1',revision:'synthetic-rev',chunkCount:1},control={format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:'owner-a',generation:1};
   const root='users/owner-a',rows=new Map([[root+'/workspace/meta',meta],[root+'/accounting/control',control],[root+'/periodGenerations/synthetic-rev/chunks/chunk-synthetic-rev-00000',{data:'test'}]]);
   const tx={get:async p=>({exists:rows.has(p),data:()=>rows.get(p)})};
-  const load=publishedCompanyLoader({doc:p=>p},{validateMeta:m=>assert.equal(m,meta),decodeWorkspace:(_m,chunks)=>{assert.equal(chunks.length,1);return {workspaces:[{id:'one',company}]};}});
+  const load=publishedCompanyLoader({doc:p=>p},{validateMeta:m=>assert.equal(m,meta),decodeWorkspace:(_m,chunks)=>{assert.equal(chunks.length,1);return {workspaces:[{id:'one',company}],branches:[]};}});
   assert.equal(await load(tx,{accountUid:'owner-a',workspaceId:'one'}),company);
   await assert.rejects(load(tx,{accountUid:'owner-a',workspaceId:'two'}),/FORBIDDEN/);
   await assert.rejects(load(tx,{accountUid:'owner-b',workspaceId:'one'}),/SYNC_REQUIRED/);

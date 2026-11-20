@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {fiscalCompanySourceDigest,parseProductionProfileCommand} from './production-profile.js';
 import {requiredComplianceChecks} from './onboarding.js';
+import {verifyManagedProductionCsr} from './managed-csr.js';
 
 const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/,UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const VAT=/^3\d{13}3$/, HASH=/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/;
@@ -75,6 +76,18 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
     need(same(key,s)&&same(pub,s)&&key.bindingDigest===digest(b)&&pub.bindingDigest===digest(b),'PRODUCTION_KEY_NOT_BOUND');
     return u;
   }
+  async function checkEnrollmentStage(tx,s,u,slot,c,{dispatch=false}={}){
+    if(c.operation==='submit')return;
+    const root=base(s)+'/egs/'+s.egsId;
+    const current=data(await tx.get(db.doc(root+'/onboarding/current')));
+    const required=requiredComplianceChecks(u.unit.functionalityMap);
+    if(c.operation==='compliance-csid'){need(!current,'PRODUCTION_ONBOARDING_STALE');return;}
+    need(same(current?.binding,s)&&current.csrDigest===u.csrDigest&&current.functionalityMap===u.unit.functionalityMap&&positive(current.version)&&Array.isArray(current.checks)&&current.binding.requestId===c.credentialRequestId,'PRODUCTION_ONBOARDING_STALE');
+    const completedSlots=['compliance-csid',...current.checks.filter(x=>x.outcome==='verified-pass').map(x=>'check-'+x.type)];
+    for(const k of completedSlots){const prior=data(await tx.get(attemptRef(s,k)));need(same(prior,s)&&prior.state==='completed'&&prior.evidence?.outcome==='verified-pass','PRODUCTION_ATTEMPT_HELD');}
+    if(c.operation==='compliance-check'){need(current.state==='checking'&&slot==='check-'+required.find(t=>!current.checks.some(x=>x.type===t)),'PRODUCTION_ONBOARDING_STALE');}
+    else need(current.checks.length===required.length&&required.every(t=>current.checks.filter(x=>x.type===t&&x.outcome==='verified-pass').length===1)&&(dispatch?(current.state==='operational-request-held'&&current.version===c.onboardingVersion+1):(current.state==='checks-complete'&&current.version===c.onboardingVersion)),'PRODUCTION_ONBOARDING_STALE');
+  }
   function slotFor(u,input,claim){
     if(claim.operation==='compliance-csid'){need(input==='compliance-csid'&&u.state==='enrolling'&&u.csrDigest===claim.csrDigest);}
     else if(claim.operation==='compliance-check'){
@@ -100,27 +113,29 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
         return {state:'enrolling',egsId:s.egsId};
       });
     },
+    // Internal transaction reader for the production enrollment store and coordinator.
+    async readUnit(tx,s){return read(tx,scope(s));},
     // Only a private signer calling this callback can use the registered key.
     async authorizeBinding(b){try{const s=scope(b);return await db.runTransaction(async tx=>digest(binding(b,s))===digest((await read(tx,s)).binding));}catch{return false;}},
     async authorizeCredential(tx,c,operation){
       try{const s=scope(c);need(id(c.ref)&&['compliance','production'].includes(c.kind)&&['store','load'].includes(operation));await read(tx,s);return true;}catch{return false;}
     },
-    async recordCsr(s,result,verifyCsr){
-      s=scope(s);need(typeof verifyCsr==='function'&&typeof result?.csr==='string'&&result.csr.length<=45000&&hex(result.csrDigest)&&typeof result.publicKey==='string'&&result.publicKey.length<=2048);
+    async recordCsr(s,result){
+      s=scope(s);need(typeof result?.csr==='string'&&result.csr.length<=45000&&hex(result.csrDigest)&&typeof result.publicKey==='string'&&result.publicKey.length<=2048);
       const bytes=Buffer.from(result.csr,'base64');need(bytes.length>0&&bytes.toString('base64')===result.csr&&sha(bytes)===result.csrDigest);
       const initial=await db.runTransaction(tx=>read(tx,s));
-      need(initial.state==='enrolling'&&await verifyCsr({scope:s,issuer:initial.issuer,unit:initial.unit,binding:initial.binding,csr:bytes,publicKey:result.publicKey})===true,'PRODUCTION_CSR_NOT_VERIFIED');
+      need(initial.state==='enrolling'&&verifyManagedProductionCsr({scope:s,issuer:initial.issuer,unit:initial.unit,binding:initial.binding,csr:bytes,publicKey:result.publicKey})===true,'PRODUCTION_CSR_NOT_VERIFIED');
       return db.runTransaction(async tx=>{const u=await read(tx,s);need(u.state==='enrolling'&&u.registrationDigest===initial.registrationDigest);if(u.csrDigest){need(u.csrDigest===result.csrDigest,'PRODUCTION_CSR_CONFLICT');return {csrDigest:u.csrDigest};}tx.update(unitRef(s),{csrDigest:result.csrDigest,csr:result.csr,publicKey:result.publicKey});return {csrDigest:result.csrDigest};});
     },
     async reserveAttempt(input,claim){
       const c=normalizeClaim(claim),s=c.scope,slot=input;
       need(id(slot));
-      const initial=await db.runTransaction(tx=>read(tx,s));slotFor(initial,slot,c);
+      const initial=await db.runTransaction(async tx=>{const u=await read(tx,s);slotFor(u,slot,c);await checkEnrollmentStage(tx,s,u,slot,c);return u;});
       // The lifecycle supplies a verified, revision-bound artifact / CSID
       // check. Structural claim validation alone never permits authority I/O.
       need(await verifyOperation({unit:structuredClone(initial),slot,claim:structuredClone(c)})===true,'PRODUCTION_OPERATION_NOT_VERIFIED');
       return db.runTransaction(async tx=>{
-        const u=await read(tx,s);slotFor(u,slot,c);need(digest(u)===digest(initial),'PRODUCTION_OPERATION_STALE');
+        const u=await read(tx,s);slotFor(u,slot,c);await checkEnrollmentStage(tx,s,u,slot,c);need(digest(u)===digest(initial),'PRODUCTION_OPERATION_STALE');
         const ref=attemptRef(s,slot),prior=data(await tx.get(ref)),global=c.operation==='submit'?data(await tx.get(submitRef(s,c.uuid))):null;
         need(!prior&&!global,'PRODUCTION_ATTEMPT_HELD');
         const row={...s,slot,claimDigest:digest(c),claim:c,state:'reserved',unitDigest:digest(u),createdAt:at()};
@@ -138,6 +153,7 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
           const u=await read(tx,s);slotFor(u,slot,c);
           const ref=attemptRef(s,slot),a=data(await tx.get(ref));
           need(same(a,s)&&a.state==='reserved'&&a.slot===slot&&a.claimDigest===digest(c)&&a.unitDigest===digest(u),'PRODUCTION_ATTEMPT_HELD');
+          await checkEnrollmentStage(tx,s,u,slot,c,{dispatch:true});
           tx.update(ref,{state:'dispatched',dispatchedAt:at()});return true;
         });
       };

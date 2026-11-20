@@ -50,7 +50,7 @@ test('production CSR template, cross-environment rejection, exact one-time autho
  const bytes=Buffer.from(csr.csr,'base64'),der=Buffer.from(bytes.toString().replace(/-----[^-]+-----|\s/g,''),'base64');
  assert(der.includes(Buffer.from('ZATCA-Code-Signing')));assert(!der.includes(Buffer.from('PREZATCA-Code-Signing')));
  assert(!verifyManagedSimulationCsr({scope:{...scope,environment:'simulation'},issuer:input.issuer,unit,binding:{...input.binding,environment:'simulation'},csr:bytes,publicKey:csr.publicKey}));
- await authority.recordCsr(scope,csr,verifyManagedProductionCsr);
+ await authority.recordCsr(scope,csr);
  const claim={scope,operation:'compliance-csid',csrDigest:csr.csrDigest};
  await authority.reserveAttempt('compliance-csid',claim);
  await assert.rejects(authority.reserveAttempt('compliance-csid',claim),/HELD/);
@@ -68,7 +68,7 @@ test('production CSR template, cross-environment rejection, exact one-time autho
 test('unverified operation and altered CSR cannot dispatch, enrolling unit cannot issue',async()=>{
  const {authority}=fixture({verifyOperation:async()=>false});const input=registration();await authority.registerUnit(owner,input);
  const csr=await createManagedProductionCsr({scope,issuer:input.issuer,unit,binding:input.binding,signer:signing});
- await authority.recordCsr(scope,csr,verifyManagedProductionCsr);
+ await authority.recordCsr(scope,csr);
  await assert.rejects(authority.reserveAttempt('compliance-csid',{scope,operation:'compliance-csid',csrDigest:csr.csrDigest}),/NOT_VERIFIED/);
  await assert.rejects(authority.reserveAttempt('compliance-csid',{scope,operation:'compliance-csid',csrDigest:sha('altered')}));
  const uuid='11111111-1111-4111-8111-111111111111';
