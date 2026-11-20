@@ -3,7 +3,7 @@ export const AWS_GOOGLE_IDENTITY_CODES=Object.freeze([
  'LOCAL_CONFIG','LOCAL_FILE','LOCAL_IMPORT','LOCAL_POLICY',
  'REMOTE_ATTRIBUTE_CONDITION','REMOTE_IMPERSONATION_DENIED',
  'REMOTE_STS_REJECTED','REMOTE_INVALID_TARGET','REMOTE_NETWORK',
- 'REMOTE_GOOGLE_403','REMOTE_GOOGLE_400','REMOTE_GOOGLE_404',
+ 'REMOTE_STS_403','REMOTE_IAMCREDENTIALS_403','REMOTE_GOOGLE_403','REMOTE_GOOGLE_400','REMOTE_GOOGLE_404',
  'REMOTE_GOOGLE_5XX','REMOTE_TOKEN_INVALID','REMOTE_UNKNOWN'
 ]);
 const fail=code=>{throw Error('AWS_GOOGLE_IDENTITY_'+code);};
@@ -13,6 +13,20 @@ function classifyRemote(error){
  const status=Number(error?.response?.status??error?.status??error?.code);
  const code=String(error?.response?.data?.error??'').slice(0,80);
  const m=String(error?.message??'').slice(0,4000);
+ // The URL is used only to select a fixed diagnostic code; never print it,
+ // since SDK request URLs may contain sensitive query parameters.
+ let host='';
+ for(const candidate of [error?.response?.config?.url,error?.config?.url,error?.response?.request?.res?.responseUrl]){
+  if(typeof candidate!=='string')continue;
+  try{
+   const url=new URL(candidate);
+   if(url.protocol==='https:'){host=url.hostname;break;}
+  }catch{}
+ }
+ if(status===403){
+  if(host==='sts.googleapis.com')return 'REMOTE_STS_403';
+  if(host==='iamcredentials.googleapis.com'||/iam\\.serviceAccounts\\.getAccessToken|generateAccessToken|impersonat/i.test(m))return 'REMOTE_IAMCREDENTIALS_403';
+ }
  if(/attribute.condition|attributeCondition|attribute_condition|attribute mapping/i.test(m))return 'REMOTE_ATTRIBUTE_CONDITION';
  if(/iam\.serviceAccounts\.getAccessToken|impersonat|workloadIdentityUser/i.test(m)&&status===403)return 'REMOTE_IMPERSONATION_DENIED';
  if(/invalid_target/i.test(code+' '+m))return 'REMOTE_INVALID_TARGET';

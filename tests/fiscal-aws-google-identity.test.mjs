@@ -10,6 +10,8 @@ test('pinned AWS identity-only external account credentials',()=>{
 
 test('diagnostic vocabulary is fixed and never emits sensitive errors',()=>{
  assert(AWS_GOOGLE_IDENTITY_CODES.includes('REMOTE_GOOGLE_403'));
+ assert(AWS_GOOGLE_IDENTITY_CODES.includes('REMOTE_STS_403'));
+ assert(AWS_GOOGLE_IDENTITY_CODES.includes('REMOTE_IAMCREDENTIALS_403'));
  assert(AWS_GOOGLE_IDENTITY_CODES.includes('LOCAL_FILE'));
  assert(!AWS_GOOGLE_IDENTITY_CODES.some(code=>/token_value|private_key/i.test(code)));
 });
