@@ -1,8 +1,9 @@
-import {createHash,randomUUID,X509Certificate} from 'node:crypto';
+import {createHash,randomUUID,randomBytes,X509Certificate,verify} from 'node:crypto';
 import {createManagedProductionCsr,verifyManagedProductionCsr} from './managed-csr.js';
 import {createProductionOnboardingStore} from './onboarding-store.js';
 import {createZatcaProductionClient} from './zatca-simulation.js';
 import {requiredComplianceChecks} from './onboarding.js';
+import {requireProtectedSigningSession} from './protected-signing.js';
 
 // Private production coordinator. All external adapters must be independently
 // configured and verified by the hosting service; never a client option.
@@ -10,6 +11,8 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/;
 const sha=v=>createHash('sha256').update(v).digest('hex');
 const data=s=>s.exists?s.data():null;
 const keys=['accountUid','workspaceId','egsId','environment'];
+const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
+const digestObject=v=>sha(JSON.stringify(canonical(v)));
 const same=(a,b)=>a&&b&&keys.every(k=>a[k]===b[k]);
 function need(ok,code='PRODUCTION_ENROLLMENT_FORBIDDEN'){if(!ok)throw Error(code);}
 function id(v){return typeof v==='string'&&ID.test(v);}
@@ -25,13 +28,12 @@ function checkLeaf(credential,u,s,kind){
   need(leaf.publicKey.asymmetricKeyType==='ec'&&leaf.publicKey.asymmetricKeyDetails?.namedCurve==='secp256k1'&&sha(leaf.publicKey.export({type:'spki',format:'der'}))===u.binding.publicKeyDigest,'PRODUCTION_CERTIFICATE_KEY_MISMATCH');
   return sha(leaf.raw);
 }
-export function createProductionEnrollment({db,authority,vault,resolveSigner,verifyCredential,buildComplianceInvoice,verifyComplianceResult,fetchImpl,makeId=randomUUID}){
-  need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&['readUnit','recordCsr','reserveAttempt','operationAuthorizer','recordResult'].every(k=>typeof authority?.[k]==='function')&&['store','load'].every(k=>typeof vault?.[k]==='function')&&[resolveSigner,verifyCredential,buildComplianceInvoice,verifyComplianceResult,makeId].every(f=>typeof f==='function'),'PRODUCTION_ENROLLMENT_UNAVAILABLE');
+export function createProductionEnrollment({db,authority,vault,resolveSigner,resolveProtectedSession,verifyCredential,buildComplianceInvoice,verifyComplianceResult,fetchImpl,makeId=randomUUID,clock=()=>new Date().toISOString()}){
+  need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&['readUnit','recordCsr','reserveAttempt','operationAuthorizer','recordResult'].every(k=>typeof authority?.[k]==='function')&&['store','load'].every(k=>typeof vault?.[k]==='function')&&[resolveSigner,resolveProtectedSession,verifyCredential,buildComplianceInvoice,verifyComplianceResult,makeId,clock].every(f=>typeof f==='function'),'PRODUCTION_ENROLLMENT_UNAVAILABLE');
   const store=createProductionOnboardingStore({db,vault,readUnit:authority.readUnit});
   const root=s=>'fiscalProductionV1/'+s.accountUid+'/workspaces/'+s.workspaceId+'/egs/'+s.egsId;
   const slots=u=>['compliance-csid',...requiredComplianceChecks(u.unit.functionalityMap).map(t=>'check-'+t),'operational-csid'];
-  async function load(s){
-    return db.runTransaction(async tx=>{
+  async function readEnrollment(tx,s){
       const u=await authority.readUnit(tx,s),current=data(await tx.get(db.doc(root(s)+'/onboarding/current')));
       if(current)need(same(current.binding,s)&&current.csrDigest===u.csrDigest&&current.functionalityMap===u.unit.functionalityMap,'PRODUCTION_ONBOARDING_STALE');
       const attempts={};
@@ -40,8 +42,8 @@ export function createProductionEnrollment({db,authority,vault,resolveSigner,ver
         if(a){need(same(a,s)&&a.slot===k&&['reserved','dispatched','completed'].includes(a.state));attempts[k]=a;}
       }
       return {u,current,attempts,held:Object.values(attempts).some(a=>a.state!=='completed')};
-    });
   }
+  async function load(s){return db.runTransaction(tx=>readEnrollment(tx,s));}
   function projection(v){
     const {u,current,held}=v;return {environment:'production',workspaceId:u.workspaceId,egsId:u.egsId,branchId:u.branchId,unitActive:u.state==='active',enrollmentHeld:held,state:current?.state??'not-started',version:current?.version??0,passed:current?.checks.filter(x=>x.outcome==='verified-pass').length??0,required:requiredComplianceChecks(u.unit.functionalityMap).length};
   }
@@ -106,6 +108,48 @@ export function createProductionEnrollment({db,authority,vault,resolveSigner,ver
       await authority.recordResult(s,slot,{digest,outcome:'verified-pass'});
       // Recording a live CSID never activates the unit. A separate verified
       // protected signing session and irreversible activation transaction follow.
+      return projection(await load(s));
+    },
+    async activate(identity,input){
+      const s=command(identity,input,['expectedVersion']);
+      const unitRef=db.doc(root(s)),activationRef=db.doc(root(s)+'/enrollment/activation');
+      // Read and compare all exact enrollment evidence before and after the
+      // hardware proof. A certificate receipt alone never enables issuance.
+      const read=async tx=>{
+        const v=await readEnrollment(tx,s),c=v.current,u=v.u,required=requiredComplianceChecks(u.unit.functionalityMap);
+        checkCsr(u,s);
+        need(c?.state==='operational-recorded'&&c.version===input.expectedVersion&&Number.isSafeInteger(c.version)&&c.version>0&&!v.held&&c.checks.length===required.length&&required.every(t=>c.checks.filter(x=>x.type===t&&x.outcome==='verified-pass'&&HEX.test(x.artifactDigest)&&HEX.test(x.responseDigest)).length===1)&&new Set(c.checks.map(x=>x.artifactDigest)).size===required.length,'PRODUCTION_ACTIVATION_NOT_READY');
+        for(const k of slots(u)){const a=v.attempts[k];need(same(a,s)&&a.state==='completed'&&a.evidence?.outcome==='verified-pass'&&HEX.test(a.evidence.digest),'PRODUCTION_ACTIVATION_NOT_READY');}
+        for(const x of c.checks)need(v.attempts['check-'+x.type].evidence.digest===x.responseDigest&&v.attempts['check-'+x.type].claim.artifactDigest===x.artifactDigest,'PRODUCTION_ACTIVATION_EVIDENCE_MISMATCH');
+        need(id(c.operationalCredentialRef)&&HEX.test(c.operationalCertificateDigest)&&Number.isSafeInteger(c.operationalRequestId)&&c.operationalRequestId>0,'PRODUCTION_ACTIVATION_NOT_READY');
+        const env=data(await tx.get(db.doc(root(s)+'/productionCredentials/'+c.operationalCredentialRef))),prior=data(await tx.get(activationRef));
+        need(same(env,s)&&env.kind==='production'&&env.ref===c.operationalCredentialRef&&env.version===1,'PRODUCTION_ACTIVATION_NOT_READY');
+        if(u.state==='active')need(same(prior,s)&&prior.state==='active'&&prior.onboardingVersion===c.version&&prior.csrDigest===u.csrDigest&&prior.credentialRef===c.operationalCredentialRef&&prior.leafDigest===v.attempts['operational-csid'].evidence.digest&&u.operationalCredentialRef===prior.credentialRef&&u.certificateDigest===prior.leafDigest,'PRODUCTION_ACTIVATION_CONFLICT');
+        else need(u.state==='enrolling'&&!prior&&u.nextIcv===undefined&&u.previousInvoiceHash===undefined,'PRODUCTION_ACTIVATION_CONFLICT');
+        return {v,env,prior};
+      };
+      const initial=await db.runTransaction(read);
+      if(initial.prior)return projection(initial.v);
+      const {u,current,attempts}=initial.v,credential=await vault.load(s,current.operationalCredentialRef,'production');
+      const leafDigest=await verifyCertificate(s,u,credential,'production');
+      need(credential.requestId===current.operationalRequestId&&sha(credential.binarySecurityToken)===current.operationalCertificateDigest&&leafDigest===attempts['operational-csid'].evidence.digest,'PRODUCTION_ACTIVATION_EVIDENCE_MISMATCH');
+      const session=requireProtectedSigningSession(await resolveProtectedSession(s,structuredClone(u),structuredClone(credential)));
+      need(same(session.scope,s)&&session.issuerVat===u.issuer.vatNumber,'PRODUCTION_ACTIVATION_SESSION_MISMATCH');
+      const leaf=new X509Certificate(session.chainDer[0]);
+      need(sha(leaf.raw)===leafDigest&&sha(leaf.publicKey.export({type:'spki',format:'der'}))===u.binding.publicKeyDigest,'PRODUCTION_ACTIVATION_SESSION_MISMATCH');
+      const challenge=randomBytes(32),signature=await session.sign('xades-signed-info',challenge);
+      need(verify('sha256',challenge,{key:leaf.publicKey,dsaEncoding:'ieee-p1363'},signature),'PRODUCTION_ACTIVATION_KEY_PROOF_FAILED');
+      const at=clock();need(typeof at==='string'&&Number.isFinite(Date.parse(at))&&new Date(at).toISOString()===at&&Date.parse(at)>=Date.parse(session.at)&&Date.parse(at)-Date.parse(session.at)<=300000,'PRODUCTION_ACTIVATION_TIME_INVALID');
+      // Reuse the compiled audited fiscal sequence constant. No new sequence
+      // convention or historical ICV reset is introduced by live activation.
+      const {FIRST_PREVIOUS_INVOICE_HASH}=await import('../../dist/src/lib/fiscal-issuance.js');
+      need(typeof FIRST_PREVIOUS_INVOICE_HASH==='string'&&FIRST_PREVIOUS_INVOICE_HASH.length>0,'PRODUCTION_ACTIVATION_NOT_READY');
+      await db.runTransaction(async tx=>{
+        const latest=await read(tx);
+        need(digestObject(latest)===digestObject(initial),'PRODUCTION_ACTIVATION_CHANGED');
+        tx.create(activationRef,{...s,state:'active',onboardingVersion:current.version,csrDigest:u.csrDigest,credentialRef:current.operationalCredentialRef,leafDigest,publicKeyDigest:u.binding.publicKeyDigest,activatedAt:at});
+        tx.update(unitRef,{state:'active',nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH,operationalCredentialRef:current.operationalCredentialRef,certificateDigest:leafDigest,issuerVat:u.issuer.vatNumber});
+      });
       return projection(await load(s));
     }
   });

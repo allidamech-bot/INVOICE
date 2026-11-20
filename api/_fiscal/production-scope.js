@@ -71,7 +71,7 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
     const {workspace,p}=await currentProfile(tx,s),u=data(await tx.get(unitRef(s)));
     need(same(u,s)&&['enrolling','active'].includes(u.state)&&u.profileVersion===p.version&&u.profileDigest===digest(p));
     const b=binding(u.binding,s),checked=registration(u,s,workspace,p);
-    need(digest(checked.binding)===digest(u.binding)&&digest(checked.issuer)===digest(u.issuer)&&digest(checked.unit)===digest(u.unit));
+    need(u.registrationDigest===digest(checked)&&digest(checked.binding)===digest(u.binding)&&digest(checked.issuer)===digest(u.issuer)&&digest(checked.unit)===digest(u.unit));
     const key=data(await tx.get(keyRef(b))),pub=data(await tx.get(pubRef(b)));
     need(same(key,s)&&same(pub,s)&&key.bindingDigest===digest(b)&&pub.bindingDigest===digest(b),'PRODUCTION_KEY_NOT_BOUND');
     return u;
