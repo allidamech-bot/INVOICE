@@ -7,6 +7,7 @@ import {createProductionProtectedSigningSession,createProductionComplianceSignin
 import {verifyProductionAuthorityCertificate} from './authority-certificate.js';
 import {X509Certificate,createHash} from 'node:crypto';
 import {createProductionJournalVerification} from './production-journal-verification.js';
+import {createProductionRegistrationCoordinator} from './production-registration-coordinator.js';
 import {createProductionComplianceBuilder} from './production-compliance-builder.js';
 
 // Use on a trusted server supporting the pinned SDK and OpenSSL. This is not
@@ -56,7 +57,8 @@ export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId
   }
   async function resolveOperationalCredential(scope){return (await activeCredential(scope)).credential;}
   async function resolveOperationalSession(scope,issuer){const {profile,credential}=await activeCredential(scope,issuer);return protectedSession(scope,profile,credential);}
-  return Object.freeze({authority,enrollment,vault,resolveOperationalCredential,resolveOperationalSession});
+  const registerVerifiedUnit=createProductionRegistrationCoordinator({db,loadWorkspace,authority,kmsProjectId,getAccessToken});
+  return Object.freeze({authority,enrollment,vault,registerVerifiedUnit,resolveOperationalCredential,resolveOperationalSession});
 }
 
 // The same registration/credential authority owns the commercial issuance
@@ -67,5 +69,5 @@ export async function createProductionFiscalRuntime({db,loadWorkspace,enrollment
   const registered=createProductionEnrollmentRuntime({...enrollmentAdapters,sdk:issuanceAdapters.sdk,canonicalize:issuanceAdapters.canonicalize,policy:issuanceAdapters.policy,clearance:issuanceAdapters.clearance,db,loadWorkspace});
   const {createProductionIssuanceRuntime}=await import('./production-issuance-runtime.js');
   const issuance=createProductionIssuanceRuntime({...issuanceAdapters,db,productionAuthority:registered.authority,resolveCredential:registered.resolveOperationalCredential,resolveProtectedSession:registered.resolveOperationalSession});
-  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,issuance});
+  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,registerVerifiedUnit:registered.registerVerifiedUnit,issuance});
 }
