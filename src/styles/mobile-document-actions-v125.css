@@ -1,6 +1,0 @@
-/* LOUREX v351 — retired compatibility stub.
- * The legacy .mobile-document-action-portal surface is no longer emitted by the
- * current React application. DocumentsPage owns actions through the TailAdmin
- * .ta-doc-mobile-action-portal / .ta-doc-mobile-action-sheet portal instead.
- * Keep this file path only for historical/cache compatibility; it intentionally
- * contains no visual, geometry, pointer or z-index rules. */

@@ -1,8 +1,0 @@
-/* LOUREX v351 compatibility stub.
-   v207-v209 presentation selectors are retired:
-   - Settings artwork/account UI is now owned by tailadmin-settings-v320.css.
-   - Purchasing actions are now owned by tailadmin-operations-v320.css.
-   - Mobile More is now owned by the TailAdmin shell/mobile owners.
-   - Account/Google entry is now owned by tailadmin-auth-v320.css.
-   Keep this file path only for historical references; it intentionally emits no
-   application styling and touches no persistence, document, accounting or auth logic. */

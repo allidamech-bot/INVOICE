@@ -1,9 +1,0 @@
-/* LOUREX v351 compatibility stub.
-   The historical ledger/fintech loading presentation is retired.
-
-   Startup paint and loading geometry are owned exclusively by
-   v347-startup-single-layer.css plus the external theme bootstrap. Keeping a
-   second .loading-screen owner here caused duplicate backgrounds, pseudo layers
-   and a second animation system during boot.
-
-   This filename remains only for compatibility and intentionally adds no CSS. */

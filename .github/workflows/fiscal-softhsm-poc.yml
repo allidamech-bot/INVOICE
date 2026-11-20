@@ -1,0 +1,125 @@
+name: Fiscal SoftHSM isolated ARM feasibility (free)
+on:
+  push:
+    branches: [diagnostic/fiscal-softhsm-arm-20261120]
+permissions: {}
+jobs:
+  proof:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 12
+    steps:
+      - name: Install public distro packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          uname -m
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends softhsm2 opensc python3-pykcs11 python3-cryptography python3-lxml openjdk-21-jre-headless
+          dpkg-query -W softhsm2 libsofthsm2 opensc python3-pykcs11
+          java -version
+          openssl version
+      - name: Synthetic protected secp256k1 keys and restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export SOFTHSM2_CONF="$RUNNER_TEMP/lourex-softhsm.conf"
+          export POC_DIR="$RUNNER_TEMP/lourex-softhsm-poc"
+          mkdir -m 700 "$POC_DIR" "$POC_DIR/tokens"
+          trap 'rm -rf "$POC_DIR" "$SOFTHSM2_CONF"' EXIT
+          printf 'directories.tokendir = %s/tokens\nobjectstore.backend = file\nlog.level = ERROR\n' "$POC_DIR" > "$SOFTHSM2_CONF"
+          export POC_MODULE="$(find /usr/lib -name libsofthsm2.so -type f | head -n 1)"
+          test -n "$POC_MODULE"
+          softhsm2-util --init-token --free --label synthetic-a --so-pin 98127364 --pin 382741
+          softhsm2-util --init-token --free --label synthetic-b --so-pin 89273641 --pin 647281
+          cd "$POC_DIR"
+          cat > probe.py <<'PY'
+          import os, sys, hashlib
+          from pathlib import Path
+          import PyKCS11 as p
+          from cryptography.hazmat.primitives.asymmetric import ec, utils
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography.exceptions import InvalidSignature
+          from lxml import etree
+          lib=p.PyKCS11Lib()
+          lib.load(os.environ["POC_MODULE"])
+          params=bytes.fromhex("06052b8104000a")
+          digest=hashlib.sha256(b"LOUREX SYNTHETIC PKCS11 PROBE").digest()
+          oid=(p.CKA_ID,(1,))
+          def slot(label):
+              return next(s for s in lib.getSlotList(tokenPresent=True) if lib.getTokenInfo(s).label.strip()==label)
+          def session(label,pin=None):
+              s=lib.openSession(slot(label),p.CKF_SERIAL_SESSION|p.CKF_RW_SESSION)
+              if pin is not None: s.login(pin)
+              return s
+          def public(s,h):
+              point,curve=s.getAttributeValue(h,[p.CKA_EC_POINT,p.CKA_EC_PARAMS])
+              b=bytes(point)
+              assert bytes(curve)==params and len(b)==67 and b[:2]==b"\x04\x41"
+              key=ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256K1(),b[2:])
+              return key
+          def binding(key):
+              return key.public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo)
+          def signature(s,h,key):
+              raw=bytes(s.sign(h,digest,p.Mechanism(p.CKM_ECDSA,None)))
+              assert len(raw)==64
+              der=utils.encode_dss_signature(int.from_bytes(raw[:32],"big"),int.from_bytes(raw[32:],"big"))
+              key.verify(der,digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+              return der
+          if sys.argv[1]=="generate":
+              for label,pin in [("synthetic-a","382741"),("synthetic-b","647281")]:
+                  s=session(label,pin)
+                  pub,priv=s.generateKeyPair([(p.CKA_TOKEN,True),(p.CKA_VERIFY,True),(p.CKA_EC_PARAMS,tuple(params)),oid],[(p.CKA_TOKEN,True),(p.CKA_PRIVATE,True),(p.CKA_SENSITIVE,True),(p.CKA_EXTRACTABLE,False),(p.CKA_SIGN,True),oid],p.Mechanism(p.CKM_EC_KEY_PAIR_GEN,None))
+                  flags=s.getAttributeValue(priv,[p.CKA_SENSITIVE,p.CKA_EXTRACTABLE,p.CKA_ALWAYS_SENSITIVE,p.CKA_NEVER_EXTRACTABLE,p.CKA_LOCAL])
+                  assert flags==[True,False,True,True,True],flags
+                  try:
+                      v=s.getAttributeValue(priv,[p.CKA_VALUE])[0]
+                  except p.PyKCS11Error as e:
+                      assert e.value==p.CKR_ATTRIBUTE_SENSITIVE,e
+                  else:
+                      assert v is None, "private scalar was returned"
+                  key=public(s,pub)
+                  Path(label+".spki").write_bytes(binding(key))
+                  signature(s,priv,key)
+                  s.logout()
+                  assert not s.findObjects([(p.CKA_CLASS,p.CKO_PRIVATE_KEY),oid])
+                  s.closeSession()
+                  print("PASS",label,"generated protected key; sensitive/never extractable/local; sign; logout isolation")
+          else:
+              keys=[]
+              sigs=[]
+              for label,pin in [("synthetic-a","382741"),("synthetic-b","647281")]:
+                  s=session(label,pin)
+                  pub,=s.findObjects([(p.CKA_CLASS,p.CKO_PUBLIC_KEY),oid])
+                  priv,=s.findObjects([(p.CKA_CLASS,p.CKO_PRIVATE_KEY),oid])
+                  key=public(s,pub)
+                  assert binding(key)==Path(label+".spki").read_bytes()
+                  keys.append(key)
+                  sigs.append(signature(s,priv,key))
+                  s.logout(); s.closeSession()
+              assert binding(keys[0])!=binding(keys[1])
+              try:
+                  keys[1].verify(sigs[0],digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+              except InvalidSignature: pass
+              else: raise AssertionError("cross-key signature accepted")
+              s=session("synthetic-b")
+              try: s.login("382741")
+              except p.PyKCS11Error as e: assert e.value==p.CKR_PIN_INCORRECT,e
+              else: raise AssertionError("cross-token PIN accepted")
+              s.closeSession()
+              assert etree.tostring(etree.fromstring(b'<x b="2" a="1"/>'),method="c14n")==b'<x a="1" b="2"></x>'
+              print("PASS process restart, persistent public keys, independent tokens/PINs, cross-key rejection, raw-to-DER verification, basic XML C14N")
+          PY
+          /usr/bin/python3 probe.py generate
+          /usr/bin/python3 probe.py verify
+      - name: Focused previously unexecuted registration coordinator tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init -q "$RUNNER_TEMP/lourex-candidate"
+          cd "$RUNNER_TEMP/lourex-candidate"
+          git fetch --depth=1 https://github.com/allidamech-bot/INVOICE.git c8ddb8837fda5f6aa205fe9b96234ffb0cc66e32
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "c8ddb8837fda5f6aa205fe9b96234ffb0cc66e32"
+          node --version
+          node --test tests/fiscal-production-registration-coordinator.test.mjs

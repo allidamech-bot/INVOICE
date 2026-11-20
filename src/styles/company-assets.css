@@ -1,9 +1,0 @@
-/* LOUREX v351 — document media compatibility only.
-   Settings artwork controls are now owned by tailadmin-settings-v320.css. */
-
-.invoice-page .official-doc-logo{display:none}
-
-.signature-media img{
-  background:transparent;
-  object-fit:contain;
-}
