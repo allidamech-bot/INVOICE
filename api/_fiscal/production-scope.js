@@ -37,6 +37,8 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
   need(typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&[loadWorkspace,verifyRegistration,verifyOperation,verifyResult,clock].every(f=>typeof f==='function')&&typeof kmsProjectId==='string'&&/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(kmsProjectId)&&!kmsProjectId.endsWith('-fiscal-qa'),'PRODUCTION_SCOPE_UNAVAILABLE');
   const base=s=>'fiscalProductionV1/'+s.accountUid+'/workspaces/'+s.workspaceId;
   const unitRef=s=>db.doc(base(s)+'/egs/'+s.egsId);
+  const profileLockRef=s=>db.doc(base(s)+'/profiles/registration-lock');
+  function checkProfileLock(lock,s,p){need(lock?.environment==='production'&&lock.accountUid===s.accountUid&&lock.workspaceId===s.workspaceId&&lock.profileVersion===p.version&&lock.sourceDigest===p.sourceDigest,'PRODUCTION_PROFILE_CHANGED');}
   const keyRef=b=>db.doc('fiscalProductionKeyRegistryV1/key-'+sha(b.keyVersion.replace(/\/cryptoKeyVersions\/[1-9][0-9]*$/,'')));
   const pubRef=b=>db.doc('fiscalProductionKeyRegistryV1/pub-'+b.publicKeyDigest);
   const attemptRef=(s,slot)=>db.doc(base(s)+'/egs/'+s.egsId+'/authorityAttempts/'+slot);
@@ -69,6 +71,7 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
   }
   async function read(tx,s){
     const {workspace,p}=await currentProfile(tx,s),u=data(await tx.get(unitRef(s)));
+    checkProfileLock(data(await tx.get(profileLockRef(s))),s,p);
     need(same(u,s)&&['enrolling','active'].includes(u.state)&&u.profileVersion===p.version&&u.profileDigest===digest(p));
     const b=binding(u.binding,s),checked=registration(u,s,workspace,p);
     need(u.registrationDigest===digest(checked)&&digest(checked.binding)===digest(u.binding)&&digest(checked.issuer)===digest(u.issuer)&&digest(checked.unit)===digest(u.unit));
@@ -104,10 +107,13 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
       return db.runTransaction(async tx=>{
         const {workspace,p}=await currentProfile(tx,s),next=registration(input,s,workspace,p);
         need(digest(next)===digest(initial),'PRODUCTION_PROFILE_CHANGED');
-        const existing=data(await tx.get(unitRef(s))),key=data(await tx.get(keyRef(next.binding))),pub=data(await tx.get(pubRef(next.binding)));
-        if(existing){need(same(existing,s)&&existing.registrationDigest===digest(next)&&same(key,s)&&same(pub,s)&&key.bindingDigest===digest(next.binding)&&pub.bindingDigest===digest(next.binding),'PRODUCTION_UNIT_CONFLICT');return {state:existing.state,egsId:s.egsId};}
+        const existing=data(await tx.get(unitRef(s))),key=data(await tx.get(keyRef(next.binding))),pub=data(await tx.get(pubRef(next.binding))),lock=data(await tx.get(profileLockRef(s)));
+        if(lock)checkProfileLock(lock,s,p);
+        const lockProfile=()=>{if(!lock)tx.create(profileLockRef(s),{environment:'production',accountUid:s.accountUid,workspaceId:s.workspaceId,profileVersion:p.version,sourceDigest:p.sourceDigest,createdAt:at()});};
+        if(existing){need(same(existing,s)&&existing.registrationDigest===digest(next)&&same(key,s)&&same(pub,s)&&key.bindingDigest===digest(next.binding)&&pub.bindingDigest===digest(next.binding),'PRODUCTION_UNIT_CONFLICT');lockProfile();return {state:existing.state,egsId:s.egsId};}
         need(!key&&!pub,'PRODUCTION_KEY_ALREADY_BOUND');
         const entry={...s,bindingDigest:digest(next.binding),createdAt:at()};
+        lockProfile();
         tx.create(keyRef(next.binding),entry);tx.create(pubRef(next.binding),entry);
         tx.create(unitRef(s),{...next,registrationDigest:digest(next),state:'enrolling',createdAt:at()});
         return {state:'enrolling',egsId:s.egsId};

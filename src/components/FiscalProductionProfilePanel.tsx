@@ -28,7 +28,8 @@ export class FiscalProductionProfilePanel extends React.Component<Props,State>{
     if(!fiscalProductionProfileClientEnabled())return null;
     const own=this.state.uid===currentCloudUser()?.uid,s=own?this.state.status:null,d=this.state.details,cr=Boolean(this.props.commercialRegistration.trim()),ready=!!s&&Object.values(s.checks).every(Boolean),scheme=cr?'CRN':d.sellerIdScheme==='CRN'?'700':d.sellerIdScheme;
     const details:ProductionProfileDetails={...d,sellerIdScheme:scheme as SellerIdScheme,otherSellerId:scheme==='CRN'?'':d.otherSellerId};
-    const complete=ready&&Boolean(d.street.trim()&&d.district.trim())&&/^\d{4}$/.test(d.buildingNumber)&&/^\d{5}$/.test(d.postalCode)&&(scheme==='CRN'||/^[A-Za-z0-9]{1,80}$/.test(d.otherSellerId.trim()));
+    const locked=!!s?.registrationLocked;
+    const complete=!locked&&ready&&Boolean(d.street.trim()&&d.district.trim())&&/^\d{4}$/.test(d.buildingNumber)&&/^\d{5}$/.test(d.postalCode)&&(scheme==='CRN'||/^[A-Za-z0-9]{1,80}$/.test(d.otherSellerId.trim()));
     return <div aria-label={t('Company fiscal registration','تسجيل الملف الضريبي للمنشأة')} aria-busy={this.state.busy}>
       <p><strong>{t('Company fiscal registration','تسجيل الملف الضريبي للمنشأة')}</strong></p>
       <p className="commercial-empty-note">{t('Complete the existing company profile, then save the structured national address. Tax eligibility, certificate issuance and official activation are separate verified steps.','أكمل ملف المنشأة الحالي ثم احفظ العنوان الوطني المفصل. التحقق من الخضوع وإصدار الشهادة والتفعيل الرسمي مراحل مستقلة.')}</p>
@@ -36,16 +37,17 @@ export class FiscalProductionProfilePanel extends React.Component<Props,State>{
       {own&&this.state.error?<p role="alert">{this.state.error}</p>:null}
       {s?<div>
         <p role="status">{t('Profile status','حالة الملف')}: <strong>{s.state==='pending-verification'?t('Saved · awaiting verification','محفوظ · بانتظار التحقق'):s.state==='profile-changed'?t('Company identity changed · save again','تغيرت هوية المنشأة · أعد الحفظ'):t('Not registered','غير مسجل')}</strong></p>
+        {locked?<p role="status">{t('Registered identity is protected. Changes require controlled re-verification.','هوية المنشأة المسجلة محمية. يتطلب تعديلها إعادة تحقق منظمة.')}</p>:null}
         <p>{t('Applicable tax regime','النظام الضريبي المنطبق')}: {t('Not verified','غير متحقق منه')}</p>
         {!ready?<p className="commercial-empty-note">{t('The published company country, Arabic legal name, VAT number format and city must be complete.','يجب إكمال دولة المنشأة والاسم القانوني بالعربية وصيغة الرقم الضريبي والمدينة في الملف المنشور.')}</p>:null}
         <div className="form-grid">
-          <Field label={t('Street name','اسم الشارع')}><Input disabled={!ready||this.state.busy} value={d.street} maxLength={250} onChange={(e:any)=>this.setField('street',e.target.value)}/></Field>
-          <Field label={t('District','الحي')}><Input disabled={!ready||this.state.busy} value={d.district} maxLength={250} onChange={(e:any)=>this.setField('district',e.target.value)}/></Field>
-          <Field label={t('Building number','رقم المبنى')}><Input disabled={!ready||this.state.busy} dir="ltr" inputMode="numeric" value={d.buildingNumber} maxLength={4} onChange={(e:any)=>this.setField('buildingNumber',String(e.target.value).replace(/\D/g,'').slice(0,4))}/></Field>
-          <Field label={t('Postal code','الرمز البريدي')}><Input disabled={!ready||this.state.busy} dir="ltr" inputMode="numeric" value={d.postalCode} maxLength={5} onChange={(e:any)=>this.setField('postalCode',String(e.target.value).replace(/\D/g,'').slice(0,5))}/></Field>
+          <Field label={t('Street name','اسم الشارع')}><Input disabled={locked||!ready||this.state.busy} value={d.street} maxLength={250} onChange={(e:any)=>this.setField('street',e.target.value)}/></Field>
+          <Field label={t('District','الحي')}><Input disabled={locked||!ready||this.state.busy} value={d.district} maxLength={250} onChange={(e:any)=>this.setField('district',e.target.value)}/></Field>
+          <Field label={t('Building number','رقم المبنى')}><Input disabled={locked||!ready||this.state.busy} dir="ltr" inputMode="numeric" value={d.buildingNumber} maxLength={4} onChange={(e:any)=>this.setField('buildingNumber',String(e.target.value).replace(/\D/g,'').slice(0,4))}/></Field>
+          <Field label={t('Postal code','الرمز البريدي')}><Input disabled={locked||!ready||this.state.busy} dir="ltr" inputMode="numeric" value={d.postalCode} maxLength={5} onChange={(e:any)=>this.setField('postalCode',String(e.target.value).replace(/\D/g,'').slice(0,5))}/></Field>
           {cr?<p>{t('Seller identification: commercial registration from the existing company profile.','معرّف البائع: السجل التجاري من ملف المنشأة الحالي.')}</p>:<>
-            <Field label={t('Seller identifier type','نوع معرّف البائع')}><Select disabled={!ready||this.state.busy} value={scheme} onChange={(e:any)=>this.setField('sellerIdScheme',e.target.value)}><option value="MOM">{t('Municipal license','رخصة البلدية')}</option><option value="MLS">{t('HRSD license','رخصة الموارد البشرية')}</option><option value="700">{t('Unified number (700)','الرقم الموحد (700)')}</option><option value="SAG">{t('Investment license','رخصة الاستثمار')}</option><option value="OTH">{t('Other identification','معرّف آخر')}</option></Select></Field>
-            <Field label={t('Seller identifier','معرّف البائع')}><Input disabled={!ready||this.state.busy} dir="ltr" value={d.otherSellerId} maxLength={80} onChange={(e:any)=>this.setField('otherSellerId',e.target.value)}/></Field>
+            <Field label={t('Seller identifier type','نوع معرّف البائع')}><Select disabled={locked||!ready||this.state.busy} value={scheme} onChange={(e:any)=>this.setField('sellerIdScheme',e.target.value)}><option value="MOM">{t('Municipal license','رخصة البلدية')}</option><option value="MLS">{t('HRSD license','رخصة الموارد البشرية')}</option><option value="700">{t('Unified number (700)','الرقم الموحد (700)')}</option><option value="SAG">{t('Investment license','رخصة الاستثمار')}</option><option value="OTH">{t('Other identification','معرّف آخر')}</option></Select></Field>
+            <Field label={t('Seller identifier','معرّف البائع')}><Input disabled={locked||!ready||this.state.busy} dir="ltr" value={d.otherSellerId} maxLength={80} onChange={(e:any)=>this.setField('otherSellerId',e.target.value)}/></Field>
           </>}
         </div>
         <Button variant="primary" disabled={!complete||this.state.busy} onClick={()=>void this.run({operation:'save',expectedVersion:s.version,details})}>{t('Save fiscal profile','حفظ الملف الضريبي')}</Button>

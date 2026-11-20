@@ -32,8 +32,8 @@ export function fiscalCompanySourceDigest(company){return hash(companyIdentity(c
 function readiness(c){
   return {saudiCountry:SA.has(c.country.toLowerCase()),legalName:!!c.nameAr,vatFormat:/^3\d{13}3$/.test(c.vatNumber),city:!!c.city};
 }
-function projection(workspaceId,c,prior){
-  return {environment:'production',workspaceId,version:prior?.version??0,state:!prior?'not-started':prior.sourceDigest===hash(c)?'pending-verification':'profile-changed',checks:readiness(c),details:prior?.details??null,regime:'unresolved',onboardingAvailable:false,issuanceEnabled:false};
+function projection(workspaceId,c,prior,registrationLocked=false){
+  return {environment:'production',workspaceId,registrationLocked,version:prior?.version??0,state:!prior?'not-started':prior.sourceDigest===hash(c)?'pending-verification':'profile-changed',checks:readiness(c),details:prior?.details??null,regime:'unresolved',onboardingAvailable:false,issuanceEnabled:false};
 }
 export function createProductionFiscalProfileService({db,loadCompany,clock=()=>new Date().toISOString()}){
   need(typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&typeof loadCompany==='function'&&typeof clock==='function','FISCAL_PROFILE_UNAVAILABLE');
@@ -46,18 +46,21 @@ export function createProductionFiscalProfileService({db,loadCompany,clock=()=>n
       // A browser company ID is a selector, never membership or issuer proof.
       const company=companyIdentity(await loadCompany(tx,{accountUid,workspaceId}));
       const prior=data(await tx.get(ref));
+      const lock=data(await tx.get(db.doc('fiscalProductionV1/'+accountUid+'/workspaces/'+workspaceId+'/profiles/registration-lock')));
+      if(lock)need(prior&&lock.environment==='production'&&lock.accountUid===accountUid&&lock.workspaceId===workspaceId&&lock.profileVersion===prior.version&&lock.sourceDigest===prior.sourceDigest,'FISCAL_PROFILE_LOCKED');
       if(prior){
         need(prior.environment==='production'&&prior.accountUid===accountUid&&prior.workspaceId===workspaceId&&prior.state==='pending-verification'&&Number.isSafeInteger(prior.version)&&prior.version>0&&/^[a-f0-9]{64}$/.test(prior.sourceDigest)&&exactKeys(prior.details,DETAIL_KEYS),'FISCAL_PROFILE_LOCKED');
         parseProductionProfileCommand({operation:'save',workspaceId,expectedVersion:prior.version,details:prior.details});
       }
-      if(cmd.operation==='inspect')return projection(workspaceId,company,prior);
+      if(cmd.operation==='inspect')return projection(workspaceId,company,prior,!!lock);
       need((prior?.version??0)===cmd.expectedVersion,'FISCAL_PROFILE_STALE');
       need(Object.values(readiness(company)).every(Boolean),'FISCAL_COMPANY_INCOMPLETE');
       const details=cmd.details;
       if(company.commercialRegistration)need(details.sellerIdScheme==='CRN'&&/^[A-Za-z0-9]{1,80}$/.test(company.commercialRegistration),'FISCAL_SELLER_ID_REQUIRED');
       else need(details.sellerIdScheme!=='CRN','FISCAL_SELLER_ID_REQUIRED');
       const sourceDigest=hash(company);
-      if(prior?.sourceDigest===sourceDigest&&hash(prior.details)===hash(details))return projection(workspaceId,company,prior);
+      if(prior?.sourceDigest===sourceDigest&&hash(prior.details)===hash(details))return projection(workspaceId,company,prior,!!lock);
+      need(!lock,'FISCAL_PROFILE_LOCKED');
       const at=clock();need(typeof at==='string'&&Number.isFinite(Date.parse(at))&&new Date(at).toISOString()===at,'FISCAL_PROFILE_UNAVAILABLE');
       need((prior?.version??0)<Number.MAX_SAFE_INTEGER,'FISCAL_PROFILE_LOCKED');
       const next={environment:'production',accountUid,workspaceId,state:'pending-verification',version:(prior?.version??0)+1,sourceDigest,details,updatedAt:at};

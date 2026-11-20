@@ -27,11 +27,12 @@ function fixture(options={}){
  return {authority,rows,workspaces};
 }
 test('registration binds both entire HSM key and public digest to one company and EGS',async()=>{
- const {authority}=fixture();const input=registration();
+ const {authority,rows}=fixture();const input=registration();
  await assert.rejects(authority.registerUnit({uid:'other',role:'owner'},input));
  await assert.rejects(authority.registerUnit(owner,{...input,branchId:'bad'}));
  assert.deepEqual(await authority.registerUnit(owner,input),{state:'enrolling',egsId:'egs1'});
  assert.equal(await authority.authorizeBinding(input.binding),true);
+ assert.equal(rows.get('fiscalProductionV1/owner/workspaces/one/profiles/registration-lock').profileVersion,1);
  assert.deepEqual(await authority.registerUnit(owner,input),{state:'enrolling',egsId:'egs1'});
  const s={...scope,workspaceId:'two',egsId:'egs2'};
  await assert.rejects(authority.registerUnit(owner,registration(s,2)),/KEY_ALREADY_BOUND/);

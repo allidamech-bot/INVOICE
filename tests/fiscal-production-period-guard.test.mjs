@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createProductionPeriodGuard} from '../api/_fiscal/production-period-guard.js';
 const start={documents:[]},uid='owner',w='company';
 const base='fiscalProductionV1/'+uid+'/workspaces/'+w;
-const unit={environment:'production',accountUid:uid,workspaceId:w,egsId:'unit',state:'enrolling',issuer:{accountUid:uid,workspaceId:w,saRegime:'phase-2',effectiveFrom:'2026-01-01'}};
+const unit={environment:'production',accountUid:uid,workspaceId:w,egsId:'unit',branchId:'main',state:'enrolling',issuer:{accountUid:uid,workspaceId:w,saRegime:'phase-2',effectiveFrom:'2026-01-01'}};
 const doc={id:'inv',workspaceId:w,kind:'invoice',status:'final',issueDate:'2026-11-20',invoiceMode:'ordinary'};
 function fixture({registered=true,locked=false}={}){
  const db={collection:path=>({limit:()=>({path,query:true})}),doc:path=>({path})};
@@ -24,4 +24,16 @@ test('approved draft locked and fiscal period close held until authoritative rec
  await assert.rejects(fixture({locked:true})({documents:[{...doc,status:'draft'}]},{documents:[{...doc,status:'draft',number:'changed'}]}),/FISCAL_DOCUMENT_LOCKED/);
  await assert.rejects(fixture()(start,start,{operation:'close',workspaceId:w,through:'2026-11-30'}),/FISCAL_PERIOD_RECONCILIATION_REQUIRED/);
  await fixture()(start,start,{operation:'close',workspaceId:w,through:'2025-12-31'});
+});
+
+test('registered legal identity and bound branch cannot change through ordinary workspace sync',async()=>{
+ const company={country:'SA',nameAr:'Test',nameEn:'Test',vatNumber:'300000000000003',commercialRegistration:'123',addressAr:'Test',city:'Riyadh'};
+ const branch={id:'main',workspaceId:w,active:true,name:'Main'};
+ const before={...start,workspaces:[{id:w,company}],branches:[branch]};
+ const renamed={...before,workspaces:[{id:w,company:{...company,nameAr:'Changed'}}]};
+ await assert.rejects(fixture()(before,renamed),/FISCAL_REGISTERED_IDENTITY_LOCKED/);
+ await assert.rejects(fixture()(before,{...before,branches:[{...branch,active:false}]}),/FISCAL_REGISTERED_BRANCH_LOCKED/);
+ await fixture()(before,{...before,workspaces:[{id:w,company:{...company,logo:'new'}}]});
+ await fixture()(before,{...before,branches:[branch,{id:'second',workspaceId:w,active:true}]});
+ await fixture({registered:false})(before,renamed);
 });

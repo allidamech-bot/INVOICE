@@ -79,3 +79,15 @@ test('endpoint denies cross origin, missing auth and extra commands',async()=>{
   assert.equal((await request({...cmd('one'),otp:'123456'}))[0],400);
   assert.equal((await request(cmd('one')))[0],200);
 });
+
+test('registration lock allows inspection and identical save but rejects new profile details or identity',async()=>{
+ const {execute,rows,companies}=fixture();await execute(owner,cmd('one'));
+ const base='fiscalProductionV1/owner-a/workspaces/one/profiles/';const current=rows.get(base+'current');
+ rows.set(base+'registration-lock',{environment:'production',accountUid:'owner-a',workspaceId:'one',profileVersion:1,sourceDigest:current.sourceDigest});
+ assert.equal((await execute(owner,inspect('one'))).registrationLocked,true);
+ assert.equal((await execute(owner,cmd('one',1))).version,1);
+ await assert.rejects(execute(owner,cmd('one',1,{...details,street:'New'})),/LOCKED/);
+ assert.equal((await execute(owner,cmd('two'))).registrationLocked,false);
+ companies.set('owner-a/one',{...company,nameAr:'Changed'});
+ await assert.rejects(execute(owner,cmd('one',1)),/LOCKED/);
+});

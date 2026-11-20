@@ -1,4 +1,5 @@
 import {reviewDigest} from './commercial-source.js';
+import {fiscalCompanySourceDigest} from './production-profile.js';
 import {fail} from '../_accounting/period-format.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const DAY=/^\d{4}-\d{2}-\d{2}$/;
@@ -20,6 +21,20 @@ export function createProductionPeriodGuard(db){
     if(!groups.has(w))groups.set(w,[]);groups.get(w).push({k,old,next});
    }
   }
+  // Protect legal identity and enrolled branch records even when no invoice is edited.
+  const oldW=map(before.workspaces),newW=map(candidate.workspaces),oldB=map(before.branches),newB=map(candidate.branches);
+  const identityChanges=new Set(),branchChanges=new Map();
+  for(const w of new Set([...oldW.keys(),...newW.keys()])){
+   if(equal(oldW.get(w)?.company,newW.get(w)?.company)&&!!oldW.get(w)===!!newW.get(w))continue;
+   identityChanges.add(w);if(!groups.has(w))groups.set(w,[]);
+  }
+  for(const k of new Set([...oldB.keys(),...newB.keys()])){
+   const old=oldB.get(k),next=newB.get(k);if(equal(old,next))continue;
+   for(const w of new Set([old?.workspaceId,next?.workspaceId].filter(Boolean))){
+    if(!id(w))fail(422,'FISCAL_SCOPE_INVALID');if(!groups.has(w))groups.set(w,[]);
+    if(!branchChanges.has(w))branchChanges.set(w,new Set());branchChanges.get(w).add(k);
+   }
+  }
   if(input.operation==='close'){if(!id(input.workspaceId))fail(422,'FISCAL_SCOPE_INVALID');if(!groups.has(input.workspaceId))groups.set(input.workspaceId,[]);}
   // The prior generation is trusted, but every new or modified document
   // is checked for private intent/issue locks, including moves between workspaces.
@@ -37,6 +52,11 @@ export function createProductionPeriodGuard(db){
     // An independently registered issuer already has a verified effective
     // date; pending certificate activation must not open a bypass.
     active.push(r.issuer.effectiveFrom);
+    if(branchChanges.get(w)?.has(r.branchId))fail(409,'FISCAL_REGISTERED_BRANCH_LOCKED');
+   }
+   if(identityChanges.has(w)){
+    let unchanged=false;try{unchanged=fiscalCompanySourceDigest(oldW.get(w)?.company)===fiscalCompanySourceDigest(newW.get(w)?.company);}catch{}
+    if(!unchanged)fail(409,'FISCAL_REGISTERED_IDENTITY_LOCKED');
    }
    const effective=active.sort()[0];
    if(input.operation==='close'&&w===input.workspaceId&&input.through>=effective)fail(409,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
