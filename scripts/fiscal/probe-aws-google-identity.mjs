@@ -4,7 +4,9 @@ try{
  await probeAwsGoogleIdentity();
  console.log('LOUREX AWS GOOGLE IDENTITY PASSED');
  console.log('FIRESTORE ACCESS: NOT GRANTED');
-}catch{
- console.error('LOUREX AWS GOOGLE IDENTITY NOT VERIFIED');
+ }catch(e){
+ const safe=String(e?.message??'');
+ const allowed=/^AWS_GOOGLE_IDENTITY_([A-Z0-9_]+)$/.exec(safe);
+ console.error('LOUREX AWS GOOGLE IDENTITY NOT VERIFIED: '+(allowed?allowed[1]:'LOCAL_UNKNOWN'));
  process.exitCode=1;
 }
