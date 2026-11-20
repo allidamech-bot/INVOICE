@@ -3,6 +3,7 @@ import {spawnSync} from 'node:child_process';
 import {isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {simulationBase} from './simulation-scope.js';
+import {productionBase} from './issuance-boundary.js';
 import {hashCanonicalInvoice} from './fiscal-artifacts.js';
 
 export const SDK4_ARCHIVE_SHA256='0e6f62f85c4f5d5da78dba7a9ec90566721e7efeef05dfb4514a159a8e66b1b9';
@@ -22,10 +23,10 @@ export function normalizeSdk4Proof(proof,record){
 // Configuration is supplied only by the trusted simulation service operator.
 // The exact installation manifest must be independently generated/approved
 // from the official archive, never from a browser or a request parameter.
-export function createSdk4LocalValidator({pythonExecutable,installationRoot,manifestPath,manifestSha256,javaHome,canonicalize}={}){
+function createValidator(environment,{pythonExecutable,installationRoot,manifestPath,manifestSha256,javaHome,canonicalize}={}){
   need([pythonExecutable,installationRoot,manifestPath,javaHome].every(p=>typeof p==='string'&&isAbsolute(p))&&HEX.test(manifestSha256??'')&&typeof canonicalize==='function');
   return async function validateOfficial({scope,mode,invoice,bytes,invoiceHash}){
-    simulationBase(scope);
+    (environment==='production'?productionBase:simulationBase)(scope);
     const type=({'invoice':'invoice','credit-note':'credit','debit-note':'debit','prepayment':'prepayment'})[invoice?.kind];
     const category=mode==='clearance'?'standard':mode==='reporting'?'simplified':null;
     need(category&&type&&invoice.mode===category&&UUID.test(invoice.uuid??'')&&Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=512*1024);
@@ -38,3 +39,6 @@ export function createSdk4LocalValidator({pythonExecutable,installationRoot,mani
     return proof;
   };
 }
+
+export const createSdk4LocalValidator=options=>createValidator('simulation',options);
+export const createProductionSdk4LocalValidator=options=>createValidator('production',options);

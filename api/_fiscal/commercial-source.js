@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {fiscalBase} from './issuance-boundary.js';
 
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const REV=/^[A-Za-z0-9-]{12,90}$/;
@@ -13,7 +14,7 @@ export function validateSourceBinding(b){
 }
 export function reviewDigest(review){return sha(review);}
 export async function currentPublishedFiscalSource(db,tx,scope,documentId){
-  need(typeof scope?.accountUid==='string'&&ID.test(scope.accountUid)&&typeof scope.workspaceId==='string'&&ID.test(scope.workspaceId)&&typeof scope.egsId==='string'&&ID.test(scope.egsId)&&typeof documentId==='string'&&ID.test(documentId)&&scope.environment==='simulation');
+  need(typeof scope?.accountUid==='string'&&ID.test(scope.accountUid)&&typeof scope.workspaceId==='string'&&ID.test(scope.workspaceId)&&typeof scope.egsId==='string'&&ID.test(scope.egsId)&&typeof documentId==='string'&&ID.test(documentId)&&['simulation','production'].includes(scope.environment));
   const root='users/'+scope.accountUid;
   const meta=data(await tx.get(db.doc(root+'/workspace/meta'))),control=data(await tx.get(db.doc(root+'/accounting/control')));
   need(meta?.chunkStorage==='period-generations-v1'&&typeof meta.revision==='string'&&REV.test(meta.revision)&&typeof meta.sha256==='string'&&HEX.test(meta.sha256));
@@ -24,8 +25,8 @@ export async function currentPublishedFiscalSource(db,tx,scope,documentId){
 }
 export async function currentFiscalSource(db,tx,scope,documentId){
   const source=await currentPublishedFiscalSource(db,tx,scope,documentId);
-  const {meta,control}=source,review=data(await tx.get(db.doc('fiscalPrivateV1/'+scope.accountUid+'/workspaces/'+scope.workspaceId+'/issueReviews/'+documentId)));
-  need(review?.state==='approved'&&review.environment==='simulation'&&review.accountUid===scope.accountUid&&review.workspaceId===scope.workspaceId&&review.egsId===scope.egsId&&review.documentId===documentId&&review.sourceRevision===meta.revision&&review.sourceSha256===meta.sha256&&review.periodGeneration===control.generation&&review.issuer&&review.review,'FISCAL_REVIEW_REQUIRED');
+  const {meta,control}=source,review=data(await tx.get(db.doc(fiscalBase(scope)+'/issueReviews/'+documentId)));
+  need(review?.state==='approved'&&review.environment===scope.environment&&review.accountUid===scope.accountUid&&review.workspaceId===scope.workspaceId&&review.egsId===scope.egsId&&review.documentId===documentId&&review.sourceRevision===meta.revision&&review.sourceSha256===meta.sha256&&review.periodGeneration===control.generation&&review.issuer&&review.review,'FISCAL_REVIEW_REQUIRED');
   const binding={revision:meta.revision,sha256:meta.sha256,generation:control.generation,reviewDigest:reviewDigest(review)};
   return {...source,review,binding};
 }

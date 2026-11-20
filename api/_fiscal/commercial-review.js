@@ -1,4 +1,4 @@
-import {readSimulationContext,simulationBase} from './simulation-scope.js';
+import {issuanceBoundary,assertProductionSale} from './issuance-boundary.js';
 import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
 import {resolveFiscalCreditOriginal} from './commercial-credit.js';
@@ -13,15 +13,16 @@ function legalParty(p,source,s,seller,invoiceType){
   if(!seller)need(Array.isArray(p.allowedInvoiceTypes)&&p.allowedInvoiceTypes.includes(invoiceType)&&p.customerId===source.sourceCustomerId);
   return structuredClone(p.party);
 }
-export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
+export function createCommercialReview({db,clock=()=>new Date().toISOString(),...boundaryOptions}){
   need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&typeof clock==='function','FISCAL_REVIEW_UNAVAILABLE');
+  const boundary=issuanceBoundary(db,boundaryOptions);
   return async function review(identity,cmd){
     need(identity?.role==='owner'&&typeof identity.uid==='string'&&ID.test(identity.uid));
     need(cmd&&Object.keys(cmd).length===7&&['workspaceId','egsId','documentId'].every(k=>typeof cmd[k]==='string'&&ID.test(cmd[k]))&&Number.isSafeInteger(cmd.documentRevision)&&cmd.documentRevision>0&&['standard','simplified'].includes(cmd.invoiceType)&&['10','30','42','48','1'].includes(cmd.paymentMeans)&&typeof cmd.supplyDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(cmd.supplyDate),'INVALID_COMMAND');
-    const s={accountUid:identity.uid,workspaceId:cmd.workspaceId,egsId:cmd.egsId,environment:'simulation'},base=simulationBase(s),at=clock();
+    const s={accountUid:identity.uid,workspaceId:cmd.workspaceId,egsId:cmd.egsId,environment:boundary.environment},base=boundary.base(s),at=clock();
     const {validateMeta,decodeWorkspace}=await import('../_accounting/period-format.js');
     return db.runTransaction(async tx=>{
-      const {unit,workspace}=await readSimulationContext(db,tx,s,{active:true});
+      const {unit,workspace}=await boundary.read(tx,s,{active:true});
       need(workspace.commandsEnabled===true&&workspace.selectedEgsId===s.egsId);
       const source=await currentPublishedFiscalSource(db,tx,s,cmd.documentId),meta=validateMeta(source.meta);
       need(meta.chunkCount<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
@@ -31,7 +32,7 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
       need(d.revision===cmd.documentRevision&&payload.workspaces.some(w=>w.id===s.workspaceId)&&payload.branches.some(b=>b.id===d.branchId&&b.workspaceId===s.workspaceId&&b.active===true),'FISCAL_REVIEW_CHANGED');
       need(d.invoiceMode===undefined||d.invoiceMode==='tax','FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE');
       need(!source.closedThrough||d.issueDate>source.closedThrough,'FISCAL_PERIOD_CLOSED');
-      const profile=data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/enrollment/approved'))),sellerProfile=data(await tx.get(db.doc(base+'/sellerProfile/current')));
+      const profile=s.environment==='production'?{...unit,state:'approved'}:data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/enrollment/approved'))),sellerProfile=data(await tx.get(db.doc(base+'/sellerProfile/current')));
       need(same(profile,s)&&profile.state==='approved'&&profile.issuer&&unit.issuerVat===profile.issuer.vatNumber&&unit.operationalCredentialRef,'FISCAL_ISSUER_NOT_VERIFIED');
       const seller=legalParty(sellerProfile,d.companySnapshot,s,true,cmd.invoiceType);
       need(seller.vatNumber===unit.issuerVat,'FISCAL_ISSUER_NOT_VERIFIED');
@@ -51,6 +52,10 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
       if(contextRecord){
         need(same(contextRecord,s)&&contextRecord.state==='approved'&&contextRecord.documentId===d.id&&contextRecord.documentRevision===d.revision&&contextRecord.sourceRevision===meta.revision&&contextRecord.sourceSha256===meta.sha256&&(contextRecord.context||contextRecord.scenario),'FISCAL_CONTEXT_REVIEW_REQUIRED');
         if(contextRecord.context)extra={fiscalContext:structuredClone(contextRecord.context)};
+      }
+      if(s.environment==='production'){
+        need(!contextRecord&&d.role==='standard','PRODUCTION_COMMERCIAL_CASE_UNSUPPORTED');
+        assertProductionSale(s,d,{...tax,invoiceType:cmd.invoiceType},unit);
       }
       let correction={};
       if(d.role==='credit-note'){

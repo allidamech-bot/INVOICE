@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {sdkProofArtifact,readStoredSdkProof} from './sdk4-validation-evidence.js';
-import {simulationBase,readSimulationContext} from './simulation-scope.js';
+import {issuanceBoundary,fiscalNamespace,assertProductionSale} from './issuance-boundary.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {assertCurrentApprovedSource} from './commercial-source.js';
 import {writeAuthorityEvidence} from './authority-evidence.js';
@@ -13,11 +13,9 @@ import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} fr
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
 // All inputs come from authorized server preparation/verified authority adapters.
-const NS='fiscalPrivateV1';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const MAX_BYTES=512*1024;
 function id(value){if(typeof value!=='string'||!ID.test(value))throw new Error('Invalid fiscal scope.');return value;}
-function scope(s){return simulationBase(s);}
 function artifact(bytes,digest){
   if(!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>MAX_BYTES||createHash('sha256').update(bytes).digest('hex')!==digest)
     throw new Error('Invalid or oversized fiscal artifact.');
@@ -33,16 +31,17 @@ function readBytes(stored,digest){
 function immutableMatch(record,prepared){
   return Object.keys(prepared).filter(k=>!['status','version','updatedAt','reportingDeadline','attemptId','attemptCount','usedAttemptIds','resultDigest','clearedArtifactDigest','warnings'].includes(k)).every(k=>record[k]===prepared[k]);
 }
-function assertScope(record,s){if(!record||record.accountUid!==s.accountUid||record.workspaceId!==s.workspaceId||record.egsId!==s.egsId)throw new Error('Fiscal scope mismatch.');}
+function assertScope(record,s){if(!record||(s.environment==='production'?record.environment!=='production':record.environment!==undefined&&record.environment!=='simulation')||record.accountUid!==s.accountUid||record.workspaceId!==s.workspaceId||record.egsId!==s.egsId)throw new Error('Fiscal scope mismatch.');}
 function outbox(record){
   return {documentId:record.documentId,uuid:record.uuid,egsId:record.egsId,version:record.version,
     state:record.status==='queued'||record.status==='retryable'?'ready':record.status==='submitting'||record.status==='uncertain'?'hold':'closed',
     deadline:record.reportingDeadline};
 }
-export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
+export function createFiscalLedger(db,options={}){
+  const {sdkInstallationManifestSha256}=options,boundary=issuanceBoundary(db,options),scope=boundary.base;
   if(sdkInstallationManifestSha256!==undefined&&(typeof sdkInstallationManifestSha256!=='string'||! /^[a-f0-9]{64}$/.test(sdkInstallationManifestSha256)))throw Error('FISCAL_OFFICIAL_VALIDATION_REQUIRED');
   if(!db||typeof db.runTransaction!=='function'||typeof db.doc!=='function')throw new Error('Admin transaction store required.');
-  const receipts=createAttemptResponseStore(db);
+  const receipts=createAttemptResponseStore(db,options);
   async function applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes){
     const next=transitionFiscalIssue(record,expectedVersion,event);
     if(['submitting','uncertain'].includes(record.status)){
@@ -64,7 +63,7 @@ export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
           readBytes(await tx.get(db.doc(issue.path+'/artifacts/snapshot')),record.snapshotDigest);
           // Retain recovery for already submitted legacy records. A stored
           // SDK proof, when present, must still match the originally queued XML.
-          await readStoredSdkProof(db,tx,issue.path,record);
+          await readStoredSdkProof(db,tx,issue.path,record,boundary.environment==='production'?sdkInstallationManifestSha256:undefined);
         }
       }
     }
@@ -82,14 +81,14 @@ export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
     return next;
   }
   return {
-    readAccepted:createAcceptedFiscalReader(db),
+    readAccepted:createAcceptedFiscalReader(db,options),
     recordResponse:receipts.recordResponse,
     readResponse:receipts.readResponse,
     async readHeldForReconciliation(authorizedScope,documentId,expectedVersion){
-      if(authorizedScope.environment!=='simulation'||!Number.isSafeInteger(expectedVersion)||expectedVersion<3)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
+      if(authorizedScope.environment!==boundary.environment||!Number.isSafeInteger(expectedVersion)||expectedVersion<3)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
       const base=scope(authorizedScope),issue=db.doc(base+'/issues/'+id(documentId));
       return db.runTransaction(async tx=>{
-        await readSimulationContext(db,tx,authorizedScope);
+        await boundary.read(tx,authorizedScope);
         const row=await tx.get(issue),record=row.exists?row.data():null;
         assertScope(record,authorizedScope);
         if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||record.status!=='uncertain'||record.version!==expectedVersion)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
@@ -111,21 +110,23 @@ export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
       });
     },
     async prepare(authorizedScope,input,xmlBytes,snapshotBytes,{approvedIntent=false,sdkProof}={}){
-      const base=scope(authorizedScope), prepared=prepareFiscalIssue(input),proof=sdkProofArtifact(sdkProof,prepared,sdkInstallationManifestSha256),initial={...prepared,...(proof?{sdkValidationDigest:proof.sha256}:{})};
+      if(boundary.environment==='production'&&!approvedIntent)throw Error('FISCAL_APPROVED_INTENT_REQUIRED');
+      const base=scope(authorizedScope), prepared=prepareFiscalIssue(input),proof=sdkProofArtifact(sdkProof,prepared,sdkInstallationManifestSha256),initial={...prepared,...(boundary.environment==='production'?{environment:'production'}:{}),...(proof?{sdkValidationDigest:proof.sha256}:{})};
       assertScope(initial,authorizedScope);
       const xml=artifact(xmlBytes,initial.artifactDigest), snapshot=artifact(snapshotBytes,initial.snapshotDigest);
       const issue=db.doc(base+'/issues/'+id(initial.documentId));
       const egs=db.doc(base+'/egs/'+id(initial.egsId));
-      const uuid=db.doc(NS+'/'+id(initial.accountUid)+'/uuidIndex/'+id(initial.uuid));
+      const uuid=db.doc(fiscalNamespace(authorizedScope)+'/'+id(initial.accountUid)+'/uuidIndex/'+id(initial.uuid));
       const queue=db.doc(base+'/outbox/'+id(initial.documentId));
       return db.runTransaction(async tx=>{
-        const {unit:state}=await readSimulationContext(db,tx,authorizedScope,{active:true});
+        const {unit:state}=await boundary.read(tx,authorizedScope,{active:true});
         let approved;
         if(approvedIntent){
           const intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+id(initial.documentId))),authorizedScope,initial.documentId);
           if(intent.digest!==initial.snapshotDigest||!intent.bytes.equals(snapshotBytes))throw Error('FISCAL_APPROVED_INTENT_CHANGED');
           await assertCurrentApprovedSource(db,tx,authorizedScope,initial.documentId,intent.payload);
           approved=intent.payload;
+          assertProductionSale(authorizedScope,approved.document,approved.review,state);
         }
         const existing=await tx.get(issue);
         if(existing.exists){
@@ -157,17 +158,17 @@ export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
     },
     // Simulation worker: atomically read stored bytes, verify scope and claim one attempt.
     async claim(authorizedScope,documentId,expectedVersion,attemptId,at){
-      if(authorizedScope.environment!=='simulation')throw Error('Simulation only.');
+      if(authorizedScope.environment!==boundary.environment)throw Error('Simulation only.');
       const base=scope(authorizedScope), issue=db.doc(base+'/issues/'+id(documentId));
       const queue=db.doc(base+'/outbox/'+id(documentId));
       return db.runTransaction(async tx=>{
-        const {unit:state}=await readSimulationContext(db,tx,authorizedScope,{active:true});
+        const {unit:state}=await boundary.read(tx,authorizedScope,{active:true});
         const row=await tx.get(issue), job=await tx.get(queue);
         const prepared=await tx.get(db.doc(issue.path+'/artifacts/prepared'));
         const snapshot=await tx.get(db.doc(issue.path+'/artifacts/snapshot'));
         const record=row.exists?row.data():null;
         assertScope(record,authorizedScope);assertScope(state,authorizedScope);
-        if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||state.egsId!==record.egsId||state.active!==true||state.environment!=='simulation')throw Error('Invalid simulation EGS.');
+        if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||state.egsId!==record.egsId||state.active!==true||state.environment!==boundary.environment)throw Error('Invalid simulation EGS.');
         const expected=outbox(record), actual=job.exists?job.data():null;
         if(!actual||expected.state!=='ready'||Object.keys(expected).some(k=>actual[k]!==expected[k]))throw Error('Fiscal queue not ready.');
         const xmlBytes=readBytes(prepared,record.artifactDigest), snapshotBytes=readBytes(snapshot,record.snapshotDigest);
@@ -182,7 +183,7 @@ export function createFiscalLedger(db,{sdkInstallationManifestSha256}={}){
       const base=scope(authorizedScope), issue=db.doc(base+'/issues/'+id(documentId));
       if(event?.kind==='start')throw Error('Fiscal submission must use atomic claim.');
       return db.runTransaction(async tx=>{
-        await readSimulationContext(db,tx,authorizedScope);
+        await boundary.read(tx,authorizedScope);
         const snapshot=await tx.get(issue), record=snapshot.exists?snapshot.data():null;
         assertScope(record,authorizedScope);
         if(record.documentId!==documentId||(authorizedScope.egsId!==undefined&&record.egsId!==authorizedScope.egsId))throw new Error('Fiscal document identity mismatch.');

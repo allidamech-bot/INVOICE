@@ -1,4 +1,4 @@
-import {readSimulationContext,simulationBase} from './simulation-scope.js';
+import {issuanceBoundary,assertProductionSale} from './issuance-boundary.js';
 import {currentFiscalSource} from './commercial-source.js';
 import {hashArtifact} from './fiscal-artifacts.js';
 import {readApprovedIntent} from './issue-intent.js';
@@ -8,18 +8,19 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/;
 function need(ok,code='FISCAL_APPROVAL_FORBIDDEN'){if(!ok)throw Error(code);}
 // Internal only: identity is obtained from an authenticated server boundary.
 // A request can identify a draft, never supply totals, issuer or approval.
-export function createCommercialIssueApproval({db,clock=()=>new Date().toISOString()}){
+export function createCommercialIssueApproval({db,clock=()=>new Date().toISOString(),...boundaryOptions}){
   need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&typeof clock==='function','FISCAL_APPROVAL_UNAVAILABLE');
+  const boundary=issuanceBoundary(db,boundaryOptions);
   return async function approve(identity,command,{expectedDocumentRevision,requireCommandEnabled=false}={}){
     need(identity?.role==='owner'&&typeof identity.uid==='string'&&ID.test(identity.uid));
     need(command&&Object.keys(command).length===3&&['workspaceId','egsId','documentId'].every(k=>typeof command[k]==='string'&&ID.test(command[k])));
-    const {documentId}=command,scope=Object.freeze({environment:'simulation',accountUid:identity.uid,workspaceId:command.workspaceId,egsId:command.egsId});
-    const base=simulationBase(scope);
+    const {documentId}=command,scope=Object.freeze({environment:boundary.environment,accountUid:identity.uid,workspaceId:command.workspaceId,egsId:command.egsId});
+    const base=boundary.base(scope);
     const at=clock();
     need(typeof at==='string'&&Number.isFinite(Date.parse(at))&&new Date(at).toISOString()===at,'FISCAL_ISSUE_TIME_INVALID');
     const {validateMeta,decodeWorkspace}=await import('../_accounting/period-format.js');
     return db.runTransaction(async tx=>{
-      const {unit,workspace}=await readSimulationContext(db,tx,scope,{active:true});
+      const {unit,workspace}=await boundary.read(tx,scope,{active:true});
       if(requireCommandEnabled)need(workspace.commandsEnabled===true&&workspace.selectedEgsId===scope.egsId);
       const source=await currentFiscalSource(db,tx,scope,documentId);
       const meta=validateMeta(source.meta);
@@ -39,6 +40,7 @@ export function createCommercialIssueApproval({db,clock=()=>new Date().toISOStri
       // Require exact persisted source revision and reviewed draft; an altered
       // workspace cannot be substituted with a client-provided document.
       need(doc.revision===source.review.documentRevision&&doc.revision===review.documentRevision&&(expectedDocumentRevision===undefined||doc.revision===expectedDocumentRevision),'FISCAL_REVIEW_CHANGED');
+      assertProductionSale(scope,doc,review,unit);
       const ref=db.doc(base+'/issueIntents/'+documentId),prior=await tx.get(ref),issued=await tx.get(db.doc(base+'/issues/'+documentId));
       if(prior.exists){
         const old=readApprovedIntent(prior,scope,documentId);
