@@ -36,4 +36,17 @@ with open(sys.argv[1],'w') as f:json.dump(config,f,separators=(',',':'))
 PY
 sudo install -d -o root -g root -m 755 /etc/lourex-staging
 sudo install -o root -g root -m 644 "$TMP" /etc/lourex-staging/aws-identity-adc.json
-sudo -u lourex-staging env -u AWS_PROFILE -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u GOOGLE_APPLICATION_CREDENTIALS node scripts/fiscal/probe-aws-google-identity.mjs
+# The service identity must not need access to /home/ubuntu or the owner's
+# checkout. Run a copied, isolated, synthetic read-only probe from /tmp.
+PROBE_DIR="$(mktemp -d /tmp/lourex-google-id-qa.XXXXXX)"
+trap 'rm -f -- "$TMP"; rm -rf -- "$PROBE_DIR"' EXIT
+chmod 755 "$PROBE_DIR"
+git archive HEAD api/_fiscal/aws-google-identity.js scripts/fiscal/probe-aws-google-identity.mjs package.json | tar -x -C "$PROBE_DIR"
+cp -a -- node_modules "$PROBE_DIR/node_modules"
+install -m 755 "$(command -v node)" "$PROBE_DIR/node"
+(
+  cd "$PROBE_DIR"
+  sudo -u lourex-staging env -i HOME=/var/lib/lourex-staging PATH=/usr/bin:/bin LANG=C.UTF-8 \
+   "$PROBE_DIR/node" scripts/fiscal/probe-aws-google-identity.mjs
+)
+echo 'LOUREX AWS GOOGLE FEDERATION READY'
