@@ -25,7 +25,7 @@ function classifyRemote(error){
  }
  if(status===403){
   if(host==='sts.googleapis.com')return 'REMOTE_STS_403';
-  if(host==='iamcredentials.googleapis.com'||/iam\\.serviceAccounts\\.getAccessToken|generateAccessToken|impersonat/i.test(m))return 'REMOTE_IAMCREDENTIALS_403';
+  if(host==='iamcredentials.googleapis.com'||/iam\.serviceAccounts\.getAccessToken|generateAccessToken|impersonat/i.test(m))return 'REMOTE_IAMCREDENTIALS_403';
  }
  if(/attribute.condition|attributeCondition|attribute_condition|attribute mapping/i.test(m))return 'REMOTE_ATTRIBUTE_CONDITION';
  if(/iam\.serviceAccounts\.getAccessToken|impersonat|workloadIdentityUser/i.test(m)&&status===403)return 'REMOTE_IMPERSONATION_DENIED';
