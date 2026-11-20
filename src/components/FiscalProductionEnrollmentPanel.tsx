@@ -51,7 +51,7 @@ export class FiscalProductionEnrollmentPanel extends React.Component<Props,State
         <Button variant="primary" disabled={this.state.busy||!/^\d{6}$/.test(this.state.otp)} onClick={()=>void this.run({operation:action,egsId:u.egsId,otp:this.state.otp})}>{t('Connect company','ربط المنشأة')}</Button>
       </div>:null}
       {u&&action&&action!=='enrollment-begin'?<Button variant="primary" disabled={this.state.busy} onClick={()=>void this.run({operation:action,egsId:u.egsId,expectedVersion:u.version})}>{action==='enrollment-check'?t('Run next compliance check','تشغيل فحص الامتثال التالي'):action==='enrollment-operational'?t('Request operational certificate','طلب شهادة التشغيل'):t('Verify and activate unit','التحقق وتفعيل الوحدة')}</Button>:null}
-      <p className="commercial-empty-note">{t('Official invoice issuance is not enabled by this status.','حالة الربط هذه لا تفعّل إصدار الفواتير الرسمية.')}</p>
+      <p className="commercial-empty-note">{s.issuanceEnabled?t('The official issuance service is configured and an invoicing unit is active. Each invoice must still pass its own verification.','خدمة الإصدار الرسمي مهيأة وتوجد وحدة فوترة مفعلة. تبقى كل فاتورة خاضعة للتحقق الخاص بها.'):t('Official invoice issuance is not ready. Complete connection and secure service configuration.','الإصدار الرسمي غير جاهز. أكمل الربط وتهيئة الخدمة الآمنة.')}</p>
     </div>:null}
    </div>;
  }

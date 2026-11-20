@@ -3,17 +3,18 @@ import {fiscalProductionProfileClientEnabled} from './fiscal-production-profile-
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const states=['not-started','checking','checks-complete','restart-required','operational-request-held','operational-recorded','unavailable'];
 export interface ProductionEnrollmentUnit{egsId:string;branchId:string;state:string;unitActive:boolean;enrollmentHeld:boolean;version:number;passed:number;required:number;}
-export interface ProductionEnrollmentStatus{environment:'production';workspaceId:string;available:boolean;registeredUnits:number;units:ProductionEnrollmentUnit[];issuanceEnabled:false;}
+export interface ProductionEnrollmentStatus{environment:'production';workspaceId:string;available:boolean;registeredUnits:number;units:ProductionEnrollmentUnit[];issuanceEnabled:boolean;}
 export type ProductionEnrollmentCommand={operation:'enrollment-status'}|{operation:'enrollment-begin';egsId:string;otp:string}|{operation:'enrollment-check'|'enrollment-operational'|'enrollment-activate';egsId:string;expectedVersion:number};
 export type ProductionEnrollmentAction=Exclude<ProductionEnrollmentCommand['operation'],'enrollment-status'>;
 export function validateProductionEnrollmentStatus(v:any,w:string):ProductionEnrollmentStatus{
- if(v?.environment!=='production'||v.workspaceId!==w||typeof v.available!=='boolean'||v.issuanceEnabled!==false||!Number.isInteger(v.registeredUnits)||v.registeredUnits<0||v.registeredUnits>100||!Array.isArray(v.units)||v.units.length!==(v.available?v.registeredUnits:0))throw Error('FISCAL_INVALID_STATUS');
+ if(v?.environment!=='production'||v.workspaceId!==w||typeof v.available!=='boolean'||typeof v.issuanceEnabled!=='boolean'||!Number.isInteger(v.registeredUnits)||v.registeredUnits<0||v.registeredUnits>100||!Array.isArray(v.units)||v.units.length!==(v.available?v.registeredUnits:0))throw Error('FISCAL_INVALID_STATUS');
  const units:ProductionEnrollmentUnit[]=v.units.map((u:any)=>{
    if(!u||typeof u.egsId!=='string'||!ID.test(u.egsId)||typeof u.branchId!=='string'||!ID.test(u.branchId)||!states.includes(u.state)||typeof u.unitActive!=='boolean'||typeof u.enrollmentHeld!=='boolean'||!Number.isSafeInteger(u.version)||u.version<0||!Number.isInteger(u.passed)||u.passed<0||u.passed>u.required||!(u.state==='unavailable'?u.required===0&&u.enrollmentHeld&&!u.unitActive:[3,6].includes(u.required))||(u.unitActive&&u.state!=='operational-recorded'))throw Error('FISCAL_INVALID_STATUS');
    return {egsId:u.egsId,branchId:u.branchId,state:u.state,unitActive:u.unitActive,enrollmentHeld:u.enrollmentHeld,version:u.version,passed:u.passed,required:u.required};
  });
+ if(v.issuanceEnabled&&(!v.available||!units.some(u=>u.unitActive&&!u.enrollmentHeld)))throw Error('FISCAL_INVALID_STATUS');
  if(new Set(units.map(u=>u.egsId)).size!==units.length)throw Error('FISCAL_INVALID_STATUS');
- return {environment:'production',workspaceId:w,available:v.available,registeredUnits:v.registeredUnits,units,issuanceEnabled:false};
+ return {environment:'production',workspaceId:w,available:v.available,registeredUnits:v.registeredUnits,units,issuanceEnabled:v.issuanceEnabled};
 }
 export function productionEnrollmentNextAction(s:ProductionEnrollmentStatus,u:ProductionEnrollmentUnit):ProductionEnrollmentAction|null{
  if(!s.available||u.unitActive||u.enrollmentHeld||!s.units.some(x=>x.egsId===u.egsId&&x.version===u.version&&x.state===u.state))return null;

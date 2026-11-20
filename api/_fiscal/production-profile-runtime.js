@@ -46,5 +46,5 @@ export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapte
     if(trustedIssuanceAdapters){({enrollment,issuance,authority}=await createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters:trustedEnrollmentAdapters,issuanceAdapters:trustedIssuanceAdapters}));}
     else enrollment=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment;
   }
-  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
+  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured:!!issuance}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
 }
