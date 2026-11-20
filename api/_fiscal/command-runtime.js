@@ -35,6 +35,8 @@ export function privateAcceptanceAdaptersConfigured(options){
 }
 export async function getFiscalQaCommandRuntime({simulationAdapters,privateAcceptanceAdapters}={}){
   const configured=fiscalSimulationAdaptersConfigured(simulationAdapters);
+  const awsDispatch=process.env.LOUREX_FISCAL_AWS_QUEUE_ENABLED==='true';
+  if(configured&&awsDispatch)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
   const privateAdapters=privateAcceptanceAdaptersConfigured(privateAcceptanceAdapters);
   const {project,account}=fiscalCommandConfig(process.env);
   const [{initializeApp,getApps,cert},{getFirestore},{getAuth},{createCommercialIssueApproval},{createCommercialReview}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js'),import('./commercial-review.js')]);
@@ -42,7 +44,7 @@ export async function getFiscalQaCommandRuntime({simulationAdapters,privateAccep
   if(app&&app.options.projectId!==project)throw Error('FISCAL_COMMAND_UNAVAILABLE');
   if(!app)app=initializeApp({projectId:project,credential:cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
-  const ledger=createFiscalLedger(db,configured?{sdkInstallationManifestSha256:simulationAdapters.preparation.sdk.manifestSha256}:{}),accounting=createFiscalAccounting({db,verifySupplierSettlementEvidence:privateAdapters?.verifySupplierSettlementEvidence,verifyStockGlEvidence:privateAdapters?.verifyStockGlEvidence});
+  const ledger=createFiscalLedger(db,configured?{sdkInstallationManifestSha256:simulationAdapters.preparation.sdk.manifestSha256}:awsDispatch?{requireStagingDispatch:true}:{}),accounting=createFiscalAccounting({db,verifySupplierSettlementEvidence:privateAdapters?.verifySupplierSettlementEvidence,verifyStockGlEvidence:privateAdapters?.verifyStockGlEvidence});
   const output=createFiscalOutputService({db,verifyPdf:privateAdapters?.pdf});
   const periodService=process.env.LOUREX_FISCAL_QA_PERIOD_ENABLED==='true'&&process.env.LOUREX_PERIOD_RULES_VERSION==='1'? (await import('../_accounting/period-store.js')).createPeriodService(db,{fiscalGuard:createFiscalPeriodGuard(db,{closeProof:accounting.closeProof})}):null;
   // Recovery never sends anything. A held attempt is transitioned only via the
@@ -59,7 +61,7 @@ export async function getFiscalQaCommandRuntime({simulationAdapters,privateAccep
   let submit,reconcile,prepare,enrollment;
   // Explicit preview-only outbound AWS submission. Existing owner authentication
   // and selected EGS checks remain in the command service. Never enable live.
-  if(!configured&&process.env.LOUREX_FISCAL_AWS_QUEUE_ENABLED==='true')submit=createStagingDispatchRequest({db});
+  if(awsDispatch)submit=createStagingDispatchRequest({db});
   if(configured){
     const {preparation:p,submission:s,enrollment:e}=simulationAdapters;
     const [{createCommercialFiscalPreparation},{getFiscalQaOnboardingRuntime}]=await Promise.all([import('./commercial-preparation.js'),import('./onboarding-runtime.js')]);

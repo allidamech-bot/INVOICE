@@ -47,7 +47,7 @@ export function createStagingDispatchWorker({db,ledger,submit,reconcile,clock=()
   const counters={submitted:0,recovered:0,reconciled:0,held:0,failed:0};
   // Query one scope at a time. No global scan or arbitrary user-supplied path.
   for(const state of ['requested','claimed','held']){
-   const page=await db.collection(base+'/outbox').where('dispatchState','==',state).limit(32).get();
+   const page=await db.collection(base+'/outbox').where('dispatchState','==',state).where('egsId','==',scope.egsId).limit(32).get();
    for(const row of page.docs){
     try{
      const job=row.data(),d=job.dispatch;

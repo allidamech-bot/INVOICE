@@ -144,7 +144,8 @@ export function createStagingFiscalRuntime({db,projectId,keyStore,secretPath,tru
  }
  const resolveCredential=async s=>(await active(s)).credential;
  const resolveProtectedSession=async(s,issuer)=>{const {config,credential}=await active(s,issuer);return session(s,config,credential);};
- const prepare=createCommercialFiscalPreparation({db,ledger,canonicalize,validateOfficial:validate,resolveProtectedSession,policy,clock});
+ const prepareCommercial=createCommercialFiscalPreparation({db,ledger,canonicalize,validateOfficial:validate,resolveProtectedSession,policy,clock});
+ const prepare=async(scope,documentId)=>{await active(scope);return prepareCommercial(scope,documentId);};
  async function verifyPrepared({scope:s,record,xml,snapshot,credential}){
   try{
    need(['submitting','uncertain'].includes(record.status)&&hashArtifact(xml)===record.artifactDigest&&hashArtifact(snapshot)===record.snapshotDigest&&same(credential,s)&&credential.kind==='production');
