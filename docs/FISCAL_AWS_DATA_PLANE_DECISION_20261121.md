@@ -21,6 +21,13 @@ Google supports cross-project service-account impersonation from an existing Wor
 - scripts/fiscal/prepare-google-staging-identity.sh: must be run only AFTER a separate QA Firebase project/default Firestore are confirmed. Uses existing WIF from lourex-invoice, creates or reuses a service account ONLY inside QA and grants Datastore User ONLY inside QA.
 - Existing ledger/outbox logic preserves durable exclusive claim, response receipts, and held/uncertain recovery without re-submission. No claim of new integrated success is implied by the new supervisor.
 
+
+## Additional Vercel command-plane gate
+
+Repository review confirmed that api/_fiscal/command-runtime.js and api/_fiscal/status-runtime.js currently require QA service-account JSON private keys and a separate QA Firebase Auth issuer. This is NOT compatible with the desired keyless final architecture. A valid QA database and AWS worker alone will not make the customer-to-worker flow functional.
+
+The current api/_accounting/vercel-federated-credential.js is strictly pinned to the *production* Vercel project/environment and production-associated Google service account. Do not reuse its production token for QA or loosen its production restrictions. A separately audited preview-compatible keyless credential path or a secure authenticated command broker must be completed and accepted before exposing QA customer commands. The existing production Vercel IAM binding must remain untouched. Neither preview identity nor end-to-end command issuance is verified by the AWS identity tests.
+
 ## Required before enabling the worker
 
 1. Owner-approved independent QA Firebase project with a verified default database, synthetic-only workspace fixtures and separate Firebase Auth audience. Do not create a named Firestore database or activate billing in the live project.
