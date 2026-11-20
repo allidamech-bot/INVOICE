@@ -32,8 +32,25 @@ export async function currentFiscalSource(db,tx,scope,documentId){
 }
 export async function assertCurrentApprovedSource(db,tx,scope,documentId,payload){
   const binding=validateSourceBinding(payload.source);
-  const actual=await currentFiscalSource(db,tx,scope,documentId);
-  need(Object.keys(actual.binding).every(k=>actual.binding[k]===binding[k]));
+  let actual;
+  if(scope.environment==='production'){
+    // The frozen production intent already owns an exact immutable invoice.
+    // Another invoice/customer edit may advance the account generation; it
+    // must not strand this intent. Re-read the current protected payload and
+    // prove the specific draft and original review are byte-equivalent facts.
+    const source=await currentPublishedFiscalSource(db,tx,scope,documentId);
+    const review=data(await tx.get(db.doc(fiscalBase(scope)+'/issueReviews/'+documentId)));
+    need(review?.state==='approved'&&review.environment===scope.environment&&review.accountUid===scope.accountUid&&review.workspaceId===scope.workspaceId&&review.egsId===scope.egsId&&review.documentId===documentId&&review.documentRevision===payload.document?.revision&&review.sourceRevision===binding.revision&&review.sourceSha256===binding.sha256&&review.periodGeneration===binding.generation&&reviewDigest(review)===binding.reviewDigest,'FISCAL_REVIEW_CHANGED');
+    const {validateMeta,decodeWorkspace}=await import('../_accounting/period-format.js');
+    const meta=validateMeta(source.meta);need(meta.chunkCount<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
+    const chunks=[];for(let i=0;i<meta.chunkCount;i++)chunks.push(data(await tx.get(db.doc(source.root+'/periodGenerations/'+meta.revision+'/chunks/chunk-'+meta.revision+'-'+String(i).padStart(5,'0')))));
+    const workspace=decodeWorkspace(meta,chunks),docs=workspace.documents.filter(d=>d.id===documentId);
+    need(docs.length===1&&docs[0].workspaceId===scope.workspaceId&&workspace.branches.some(b=>b.id===docs[0].branchId&&b.workspaceId===scope.workspaceId&&b.active===true)&&reviewDigest(docs[0])===reviewDigest(payload.document),'FISCAL_SOURCE_CHANGED');
+    actual={...source,review,binding};
+  }else{
+    actual=await currentFiscalSource(db,tx,scope,documentId);
+    need(Object.keys(actual.binding).every(k=>actual.binding[k]===binding[k]));
+  }
   need(!actual.closedThrough||payload.document.issueDate>actual.closedThrough,'FISCAL_PERIOD_CLOSED');
   need(reviewDigest(actual.review.issuer)===reviewDigest(payload.issuer)&&reviewDigest(actual.review.review)===reviewDigest(payload.review),'FISCAL_REVIEW_CHANGED');
   return actual;

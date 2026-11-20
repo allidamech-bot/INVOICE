@@ -500,6 +500,7 @@ const CONTRACTS=[
   'tests/fiscal-production-enrollment-command.test.mjs',
   'tests/fiscal-production-period-guard.test.mjs',
   'tests/fiscal-production-issuance-boundary.test.mjs',
+  'tests/fiscal-production-issuance-command.test.mjs',
   'tests/fiscal-protected-signing.test.mjs',
   'tests/fiscal-pdfa.test.mjs',
   'tests/fiscal-pdf-archive-verifier.test.mjs',

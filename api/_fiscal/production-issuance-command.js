@@ -61,7 +61,7 @@ export function createProductionIssuanceCommand({db,loadWorkspace,issuance,autho
     const {scope,doc,issue,intent,posting}=c;
     const response=()=>({environment:'production',documentId:doc.id,documentRevision:doc.revision,refreshRequired:true});
     const identityArgs={workspaceId:scope.workspaceId,egsId:scope.egsId,documentId:doc.id};
-    if(op==='issuance-document-status')return {...empty(cmd),status:issue?.status??(intent?'approved':c.reviewed?'reviewed':'not-reviewed'),version:issue?.version??null,response:c.response,artifacts:c.artifacts,commercialPosted:!!posting,capabilities:{review:doc.status==='draft'&&!intent&&!issue,approval:!intent&&!issue&&c.reviewed,preparation:!!intent&&!issue&&c.reviewed,submission:issue?.status==='queued',recovery:issue?.status==='submitting'&&c.response?.recoveryAvailable===true,reconciliation:issue?.status==='uncertain'&&c.response?.hasReceipt===true}};
+    if(op==='issuance-document-status')return {...empty(cmd),status:issue?.status??(intent?'approved':c.reviewed?'reviewed':'not-reviewed'),version:issue?.version??null,response:c.response,artifacts:c.artifacts,commercialPosted:!!posting,capabilities:{review:doc.status==='draft'&&!intent&&!issue,approval:!intent&&!issue&&c.reviewed,preparation:!!intent&&!issue,submission:issue?.status==='queued',recovery:issue?.status==='submitting'&&c.response?.recoveryAvailable===true,reconciliation:issue?.status==='uncertain'&&c.response?.hasReceipt===true}};
     if(op==='issuance-download'){need(issue&&terminal(issue.status));return issuance.output.read(scope,doc.id,doc.revision,cmd.format);}
     if(op==='issuance-post-sale'){need(issue&&terminal(issue.status));await issuance.postSale(scope,doc.id,doc.revision);return response();}
     if(op==='issuance-submit'||op==='issuance-recover'||op==='issuance-reconcile'){
@@ -77,7 +77,7 @@ export function createProductionIssuanceCommand({db,loadWorkspace,issuance,autho
     need(doc.status==='draft'&&!issue,'FISCAL_ISSUANCE_SOURCE_CHANGED');
     if(op==='issuance-review'){need(!intent);await issuance.review(identity,{...identityArgs,documentRevision:doc.revision,invoiceType:cmd.invoiceType,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans});}
     else if(op==='issuance-approve'){need(c.reviewed&&!intent);await issuance.approve(identity,identityArgs,{expectedDocumentRevision:doc.revision,requireCommandEnabled:true});}
-    else if(op==='issuance-prepare'){need(intent&&c.reviewed);await issuance.prepare(scope,doc.id);}
+    else if(op==='issuance-prepare'){need(intent);await issuance.prepare(scope,doc.id);}
     else need(false);
     return response();
   };
