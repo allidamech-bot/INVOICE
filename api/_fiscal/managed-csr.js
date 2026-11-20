@@ -1,6 +1,7 @@
 import {createHash,createPublicKey,verify} from 'node:crypto';
 import {ecdsaDerToP1363} from './managed-signing.js';
 import {requiredComplianceChecks} from './onboarding.js';
+import {STAGING_PROTECTION,isSoftHsmStagingSigner} from './softhsm-staging-signer.js';
 // Environment-specific PKCS#10 candidate, signed by the existing non-exportable HSM.
 // ZATCA developer manual extensionRequest layout; authority/SDK acceptance is
 // an independent gate, never inferred from local signature verification.
@@ -17,8 +18,8 @@ function oid(s){
 function string(v,tag=12,max=256){need(typeof v==='string'&&v.trim()===v&&v.length>0&&Buffer.byteLength(v)<=max&&!/[\x00-\x1f\x7f]/.test(v)&&Buffer.from(v).toString('utf8')===v);if(tag===19)need(/^[A-Za-z0-9 '()+,\-./:=?]+$/.test(v));return tlv(tag,Buffer.from(v));}
 const rdn=(o,v,tag=12)=>set(seq(oid(o),string(v,tag)));
 const ext=(id,value)=>seq(oid(id),tlv(4,value));
-function fields(scope,issuer,unit,spki,binding,environment){
-  need(scope?.environment===environment&&['accountUid','workspaceId','egsId'].every(k=>typeof scope[k]==='string'&&ID.test(scope[k])&&binding?.[k]===scope[k])&&binding.environment===environment&&['HSM','HSM_SINGLE_TENANT'].includes(binding.protectionLevel)&&typeof binding.keyVersion==='string'&&binding.keyVersion&&binding.publicKeyDigest===sha(spki));
+function fields(scope,issuer,unit,spki,binding,environment,softwareStaging=false){
+  need(scope?.environment===environment&&['accountUid','workspaceId','egsId'].every(k=>typeof scope[k]==='string'&&ID.test(scope[k])&&binding?.[k]===scope[k])&&binding.environment===environment&&(softwareStaging?environment==='simulation'&&binding.protectionLevel===STAGING_PROTECTION:['HSM','HSM_SINGLE_TENANT'].includes(binding.protectionLevel))&&typeof binding.keyVersion==='string'&&binding.keyVersion&&binding.publicKeyDigest===sha(spki));
   need(issuer?.accountUid===scope.accountUid&&issuer.workspaceId===scope.workspaceId&&issuer.issuerCountry==='SA'&&issuer.saRegime==='phase-2'&&typeof issuer.vatNumber==='string'&&/^3\d{13}3$/.test(issuer.vatNumber));
   need(unit?.egsId===scope.egsId&&typeof unit.serialNumber==='string'&&/^1-[^|\r\n]+\|2-[^|\r\n]+\|3-[^|\r\n]+$/.test(unit.serialNumber));
   requiredComplianceChecks(unit.functionalityMap);
@@ -35,18 +36,19 @@ function part(b,p,tag){need(p+2<=b.length&&b[p++]===tag,'CSR_DER_INVALID');let n
 const algorithm=seq(oid('1.2.840.10045.4.3.2'));
 function pem(der){return Buffer.from('-----BEGIN CERTIFICATE REQUEST-----\n'+der.toString('base64').match(/.{1,64}/g).join('\n')+'\n-----END CERTIFICATE REQUEST-----\n');}
 function parsePem(bytes){need(Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=32768,'CSR_DER_INVALID');const m=/^-----BEGIN CERTIFICATE REQUEST-----\n([A-Za-z0-9+/=\n]+)-----END CERTIFICATE REQUEST-----\n$/.exec(bytes.toString('ascii'));need(m,'CSR_DER_INVALID');const der=Buffer.from(m[1].replace(/\n/g,''),'base64');need(pem(der).equals(bytes),'CSR_DER_INVALID');return der;}
-async function createManagedCsr({scope,issuer,unit,binding,signer},environment){
+async function createManagedCsr({scope,issuer,unit,binding,signer},environment,softwareStaging=false){
+  if(softwareStaging)need(environment==='simulation'&&isSoftHsmStagingSigner(signer),'CSR_SIGNER_REQUIRED');
   need(typeof signer?.getPublicKey==='function'&&typeof signer?.sign==='function','CSR_SIGNER_REQUIRED');
-  const spki=Buffer.from(await signer.getPublicKey(scope));const {info,key}=fields(scope,issuer,unit,spki,binding,environment);
+  const spki=Buffer.from(await signer.getPublicKey(scope));const {info,key}=fields(scope,issuer,unit,spki,binding,environment,softwareStaging);
   const signature=Buffer.from(await signer.sign(scope,{purpose:'csr',bytes:Buffer.from(info),encoding:'der'}));
   ecdsaDerToP1363(signature);need(verify('sha256',info,key,signature),'CSR_SIGNATURE_INVALID');
   const der=seq(info,algorithm,tlv(3,Buffer.concat([Buffer.from([0]),signature]))),bytes=pem(der);
   return {csr:bytes.toString('base64'),csrDigest:sha(bytes),publicKey:spki.toString('base64')};
 }
-function verifyManagedCsr({scope,issuer,unit,binding,csr,publicKey},environment){
+function verifyManagedCsr({scope,issuer,unit,binding,csr,publicKey},environment,softwareStaging=false){
   try{
     need(typeof publicKey==='string'&&publicKey.length<=2048);const spki=Buffer.from(publicKey,'base64');need(spki.toString('base64')===publicKey);
-    const {key,info}=fields(scope,issuer,unit,spki,binding,environment),der=parsePem(csr),outer=part(der,0,0x30);
+    const {key,info}=fields(scope,issuer,unit,spki,binding,environment,softwareStaging),der=parsePem(csr),outer=part(der,0,0x30);
     need(outer.end===der.length&&outer.value.subarray(0,info.length).equals(info),'CSR_PROFILE_MISMATCH');
     let p=info.length;need(outer.value.subarray(p,p+algorithm.length).equals(algorithm),'CSR_DER_INVALID');p+=algorithm.length;
     const sig=part(outer.value,p,3);need(sig.end===outer.value.length&&sig.value[0]===0,'CSR_DER_INVALID');
@@ -58,3 +60,7 @@ export const createManagedSimulationCsr=input=>createManagedCsr(input,'simulatio
 export const verifyManagedSimulationCsr=input=>verifyManagedCsr(input,'simulation');
 export const createManagedProductionCsr=input=>createManagedCsr(input,'production');
 export const verifyManagedProductionCsr=input=>verifyManagedCsr(input,'production');
+
+// Explicit software staging path; existing managed and production paths remain unchanged.
+export const createSoftHsmStagingCsr=input=>createManagedCsr(input,'simulation',true);
+export const verifySoftHsmStagingCsr=input=>verifyManagedCsr(input,'simulation',true);
