@@ -113,6 +113,7 @@ jobs:
           /usr/bin/python3 probe.py generate
           /usr/bin/python3 probe.py verify
       - name: Focused previously unexecuted registration coordinator tests
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
