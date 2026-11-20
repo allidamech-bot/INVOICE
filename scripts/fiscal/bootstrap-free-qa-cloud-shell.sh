@@ -12,17 +12,17 @@ readonly AWS_ACCOUNT='466671147159'
 readonly AWS_ROLE='lourex-zatca-staging-wif'
 readonly AWS_INSTANCE='i-05530aee6c25c984e'
 readonly SA='lourex-aws-worker@lourex-fiscal-qa.iam.gserviceaccount.com'
-readonly EXPECTED_NAME='LOUREX Fiscal QA'
+readonly EXPECTED_NAME='lourex-fiscal-qa'
+readonly QA_PROJECT_NUMBER='448656707310'
 die(){ printf 'LOUREX QA STOPPED: %s\n' "$1" >&2;exit 2; }
 command -v gcloud >/dev/null || die 'GCLOUD_REQUIRED'
 command -v python3 >/dev/null || die 'PYTHON_REQUIRED'
 [[ $(gcloud projects describe "$PRODUCTION" --format='value(projectNumber)' 2>/dev/null) == "$SOURCE_NUMBER" ]] || die 'SOURCE_IDENTITY_PROJECT_MISMATCH'
 [[ -n $(gcloud auth list --filter='status:ACTIVE' --format='value(account)' 2>/dev/null) ]] || die 'GOOGLE_CLOUD_SHELL_LOGIN_REQUIRED'
-if gcloud projects describe "$QA" --format='value(projectId)' >/dev/null 2>&1; then
-  [[ $(gcloud projects describe "$QA" --format='value(name)') == "$EXPECTED_NAME" ]] || die 'UNRECOGNIZED_EXISTING_QA_PROJECT'
-else
-  gcloud projects create "$QA" --name="$EXPECTED_NAME" --quiet || die 'QA_PROJECT_CREATE_FAILED_OR_PROJECT_ID_TAKEN'
-fi
+# Reuse only the exact already verified QA project. NEVER create another.
+[[ $(gcloud projects describe "$QA" --format='value(projectId)' 2>/dev/null) == "$QA" ]] || die 'CONFIRMED_QA_PROJECT_NOT_FOUND'
+[[ $(gcloud projects describe "$QA" --format='value(projectNumber)' 2>/dev/null) == "$QA_PROJECT_NUMBER" ]] || die 'QA_PROJECT_NUMBER_MISMATCH'
+[[ $(gcloud projects describe "$QA" --format='value(name)' 2>/dev/null) == "$EXPECTED_NAME" ]] || die 'QA_PROJECT_DISPLAY_NAME_CHANGED'
 [[ $(gcloud projects describe "$QA" --format='value(lifecycleState)') == 'ACTIVE' ]] || die 'QA_PROJECT_NOT_ACTIVE'
 check_no_billing(){
   local state

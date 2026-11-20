@@ -13,6 +13,10 @@ test('Cloud Shell QA bootstrap is syntactically valid Bash',()=>{
 });
 test('Cloud Shell bootstrap is isolated, billing-guarded and keyless',()=>{
   assert.match(content,/readonly QA='lourex-fiscal-qa'/);
+  assert.match(content,/readonly QA_PROJECT_NUMBER='448656707310'/);
+  assert.match(content,/QA_PROJECT_NUMBER_MISMATCH/);
+  assert.match(content,/QA_PROJECT_DISPLAY_NAME_CHANGED/);
+  assert.doesNotMatch(content,/gcloud\s+projects\s+create/);
   assert.match(content,/readonly PRODUCTION='lourex-invoice'/);
   assert.match(content,/readonly SOURCE_NUMBER='985119320046'/);
   assert.match(content,/readonly SOURCE_PROVIDER='ec2-staging'/);
