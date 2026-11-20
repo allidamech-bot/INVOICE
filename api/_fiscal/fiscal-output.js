@@ -1,6 +1,6 @@
 import {hashArtifact} from './fiscal-artifacts.js';
 import {readApprovedIntent} from './issue-intent.js';
-import {readSimulationContext,simulationBase} from './simulation-scope.js';
+import {issuanceBoundary} from './issuance-boundary.js';
 import {hashAuthorityEvidence,readAuthorityEvidence,writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 const HEX=/^[a-f0-9]{64}$/;
@@ -9,12 +9,12 @@ const MAX=2*1024*1024; // bounded JSON response within hosted function limits
 function need(ok,code='FISCAL_OUTPUT_UNAVAILABLE'){if(!ok)throw Error(code);}
 const data=s=>s.exists?s.data():null;
 const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].every(k=>row[k]===s[k]);
-export function createFiscalOutputService({db,verifyPdf}){
-  const accepted=createAcceptedFiscalReader(db);
+export function createFiscalOutputService({db,verifyPdf,...boundaryOptions}){
+  const boundary=issuanceBoundary(db,boundaryOptions),accepted=createAcceptedFiscalReader(db,boundaryOptions);
   async function bind(tx,scope,documentId,revision){
     need(typeof documentId==='string'&&ID.test(documentId)&&Number.isSafeInteger(revision)&&revision>0);
-    const base=simulationBase(scope);
-    const {workspace}=await readSimulationContext(db,tx,scope);
+    const base=boundary.base(scope);
+    const {workspace}=await boundary.read(tx,scope);
     need(workspace.commandsEnabled===true);
     const issuePath=base+'/issues/'+documentId;
     const intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+documentId)),scope,documentId);
@@ -40,7 +40,7 @@ export function createFiscalOutputService({db,verifyPdf}){
       need(bytes.length<=MAX&&bytes.subarray(0,5).toString()==='%PDF-');
       return {bytes,digest:b.pdf.pdfDigest,uuid:b.r.uuid};
     });
-    return {environment:'simulation',documentId,documentRevision:revision,format,sha256:v.digest,filename:'LOUREX-'+v.uuid+'.'+format,bytes:v.bytes.toString('base64')};
+    return {environment:boundary.environment,documentId,documentRevision:revision,format,sha256:v.digest,filename:'LOUREX-'+v.uuid+'.'+format,bytes:v.bytes.toString('base64')};
   }
   async function availability(tx,scope,record,revision){
     if(!record||!['cleared','reported'].includes(record.status))return {xml:false,pdf:false};

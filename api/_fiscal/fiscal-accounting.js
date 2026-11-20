@@ -12,6 +12,7 @@ import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
 import {reconcileDomesticPurchase,canReplayAdjustedSupplierPayable} from './purchase-reconciliation.mjs';
 import {createHash,randomBytes} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
+import {issuanceBoundary,fiscalBase,fiscalNamespace,assertProductionSale} from './issuance-boundary.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
@@ -77,7 +78,7 @@ async function published(db,tx,s,id){
 }
 function validateScope(s){simulationBase(s);}
 function availablePeriod(source,date){need(day(date)&&(!source.closedThrough||date>source.closedThrough),'FISCAL_PERIOD_CLOSED');}
-function postingRef(db,s,key){return db.doc(simulationBase(s)+'/accountingEntries/'+key);}
+function postingRef(db,s,key){return db.doc(fiscalBase(s)+'/accountingEntries/'+key);}
 function signFor(kind){return kind==='credit-note'?-1n:1n;}
 async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,advance){
  const p=source.payload,final={...doc,status:'final',...(advance?{fiscalAdvance:advance.binding}:{})},before=p;
@@ -125,20 +126,21 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
 // Private append-only VAT subledger. It is not a substitute for the existing
 // commercial accounting model; commercial stock/payables publication is a
 // separate verified operation, and reconciliation reports explicitly track it.
-export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),verifySupplierSettlementEvidence,verifyStockGlEvidence}){
- const accepted=createAcceptedFiscalReader(db);
+export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),verifySupplierSettlementEvidence,verifyStockGlEvidence,...boundaryOptions}){
+ const boundary=issuanceBoundary(db,boundaryOptions),accepted=createAcceptedFiscalReader(db,boundaryOptions);
  async function writePosting(tx,s,key,row,uniqueKey,publish){
-   const ref=postingRef(db,s,key),prior=data(await tx.get(ref)),uniqueRef=db.doc('fiscalPrivateV1/'+s.accountUid+'/accountingEvidence/'+uniqueKey),unique=data(await tx.get(uniqueRef));
+   const ref=postingRef(db,s,key),prior=data(await tx.get(ref)),uniqueRef=db.doc(fiscalNamespace(s)+'/'+s.accountUid+'/accountingEvidence/'+uniqueKey),unique=data(await tx.get(uniqueRef));
    if(prior){need(equal(prior,row)&&same(unique,s)&&unique.key===key&&unique.digest===row.evidenceDigest,'FISCAL_POSTING_CONFLICT');return {status:'posted',key};}
    need(!unique,'FISCAL_POSTING_EVIDENCE_DUPLICATE');
    if(publish)publish(tx);
    tx.create(ref,row);tx.create(uniqueRef,{...s,key,digest:row.evidenceDigest});return {status:'posted',key};
  }
  async function postSale(s,id,revision){
-   validateScope(s);need(typeof id==='string'&&ID.test(id)&&Number.isSafeInteger(revision)&&revision>0);
+   boundary.base(s);need(typeof id==='string'&&ID.test(id)&&Number.isSafeInteger(revision)&&revision>0);
    return db.runTransaction(async tx=>{
-     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
-     const a=await accepted(s,id,tx),intent=readApprovedIntent(await tx.get(db.doc(simulationBase(s)+'/issueIntents/'+id)),s,id),p=intent.payload;
+     const {workspace,unit}=await boundary.read(tx,s);need(workspace.commandsEnabled===true);
+     const a=await accepted(s,id,tx),intent=readApprovedIntent(await tx.get(db.doc(boundary.base(s)+'/issueIntents/'+id)),s,id),p=intent.payload;
+     assertProductionSale(s,p.document,p.review,unit);
      need(p.document.revision===revision&&a.snapshot.equals(intent.bytes)&&a.record.snapshotDigest===intent.digest);
      const m=mapCommercialFiscalInvoice({scope:s,document:p.document,issuer:p.issuer,review:p.review,identity:{documentId:id,uuid:a.record.uuid,icv:a.record.icv,previousInvoiceHash:a.record.previousInvoiceHash,generatedAt:a.record.generatedAt}});
      const amount=saleAccountingModel(m),source=await published(db,tx,s,id),d=source.payload.documents.find(x=>x.id===id);
@@ -165,6 +167,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),ve
      const policyMode=advance?scenario.kind:commercialFiscalPostingPolicy(d,amount,scenario);
      const compatibleCost=d.currency==='SAR'||d.items.every(line=>line.stockTreatment==='non-stock'||(line.stockTreatment==='tracked'&&source.payload.savedItems.some(item=>item.id===line.savedItemId&&item.lastCostCurrency===d.currency)));
      const plan=policyMode!=='private-only'&&compatibleCost?await planCommercialFinalization(db,tx,s,source,d,amount,policyMode,advance):null;
+     if(s.environment==='production')need(plan,'FISCAL_COMMERCIAL_POSTING_REQUIRED');
      const row={...s,key,source:'sale',sourceId:id,sourceRevision:revision,documentNumber:p.document.number,issueDate:p.document.issueDate,taxDate:p.document.issueDate,currency:p.document.currency,category:p.review.taxCategory,rate:p.review.taxRate,counterpartyVat:p.review.buyer?.vatNumber??null,issuerVat:p.issuer.vatNumber,originalId:p.review.originalDocumentId??null,uuid:a.record.uuid,evidenceDigest:a.record.resultDigest,snapshotDigest:a.record.snapshotDigest,amount:plan?.accounting??amount,sourceFingerprint:reviewDigest(p.document),finalFingerprint:plan?.finalFingerprint??null,stockIds:plan?.stockIds??[],commercialPosted:!!plan,...(advance?{advanceBinding:advance.binding}:{})};
      // Preserve the original immutable invoice even if the current draft is
      // missing or edited: posting is blocked, never silently reconstructed.
@@ -544,5 +547,6 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),ve
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
+ if(boundary.environment==='production')return Object.freeze({postSale});
  return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl,...(typeof verifySupplierSettlementEvidence==='function'?{provisionSupplierSettlement}:{}),...(typeof verifyStockGlEvidence==='function'?{provisionStockGlReview}:{})});
 }
