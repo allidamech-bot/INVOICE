@@ -16,7 +16,7 @@ export function createProductionFiscalProfileHandler({getRuntime}){
     if(!origin(req)){send(res,403,{code:'FISCAL_PROFILE_FORBIDDEN'});return;}
     const token=String(req.headers?.authorization||'').match(/^Bearer ([A-Za-z0-9._~-]{100,8192})$/)?.[1];
     if(!token){send(res,401,{code:'FISCAL_AUTH_REQUIRED'});return;}
-    let runtime;try{runtime=await getRuntime();}catch{send(res,503,{code:'FISCAL_PROFILE_UNAVAILABLE'});return;}
+    let runtime;try{runtime=await getRuntime(req);}catch{send(res,503,{code:'FISCAL_PROFILE_UNAVAILABLE'});return;}
     let identity;try{identity=await runtime.verifyIdentity(token);}catch{send(res,401,{code:'FISCAL_AUTH_INVALID'});return;}
     let cmd;try{cmd=await read(req);}catch(e){send(res,e.message==='REQUEST_TOO_LARGE'?413:400,{code:e.message==='REQUEST_TOO_LARGE'?'REQUEST_TOO_LARGE':'INVALID_FISCAL_PROFILE'});return;}
     try{send(res,200,await (cmd.operation.startsWith('issuance-')?runtime.executeIssuance(identity,cmd):cmd.operation.startsWith('enrollment-')?runtime.executeEnrollment(identity,cmd):runtime.execute(identity,cmd)));}catch(e){
@@ -29,4 +29,4 @@ export function createProductionFiscalProfileHandler({getRuntime}){
     }
   };
 }
-export default createProductionFiscalProfileHandler({getRuntime:async()=>{const {getProductionFiscalProfileRuntime}=await import('./production-profile-runtime.js');return getProductionFiscalProfileRuntime();}});
+export default createProductionFiscalProfileHandler({getRuntime:async request=>{const {getProductionFiscalProfileRuntime}=await import('./production-profile-runtime.js');return getProductionFiscalProfileRuntime({request});}});

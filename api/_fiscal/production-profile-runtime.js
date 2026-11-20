@@ -1,11 +1,14 @@
 import {createProductionFiscalProfileService} from './production-profile.js';
 import {createProductionEnrollmentCommand} from './production-enrollment-command.js';
 import {createProductionIssuanceCommand} from './production-issuance-command.js';
+import {requireProductionFederation,prepareVercelFederatedCredential} from '../_accounting/vercel-federated-credential.js';
 const unavailable=()=>{throw Error('FISCAL_PROFILE_UNAVAILABLE');};
 const data=s=>s.exists?s.data():null;
 export function productionProfileConfig(env){
   // No preview/emulator access to the production company directory.
   if(env.VERCEL_ENV!=='production'||env.LOUREX_FISCAL_PROFILE_ENABLED!=='true'||env.LOUREX_PERIOD_SERVER_ENABLED!=='true'||env.LOUREX_PERIOD_RULES_VERSION!=='1'||env.FIRESTORE_EMULATOR_HOST||env.FIREBASE_AUTH_EMULATOR_HOST)unavailable();
+  if(env.LOUREX_FIREBASE_AUTH_MODE==='vercel-oidc'){requireProductionFederation(env);return {project_id:'lourex-invoice',federated:true};}
+  if(env.LOUREX_FIREBASE_AUTH_MODE!==undefined)unavailable();
   let account;try{account=JSON.parse(env.LOUREX_FIREBASE_SERVICE_ACCOUNT_JSON||'');}catch{unavailable();}
   if(account?.project_id!=='lourex-invoice'||typeof account.client_email!=='string'||!account.client_email.endsWith('@lourex-invoice.iam.gserviceaccount.com')||typeof account.private_key!=='string'||!account.private_key)unavailable();
   return account;
@@ -30,12 +33,13 @@ export function publishedWorkspaceLoader(db,{validateMeta,decodeWorkspace},{incl
   };
 }
 export function publishedCompanyLoader(db,format){const load=publishedWorkspaceLoader(db,format);return async(tx,scope)=>(await load(tx,scope)).company;}
-export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapters,trustedIssuanceAdapters}={}){
+export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapters,trustedIssuanceAdapters,request}={}){
   const account=productionProfileConfig(process.env);
-  const [{initializeApp,getApps,cert},{getFirestore},{getAuth},format]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('../_accounting/period-format.js')]);
-  const name='lourex-production-fiscal-profile';let app=getApps().find(a=>a.name===name);
+  if(account.federated)prepareVercelFederatedCredential(request);
+  const [{initializeApp,getApps,cert,applicationDefault},{getFirestore},{getAuth},format]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('../_accounting/period-format.js')]);
+  const name=account.federated?'lourex-production-fiscal-profile-oidc':'lourex-production-fiscal-profile';let app=getApps().find(a=>a.name===name);
   if(app&&app.options.projectId!=='lourex-invoice')unavailable();
-  if(!app)app=initializeApp({projectId:'lourex-invoice',credential:cert(account)},name);
+  if(!app)app=initializeApp({projectId:'lourex-invoice',credential:account.federated?applicationDefault():cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
   const loadWorkspace=publishedWorkspaceLoader(db,format);
   // No default synthetic verifier, and no environment flag alone authorizes

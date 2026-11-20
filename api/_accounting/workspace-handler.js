@@ -27,7 +27,7 @@ export function createWorkspaceCommitHandler({getService=getProductionPeriodServ
         if(Buffer.byteLength(text)>16_000)fail(413,'REQUEST_TOO_LARGE');parts=[text];
       }else for await(const part of request){bytes+=Buffer.byteLength(part);if(bytes>16_000)fail(413,'REQUEST_TOO_LARGE');parts.push(Buffer.from(part));}
       let parsed;try{parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(parts.map(p=>Buffer.from(p)))));}catch{fail(400,'INVALID_COMMAND');}
-      const command=validatePeriodCommand(parsed),service=qa?qa.periodService:getService();
+      const command=validatePeriodCommand(parsed),service=qa?qa.periodService:getService(request);
       const result=await service.execute({uid:request.aiVerifiedUid,role:request.aiVerifiedRole},command);
       send(response,200,result);
     }catch(error){
