@@ -28,6 +28,7 @@ function companyIdentity(c){
   }
   return result;
 }
+export function fiscalCompanySourceDigest(company){return hash(companyIdentity(company));}
 function readiness(c){
   return {saudiCountry:SA.has(c.country.toLowerCase()),legalName:!!c.nameAr,vatFormat:/^3\d{13}3$/.test(c.vatNumber),city:!!c.city};
 }

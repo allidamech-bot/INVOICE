@@ -1,0 +1,154 @@
+import {createHash} from 'node:crypto';
+import {fiscalCompanySourceDigest,parseProductionProfileCommand} from './production-profile.js';
+import {requiredComplianceChecks} from './onboarding.js';
+
+const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/,UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const VAT=/^3\d{13}3$/, HASH=/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/;
+const KEY=/^projects\/([a-z][a-z0-9-]+)\/locations\/[a-z0-9-]+\/keyRings\/[A-Za-z0-9_-]+\/cryptoKeys\/[A-Za-z0-9_-]+\/cryptoKeyVersions\/[1-9][0-9]*$/;
+const fields=['environment','accountUid','workspaceId','egsId'];
+const id=v=>typeof v==='string'&&ID.test(v);
+const hex=v=>typeof v==='string'&&HEX.test(v);
+const positive=v=>Number.isSafeInteger(v)&&v>0;
+const data=s=>s.exists?s.data():null;
+const same=(a,b)=>a&&b&&fields.every(k=>a[k]===b[k]);
+const sha=v=>createHash('sha256').update(v).digest('hex');
+const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
+const digest=v=>sha(JSON.stringify(canonical(v)));
+function need(ok,code='PRODUCTION_SCOPE_NOT_AUTHORIZED'){if(!ok)throw Error(code);}
+function scope(v){need(v?.environment==='production'&&fields.slice(1).every(k=>id(v[k])));return Object.fromEntries(fields.map(k=>[k,v[k]]));}
+function iso(v){return typeof v==='string'&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;}
+function exact(v,keys){return v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));}
+function normalizeClaim(v){
+  const s=scope(v?.scope),op=v.operation;
+  let keys=['scope','operation'];
+  if(op==='compliance-csid'){keys.push('csrDigest');need(hex(v.csrDigest));}
+  else if(op==='operational-csid'){keys.push('credentialRequestId','onboardingVersion');need(positive(v.credentialRequestId)&&positive(v.onboardingVersion));}
+  else if(op==='compliance-check'||op==='submit'){
+    keys.push('mode','uuid','invoiceHash','artifactDigest','credentialRequestId');
+    need(['clearance','reporting'].includes(v.mode)&&typeof v.uuid==='string'&&UUID.test(v.uuid)&&typeof v.invoiceHash==='string'&&HASH.test(v.invoiceHash)&&hex(v.artifactDigest)&&positive(v.credentialRequestId));
+  }else need(false);
+  need(exact(v,keys)&&exact(v.scope,fields));
+  return {...v,scope:s};
+}
+// Private production composition. No browser-facing provisioning or activation.
+// Real eligibility and HSM verification are mandatory independently supplied services.
+export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistration,verifyOperation,verifyResult,kmsProjectId,clock=()=>new Date().toISOString()}){
+  need(typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&[loadWorkspace,verifyRegistration,verifyOperation,verifyResult,clock].every(f=>typeof f==='function')&&typeof kmsProjectId==='string'&&/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(kmsProjectId)&&!kmsProjectId.endsWith('-fiscal-qa'),'PRODUCTION_SCOPE_UNAVAILABLE');
+  const base=s=>'fiscalProductionV1/'+s.accountUid+'/workspaces/'+s.workspaceId;
+  const unitRef=s=>db.doc(base(s)+'/egs/'+s.egsId);
+  const keyRef=b=>db.doc('fiscalProductionKeyRegistryV1/key-'+sha(b.keyVersion.replace(/\/cryptoKeyVersions\/[1-9][0-9]*$/,'')));
+  const pubRef=b=>db.doc('fiscalProductionKeyRegistryV1/pub-'+b.publicKeyDigest);
+  const attemptRef=(s,slot)=>db.doc(base(s)+'/egs/'+s.egsId+'/authorityAttempts/'+slot);
+  // UUID is unique across this entire company, not solely the selected unit.
+  const submitRef=(s,uuid)=>db.doc(base(s)+'/submissionClaims/'+uuid);
+  function at(){const t=clock();need(iso(t),'INVALID_FISCAL_CLOCK');return t;}
+  async function currentProfile(tx,s){
+    const workspace=await loadWorkspace(tx,{accountUid:s.accountUid,workspaceId:s.workspaceId});
+    const p=data(await tx.get(db.doc(base(s)+'/profiles/current')));
+    need(p?.environment==='production'&&p.accountUid===s.accountUid&&p.workspaceId===s.workspaceId&&p.state==='pending-verification'&&positive(p.version)&&p.sourceDigest===fiscalCompanySourceDigest(workspace.company),'PRODUCTION_PROFILE_CHANGED');
+    parseProductionProfileCommand({operation:'save',workspaceId:s.workspaceId,expectedVersion:p.version,details:p.details});
+    return {workspace,p};
+  }
+  function binding(b,s){
+    need(same(b,s)&&typeof b.keyVersion==='string'&&KEY.exec(b.keyVersion)?.[1]===kmsProjectId&&hex(b.publicKeyDigest)&&['HSM','HSM_SINGLE_TENANT'].includes(b.protectionLevel));
+    return {...s,keyVersion:b.keyVersion,publicKeyDigest:b.publicKeyDigest,protectionLevel:b.protectionLevel};
+  }
+  function registration(input,s,workspace,p){
+    // The approved legal identity must be derived from the exact current
+    // company source, not a second user-entered business identity.
+    need(id(input.branchId)&&workspace.branches.some(b=>b.id===input.branchId&&b.workspaceId===s.workspaceId&&b.active===true));
+    const issuer=input.issuer,unit=input.unit,b=binding(input.binding,s);
+    need(issuer?.accountUid===s.accountUid&&issuer.workspaceId===s.workspaceId&&issuer.issuerCountry==='SA'&&issuer.saRegime==='phase-2'&&issuer.vatNumber===workspace.company.vatNumber.trim()&&VAT.test(issuer.vatNumber)&&issuer.legalName===workspace.company.nameAr.trim()&&positive(issuer.profileVersion)&&issuer.profileVersion===p.version&&typeof issuer.effectiveFrom==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(issuer.effectiveFrom)&&Number.isFinite(Date.parse(issuer.effectiveFrom))&&new Date(issuer.effectiveFrom).toISOString().slice(0,10)===issuer.effectiveFrom&&issuer.effectiveFrom<=at().slice(0,10));
+    need(unit?.egsId===s.egsId&&typeof unit.serialNumber==='string'&&/^1-[^|\r\n]+\|2-[^|\r\n]+\|3-[^|\r\n]+$/.test(unit.serialNumber));
+    const u={egsId:s.egsId};for(const k of ['serialNumber','organizationUnit','commonName','registeredAddress','functionalityMap','businessCategory']){need(typeof unit[k]==='string'&&unit[k].trim()===unit[k]&&unit[k].length>0&&unit[k].length<=250&&!/[\x00-\x1f\x7f]/.test(unit[k]));u[k]=unit[k];}
+    requiredComplianceChecks(u.functionalityMap);
+    const i=Object.fromEntries(['accountUid','workspaceId','issuerCountry','saRegime','vatNumber','legalName','profileVersion','effectiveFrom'].map(k=>[k,issuer[k]]));
+    need(hex(input.eligibilityEvidenceDigest),'PRODUCTION_ELIGIBILITY_UNVERIFIED');
+    return {...s,branchId:input.branchId,issuer:i,unit:u,binding:b,profileVersion:p.version,profileDigest:digest(p),eligibilityEvidenceDigest:input.eligibilityEvidenceDigest};
+  }
+  async function read(tx,s){
+    const {workspace,p}=await currentProfile(tx,s),u=data(await tx.get(unitRef(s)));
+    need(same(u,s)&&['enrolling','active'].includes(u.state)&&u.profileVersion===p.version&&u.profileDigest===digest(p));
+    const b=binding(u.binding,s),checked=registration(u,s,workspace,p);
+    need(digest(checked.binding)===digest(u.binding)&&digest(checked.issuer)===digest(u.issuer)&&digest(checked.unit)===digest(u.unit));
+    const key=data(await tx.get(keyRef(b))),pub=data(await tx.get(pubRef(b)));
+    need(same(key,s)&&same(pub,s)&&key.bindingDigest===digest(b)&&pub.bindingDigest===digest(b),'PRODUCTION_KEY_NOT_BOUND');
+    return u;
+  }
+  function slotFor(u,input,claim){
+    if(claim.operation==='compliance-csid'){need(input==='compliance-csid'&&u.state==='enrolling'&&u.csrDigest===claim.csrDigest);}
+    else if(claim.operation==='compliance-check'){
+      need(u.state==='enrolling'&&requiredComplianceChecks(u.unit.functionalityMap).some(t=>input==='check-'+t&&claim.mode===(t.startsWith('standard-')?'clearance':'reporting')));
+    }else if(claim.operation==='operational-csid'){need(input==='operational-csid'&&u.state==='enrolling');}
+    else need(u.state==='active'&&input==='submit-'+claim.uuid);
+    return input;
+  }
+  return Object.freeze({
+    async registerUnit(identity,input){
+      const s=scope(input?.scope);need(identity?.role==='owner'&&identity.uid===s.accountUid);
+      const initial=await db.runTransaction(async tx=>{const {workspace,p}=await currentProfile(tx,s);return registration(input,s,workspace,p);});
+      need(await verifyRegistration(structuredClone(initial))===true,'PRODUCTION_REGISTRATION_NOT_VERIFIED');
+      return db.runTransaction(async tx=>{
+        const {workspace,p}=await currentProfile(tx,s),next=registration(input,s,workspace,p);
+        need(digest(next)===digest(initial),'PRODUCTION_PROFILE_CHANGED');
+        const existing=data(await tx.get(unitRef(s))),key=data(await tx.get(keyRef(next.binding))),pub=data(await tx.get(pubRef(next.binding)));
+        if(existing){need(same(existing,s)&&existing.registrationDigest===digest(next)&&same(key,s)&&same(pub,s)&&key.bindingDigest===digest(next.binding)&&pub.bindingDigest===digest(next.binding),'PRODUCTION_UNIT_CONFLICT');return {state:existing.state,egsId:s.egsId};}
+        need(!key&&!pub,'PRODUCTION_KEY_ALREADY_BOUND');
+        const entry={...s,bindingDigest:digest(next.binding),createdAt:at()};
+        tx.create(keyRef(next.binding),entry);tx.create(pubRef(next.binding),entry);
+        tx.create(unitRef(s),{...next,registrationDigest:digest(next),state:'enrolling',createdAt:at()});
+        return {state:'enrolling',egsId:s.egsId};
+      });
+    },
+    // Only a private signer calling this callback can use the registered key.
+    async authorizeBinding(b){try{const s=scope(b);return await db.runTransaction(async tx=>digest(binding(b,s))===digest((await read(tx,s)).binding));}catch{return false;}},
+    async authorizeCredential(tx,c,operation){
+      try{const s=scope(c);need(id(c.ref)&&['compliance','production'].includes(c.kind)&&['store','load'].includes(operation));await read(tx,s);return true;}catch{return false;}
+    },
+    async recordCsr(s,result,verifyCsr){
+      s=scope(s);need(typeof verifyCsr==='function'&&typeof result?.csr==='string'&&result.csr.length<=45000&&hex(result.csrDigest)&&typeof result.publicKey==='string'&&result.publicKey.length<=2048);
+      const bytes=Buffer.from(result.csr,'base64');need(bytes.length>0&&bytes.toString('base64')===result.csr&&sha(bytes)===result.csrDigest);
+      const initial=await db.runTransaction(tx=>read(tx,s));
+      need(initial.state==='enrolling'&&await verifyCsr({scope:s,issuer:initial.issuer,unit:initial.unit,binding:initial.binding,csr:bytes,publicKey:result.publicKey})===true,'PRODUCTION_CSR_NOT_VERIFIED');
+      return db.runTransaction(async tx=>{const u=await read(tx,s);need(u.state==='enrolling'&&u.registrationDigest===initial.registrationDigest);if(u.csrDigest){need(u.csrDigest===result.csrDigest,'PRODUCTION_CSR_CONFLICT');return {csrDigest:u.csrDigest};}tx.update(unitRef(s),{csrDigest:result.csrDigest,csr:result.csr,publicKey:result.publicKey});return {csrDigest:result.csrDigest};});
+    },
+    async reserveAttempt(input,claim){
+      const c=normalizeClaim(claim),s=c.scope,slot=input;
+      need(id(slot));
+      const initial=await db.runTransaction(tx=>read(tx,s));slotFor(initial,slot,c);
+      // The lifecycle supplies a verified, revision-bound artifact / CSID
+      // check. Structural claim validation alone never permits authority I/O.
+      need(await verifyOperation({unit:structuredClone(initial),slot,claim:structuredClone(c)})===true,'PRODUCTION_OPERATION_NOT_VERIFIED');
+      return db.runTransaction(async tx=>{
+        const u=await read(tx,s);slotFor(u,slot,c);need(digest(u)===digest(initial),'PRODUCTION_OPERATION_STALE');
+        const ref=attemptRef(s,slot),prior=data(await tx.get(ref)),global=c.operation==='submit'?data(await tx.get(submitRef(s,c.uuid))):null;
+        need(!prior&&!global,'PRODUCTION_ATTEMPT_HELD');
+        const row={...s,slot,claimDigest:digest(c),claim:c,state:'reserved',unitDigest:digest(u),createdAt:at()};
+        if(c.operation==='submit')tx.create(submitRef(s,c.uuid),{...s,slot,claimDigest:row.claimDigest});
+        tx.create(ref,row);return {state:'reserved',slot,claimDigest:row.claimDigest};
+      });
+    },
+    // Bind the operation authorizer to one slot before constructing the
+    // production transport. Consume exactly once; a timeout never re-arms it.
+    operationAuthorizer(s,slot){
+      s=scope(s);need(id(slot));
+      return async raw=>{
+        const c=normalizeClaim(raw);need(same(c.scope,s));
+        return db.runTransaction(async tx=>{
+          const u=await read(tx,s);slotFor(u,slot,c);
+          const ref=attemptRef(s,slot),a=data(await tx.get(ref));
+          need(same(a,s)&&a.state==='reserved'&&a.slot===slot&&a.claimDigest===digest(c)&&a.unitDigest===digest(u),'PRODUCTION_ATTEMPT_HELD');
+          tx.update(ref,{state:'dispatched',dispatchedAt:at()});return true;
+        });
+      };
+    },
+    async recordResult(s,slot,evidence){
+      s=scope(s);need(id(slot)&&hex(evidence?.digest)&&['verified-pass','verified-fail'].includes(evidence?.outcome));
+      const initial=await db.runTransaction(async tx=>{await read(tx,s);const a=data(await tx.get(attemptRef(s,slot)));need(same(a,s)&&a.state==='dispatched');return a;});
+      // No raw authority secrets / response bodies in this journal.
+      const proof={digest:evidence.digest,outcome:evidence.outcome};
+      need(await verifyResult({attempt:structuredClone(initial),evidence:proof})===true,'PRODUCTION_RESULT_NOT_VERIFIED');
+      return db.runTransaction(async tx=>{await read(tx,s);const ref=attemptRef(s,slot),a=data(await tx.get(ref));need(same(a,s)&&digest(a)===digest(initial),'PRODUCTION_ATTEMPT_HELD');tx.update(ref,{state:'completed',evidence:proof,completedAt:at()});return {state:'completed',outcome:proof.outcome};});
+    }
+  });
+}

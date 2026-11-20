@@ -12,7 +12,7 @@ export function productionProfileIdentity(decoded){
   if(!decoded||decoded.aud!=='lourex-invoice'||decoded.iss!=='https://securetoken.google.com/lourex-invoice'||typeof decoded.uid!=='string'||decoded.sub!==decoded.uid||!decoded.firebase?.sign_in_provider||decoded.firebase.sign_in_provider==='anonymous'||(decoded.lourexAiRole!==undefined&&decoded.lourexAiRole!=='owner')||(decoded.lourexWorkspaceUid!==undefined&&decoded.lourexWorkspaceUid!==decoded.uid))throw Error('FISCAL_PROFILE_FORBIDDEN');
   return {uid:decoded.uid,role:'owner'};
 }
-export function publishedCompanyLoader(db,{validateMeta,decodeWorkspace}){
+export function publishedWorkspaceLoader(db,{validateMeta,decodeWorkspace}){
   return async(tx,{accountUid,workspaceId})=>{
     const root='users/'+accountUid;
     const meta=data(await tx.get(db.doc(root+'/workspace/meta'))),control=data(await tx.get(db.doc(root+'/accounting/control')));
@@ -24,9 +24,10 @@ export function publishedCompanyLoader(db,{validateMeta,decodeWorkspace}){
     for(let i=0;i<meta.chunkCount;i++)chunks.push(data(await tx.get(db.doc(root+'/periodGenerations/'+meta.revision+'/chunks/chunk-'+meta.revision+'-'+String(i).padStart(5,'0')))));
     const payload=decodeWorkspace(meta,chunks),workspaces=payload.workspaces.filter(w=>w.id===workspaceId);
     if(workspaces.length!==1)throw Error('FISCAL_PROFILE_FORBIDDEN');
-    return workspaces[0].company;
+    return {company:workspaces[0].company,branches:payload.branches.filter(b=>b.workspaceId===workspaceId&&b.active===true)};
   };
 }
+export function publishedCompanyLoader(db,format){const load=publishedWorkspaceLoader(db,format);return async(tx,scope)=>(await load(tx,scope)).company;}
 export async function getProductionFiscalProfileRuntime(){
   const account=productionProfileConfig(process.env);
   const [{initializeApp,getApps,cert},{getFirestore},{getAuth},format]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('../_accounting/period-format.js')]);
