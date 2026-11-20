@@ -22,6 +22,7 @@ function fixture(options={}){
  for(const workspaceId of ['one','two']){
   workspaces.set(workspaceId,{company:{...company},branches:[{id:'main',workspaceId,active:true}]});
   rows.set('fiscalProductionV1/owner/workspaces/'+workspaceId+'/profiles/current',{environment:'production',accountUid:'owner',workspaceId,state:'pending-verification',version:1,sourceDigest:fiscalCompanySourceDigest(company),details});
+  rows.set('fiscalProductionV1/owner/workspaces/'+workspaceId+'/provisioningRequests/main',{environment:'production',accountUid:'owner',workspaceId,branchId:'main',state:'pending',profileVersion:1,sourceDigest:fiscalCompanySourceDigest(company),functionalityMap:unit.functionalityMap,businessCategory:unit.businessCategory});
  }
  const authority=createProductionScopeAuthority({db,loadWorkspace:async(_tx,s)=>{assert.equal(s.accountUid,'owner');return structuredClone(workspaces.get(s.workspaceId));},verifyRegistration:async()=>true,verifyOperation:async()=>true,verifyResult:async()=>true,kmsProjectId:project,clock:()=> '2026-11-20T00:00:00.000Z',...options});
  return {authority,rows,workspaces};
@@ -33,6 +34,7 @@ test('registration binds both entire HSM key and public digest to one company an
  assert.deepEqual(await authority.registerUnit(owner,input),{state:'enrolling',egsId:'egs1'});
  assert.equal(await authority.authorizeBinding(input.binding),true);
  assert.equal(rows.get('fiscalProductionV1/owner/workspaces/one/profiles/registration-lock').profileVersion,1);
+ assert.equal(rows.get('fiscalProductionV1/owner/workspaces/one/provisioningRequests/main').state,'registered');
  assert.deepEqual(await authority.registerUnit(owner,input),{state:'enrolling',egsId:'egs1'});
  const s={...scope,workspaceId:'two',egsId:'egs2'};
  await assert.rejects(authority.registerUnit(owner,registration(s,2)),/KEY_ALREADY_BOUND/);
@@ -74,4 +76,9 @@ test('unverified operation and altered CSR cannot dispatch, enrolling unit canno
  await assert.rejects(authority.reserveAttempt('compliance-csid',{scope,operation:'compliance-csid',csrDigest:sha('altered')}));
  const uuid='11111111-1111-4111-8111-111111111111';
  await assert.rejects(authority.reserveAttempt('submit-'+uuid,{scope,operation:'submit',mode:'reporting',uuid,invoiceHash:Buffer.alloc(32).toString('base64'),artifactDigest:sha('xml'),credentialRequestId:1}));
+});
+
+test('registration requires a matching current branch request',async()=>{
+ const {authority,rows}=fixture();rows.delete('fiscalProductionV1/owner/workspaces/one/provisioningRequests/main');
+ await assert.rejects(authority.registerUnit(owner,registration()),/REQUEST_REQUIRED/);
 });

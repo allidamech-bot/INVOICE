@@ -5,9 +5,9 @@ import type {ProductionEnrollmentStatus,ProductionEnrollmentCommand} from '../li
 import {t} from '../lib/i18n.js';
 import {Button,Field,Input,Select} from './UI.js';
 interface Props{workspaceId:string;}
-interface State{busy:boolean;uid:string;status:ProductionEnrollmentStatus|null;selected:string;otp:string;error:string;}
+interface State{busy:boolean;uid:string;status:ProductionEnrollmentStatus|null;selected:string;requestBranch:string;functionalityMap:'1000'|'0100'|'1100';businessCategory:string;otp:string;error:string;}
 const labels:Record<string,[string,string]>={'not-started':['Not connected','غير مرتبطة'],'checking':['Compliance checks in progress','فحوصات الامتثال جارية'],'checks-complete':['Compliance checks complete','اكتملت فحوصات الامتثال'],'restart-required':['Review required','تحتاج مراجعة'],'operational-request-held':['Certificate request held','طلب الشهادة معلق'],'operational-recorded':['Certificate recorded','حُفظت شهادة التشغيل'],'unavailable':['Verification unavailable','التحقق غير متاح']};
-const initial=():State=>({busy:false,uid:'',status:null,selected:'',otp:'',error:''});
+const initial=():State=>({busy:false,uid:'',status:null,selected:'',requestBranch:'',functionalityMap:'1100',businessCategory:'',otp:'',error:''});
 export class FiscalProductionEnrollmentPanel extends React.Component<Props,State>{
  state:State=initial();
  private pending:AbortController|null=null;
@@ -38,6 +38,13 @@ export class FiscalProductionEnrollmentPanel extends React.Component<Props,State
     {own&&this.state.error?<p role="alert">{this.state.error}</p>:null}
     {s?<div>
       {!s.available?<p role="status">{t('The secure registration service is not configured yet. Do not generate an OTP.','خدمة التسجيل الآمنة غير مهيأة حاليًا. لا تستخرج رمز التفعيل الآن.')}</p>:!s.registeredUnits?<p role="status">{t('No verified invoicing unit is registered for this company. Complete the company verification and unit setup first.','لا توجد وحدة فوترة متحقق منها لهذه المنشأة. أكمل التحقق من المنشأة وتجهيز وحدة الفوترة أولًا.')}</p>:null}
+      {s.branches.some(b=>b.state==='pending')?<div role="status">{s.branches.filter(b=>b.state==='pending').map(b=><p key={b.branchId}>{b.label}: {t('Registration request received · awaiting verification','تم استلام طلب التسجيل · بانتظار التحقق')}</p>)}</div>:null}
+      {s.profileVersion>0&&s.branches.some(b=>b.state==='not-requested')?<div className="form-grid">
+        <Field label={t('Branch for registration','الفرع المراد تسجيله')}><Select value={this.state.requestBranch} disabled={this.state.busy} onChange={(e:any)=>this.setState({requestBranch:String(e.target.value)})}><option value="">{t('Choose branch','اختر الفرع')}</option>{s.branches.filter(b=>b.state==='not-requested').map(b=><option key={b.branchId} value={b.branchId}>{b.label}</option>)}</Select></Field>
+        <Field label={t('Invoice types','أنواع الفواتير')}><Select value={this.state.functionalityMap} disabled={this.state.busy} onChange={(e:any)=>{const v=String(e.target.value);if(v==='1000'||v==='0100'||v==='1100')this.setState({functionalityMap:v});}}><option value="1100">{t('Standard and simplified','ضريبية ومبسطة')}</option><option value="1000">{t('Standard','ضريبية')}</option><option value="0100">{t('Simplified','مبسطة')}</option></Select></Field>
+        <Field label={t('Registered business activity','النشاط التجاري المسجل')}><Input value={this.state.businessCategory} maxLength={250} disabled={this.state.busy} onChange={(e:any)=>this.setState({businessCategory:String(e.target.value)})}/></Field>
+        <Button variant="primary" disabled={this.state.busy||!s.branches.some(b=>b.branchId===this.state.requestBranch&&b.state==='not-requested')||!this.state.businessCategory.trim()} onClick={()=>void this.run({operation:'enrollment-request',branchId:this.state.requestBranch,expectedProfileVersion:s.profileVersion,functionalityMap:this.state.functionalityMap,businessCategory:this.state.businessCategory.trim()})}>{t('Request registration','طلب تسجيل المنشأة')}</Button>
+      </div>:null}
       {s.units.length>1?<Field label={t('Invoicing unit','وحدة الفوترة')}><Select value={this.state.selected} disabled={this.state.busy} onChange={(e:any)=>this.setState({selected:String(e.target.value),otp:''})}><option value="">{t('Select invoicing unit','اختر وحدة الفوترة')}</option>{s.units.map(x=><option key={x.egsId} value={x.egsId}>{x.branchId+' · '+x.egsId}</option>)}</Select></Field>:null}
       {u?<div role="status">
         <p>{t('Invoicing unit','وحدة الفوترة')}: <strong>{u.unitActive?t('Activated','مفعّلة'):t(...labels[u.state])}</strong></p>
