@@ -1,6 +1,0 @@
-/* LOUREX v351 compatibility stub.
-   Save/conflict visuals moved to the current TailAdmin surfaces:
-   - AppShell uses .ta-status-dot and .ta-conflict-banner.
-   - CloudAccountModal uses .ta-cloud-conflict* and .ta-cloud-continuity.
-   Persistence, cloud conflict resolution and fail-closed behavior remain in React
-   and storage logic; this historical stylesheet intentionally emits no CSS. */

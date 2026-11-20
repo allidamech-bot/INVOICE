@@ -1,9 +1,0 @@
-/* v351 — customer identity language purity only.
-   Customer data remains bilingual in storage/edit forms; identity surfaces show
-   the active UI language with the existing opposite-language fallback. */
-@media screen {
-  .app-ui .customer-secondary-name,
-  .app-ui .customer-profile-secondary-name{
-    display:none!important;
-  }
-}
