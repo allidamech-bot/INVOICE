@@ -12,11 +12,14 @@ from cryptography.hazmat.primitives.asymmetric import ec, utils
 
 PARAMS = bytes.fromhex("06052b8104000a")
 MODULE = "/usr/lib/softhsm/libsofthsm2.so"
+STAGE = "input"
+
 def need(ok):
     if not ok:
         raise ValueError("invalid staging operation")
 
 def main():
+    global STAGE
     raw = sys.stdin.buffer.read(800000)
     need(len(raw) < 800000)
     q = json.loads(raw)
@@ -25,6 +28,7 @@ def main():
     need(re.fullmatch(r"[0-9]{8,32}", pin))
     kid = bytes.fromhex(q["keyId"])
     need(len(kid) == 32 and kid.hex() == q["keyId"])
+    STAGE = "load"
     lib = p.PyKCS11Lib()
     lib.load(MODULE)
     def matching():
@@ -34,15 +38,25 @@ def main():
         # initialize an existing token or replace an incomplete key pair.
         so = q["soPin"]
         need(re.fullmatch(r"[0-9]{8,32}", so))
+        STAGE = "find-token"
         slots = matching()
         if not slots:
             free = [s for s in lib.getSlotList(tokenPresent=True)
                     if not lib.getTokenInfo(s).flags & p.CKF_TOKEN_INITIALIZED]
             need(len(free) == 1)
-            lib.initToken(free[0], so, label)
+            STAGE = "initialize-token"
+            # C_InitToken requires a blank-padded 32-byte label. SoftHSM
+            # assigns initialized tokens new slot IDs; reopen the module
+            # before resolving the label rather than retaining stale slots.
+            lib.initToken(free[0], so, label.ljust(32))
+            STAGE = "reload-token"
+            lib.unload()
+            lib = p.PyKCS11Lib()
+            lib.load(MODULE)
             slots = matching()
         need(len(slots) == 1)
         if not lib.getTokenInfo(slots[0]).flags & p.CKF_USER_PIN_INITIALIZED:
+            STAGE = "initialize-user-pin"
             session = lib.openSession(slots[0], p.CKF_SERIAL_SESSION | p.CKF_RW_SESSION)
             try:
                 session.login(so, p.CKU_SO)
@@ -52,11 +66,14 @@ def main():
                     session.logout()
             finally:
                 session.closeSession()
+    STAGE = "open-token"
     slots = matching()
     need(len(slots) == 1)
     s = lib.openSession(slots[0], p.CKF_SERIAL_SESSION | (p.CKF_RW_SESSION if op in ("provision", "ensure") else 0))
     try:
+        STAGE = "login"
         s.login(pin)
+        STAGE = "key-pair"
         ident = (p.CKA_ID, tuple(kid))
         def objects(cls):
             return s.findObjects([(p.CKA_CLASS, cls), ident])
@@ -67,6 +84,7 @@ def main():
                               p.Mechanism(p.CKM_EC_KEY_PAIR_GEN, None))
         pub, = objects(p.CKO_PUBLIC_KEY)
         priv, = objects(p.CKO_PRIVATE_KEY)
+        STAGE = "protected-attributes"
         flags = s.getAttributeValue(priv, [p.CKA_SENSITIVE, p.CKA_EXTRACTABLE, p.CKA_ALWAYS_SENSITIVE, p.CKA_NEVER_EXTRACTABLE, p.CKA_LOCAL, p.CKA_SIGN])
         need(flags == [True, False, True, True, True, True])
         try:
@@ -75,6 +93,7 @@ def main():
             need(exc.value == p.CKR_ATTRIBUTE_SENSITIVE)
         else:
             need(value is None)
+        STAGE = "public-key"
         point, curve = s.getAttributeValue(pub, [p.CKA_EC_POINT, p.CKA_EC_PARAMS])
         point = bytes(point)
         need(bytes(curve) == PARAMS and len(point) == 67 and point[:2] == b"\x04\x41")
@@ -109,6 +128,10 @@ if __name__ == "__main__":
                 os.close(fd)
         else:
             print(json.dumps(main(), separators=(",", ":")))
-    except Exception:
-        sys.stderr.write("STAGING_PKCS11_FAILED\n")
+    except Exception as exc:
+        # Only fixed stage names and a numeric PKCS#11 status are exposed.
+        # No exception text, token labels, PINs, requests or key material.
+        code = getattr(exc, "value", None) if isinstance(exc, p.PyKCS11Error) else None
+        status = (" 0x%08x" % code) if isinstance(code, int) and 0 <= code <= 0xffffffff else ""
+        sys.stderr.write("STAGING_PKCS11_FAILED " + STAGE + status + "\n")
         sys.exit(1)

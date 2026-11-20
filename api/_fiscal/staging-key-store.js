@@ -66,7 +66,10 @@ export function createStagingKeyStore({stateDir,configPath,pinSecretPath,pythonE
    if(prior){await rawSigner(prior).getPublicKey(s);return prior;}
    const input=JSON.stringify({op:'ensure',token:loc.token,keyId:loc.keyId,pin:pin(s,'user'),soPin:pin(s,'admin')});
    const r=spawnSync(pythonExecutable,['-E','-s',helper],{input,env:{SOFTHSM2_CONF:configPath,LOUREX_STAGING_LOCK:join(stateDir,'provision.lock'),PATH:'/usr/bin:/bin',LANG:'C.UTF-8'},timeout:30000,maxBuffer:16384});
-   need(!r.error&&r.status===0);
+   if(r.error||r.status!==0){
+    const safe=/^STAGING_PKCS11_FAILED (?:input|load|find-token|initialize-token|reload-token|initialize-user-pin|open-token|login|key-pair|protected-attributes|public-key)(?: 0x[0-9a-f]{8})?$/.exec(r.stderr?.toString('utf8').trim()??'');
+    throw Error(safe?safe[0]:'STAGING_KEY_STORE_DENIED');
+   }
    const result=JSON.parse(r.stdout.toString('utf8')),spki=Buffer.from(result.spki,'base64'),key=createPublicKey({key:spki,format:'der',type:'spki'});
    need(spki.toString('base64')===result.spki&&key.asymmetricKeyType==='ec'&&key.asymmetricKeyDetails?.namedCurve==='secp256k1');
    const binding=Object.freeze({...s,keyVersion:loc.keyVersion,publicKeyDigest:sha(spki),protectionLevel:STAGING_PROTECTION});
