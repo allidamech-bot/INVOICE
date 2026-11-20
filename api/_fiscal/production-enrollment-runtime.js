@@ -31,12 +31,13 @@ export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId
     need(verifyProductionAuthorityCertificate({environment:'production',chainDer,crlsDer,trust:{environment:'production',rootDigest:trust.rootDigest,authoritySignerDigests:[digest],policyOid:trust.egsPolicyOid,curve:'secp256k1'},signedAt:at,observedAt:at}));
     return {digest,chainDer,crlsDer};
   }
+  async function protectedSession(scope,profile,credential){
+    const c=await certificate(scope,profile,credential);
+    return createProductionProtectedSigningSession({projectId:kmsProjectId,scope,binding:profile.binding,credential:{...scope,kind:'operational',issuerVat:profile.issuer.vatNumber,keyVersion:profile.binding.keyVersion,publicKeyDigest:profile.binding.publicKeyDigest,leafDigest:c.digest},chainDer:c.chainDer,crlsDer:c.crlsDer,trust,getAccessToken,authorizeBinding:authority.authorizeBinding});
+  }
   const enrollment=createProductionEnrollment({db,authority,vault,resolveSigner:async(_s,b)=>signer(b),
     verifyCredential:async({scope,profile,credential})=>{await certificate(scope,profile,credential);return true;},
-    resolveProtectedSession:async(scope,profile,credential)=>{
-      const c=await certificate(scope,profile,credential);
-      return createProductionProtectedSigningSession({projectId:kmsProjectId,scope,binding:profile.binding,credential:{...scope,kind:'operational',issuerVat:profile.issuer.vatNumber,keyVersion:profile.binding.keyVersion,publicKeyDigest:profile.binding.publicKeyDigest,leafDigest:c.digest},chainDer:c.chainDer,crlsDer:c.crlsDer,trust,getAccessToken,authorizeBinding:authority.authorizeBinding});
-    },
+    resolveProtectedSession:protectedSession,
     buildComplianceInvoice:async input=>{
       const result=await buildComplianceInvoice(input);
       const bytes=Buffer.from(result.invoice,'base64');
@@ -45,5 +46,27 @@ export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId
       return {...result,verifiedByOfficialSdk:true};
     },verifyComplianceResult
   });
-  return Object.freeze({authority,enrollment,vault});
+  async function activeCredential(scope,issuer){
+    const profile=await db.runTransaction(tx=>authority.readUnit(tx,scope));
+    need(profile.state==='active'&&profile.operationalCredentialRef&&profile.certificateDigest);
+    if(issuer)need(['accountUid','workspaceId','issuerCountry','saRegime','vatNumber','legalName','effectiveFrom','profileVersion'].every(k=>issuer[k]===profile.issuer[k]));
+    const credential=await vault.load(scope,profile.operationalCredentialRef,'production');
+    const c=await certificate(scope,profile,credential);
+    need(c.digest===profile.certificateDigest,'FISCAL_ISSUANCE_CERTIFICATE_CHANGED');
+    return {profile,credential};
+  }
+  async function resolveOperationalCredential(scope){return (await activeCredential(scope)).credential;}
+  async function resolveOperationalSession(scope,issuer){const {profile,credential}=await activeCredential(scope,issuer);return protectedSession(scope,profile,credential);}
+  return Object.freeze({authority,enrollment,vault,resolveOperationalCredential,resolveOperationalSession});
+}
+
+// The same registration/credential authority owns the commercial issuance
+// engine. This explicit trusted factory is not instantiated by the default
+// hosted profile handler. It cannot accept a browser-selected signer or vault.
+export async function createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters,issuanceAdapters}){
+  need(enrollmentAdapters&&issuanceAdapters&&issuanceAdapters.sdk?.manifestSha256===enrollmentAdapters.sdkManifestSha256);
+  const registered=createProductionEnrollmentRuntime({...enrollmentAdapters,db,loadWorkspace});
+  const {createProductionIssuanceRuntime}=await import('./production-issuance-runtime.js');
+  const issuance=createProductionIssuanceRuntime({...issuanceAdapters,db,productionAuthority:registered.authority,resolveCredential:registered.resolveOperationalCredential,resolveProtectedSession:registered.resolveOperationalSession});
+  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,issuance});
 }
