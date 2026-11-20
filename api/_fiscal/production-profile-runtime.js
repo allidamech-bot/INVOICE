@@ -1,4 +1,6 @@
 import {createProductionFiscalProfileService} from './production-profile.js';
+import {createProductionEnrollmentCommand} from './production-enrollment-command.js';
+import {createProductionEnrollmentRuntime} from './production-enrollment-runtime.js';
 const unavailable=()=>{throw Error('FISCAL_PROFILE_UNAVAILABLE');};
 const data=s=>s.exists?s.data():null;
 export function productionProfileConfig(env){
@@ -28,12 +30,16 @@ export function publishedWorkspaceLoader(db,{validateMeta,decodeWorkspace}){
   };
 }
 export function publishedCompanyLoader(db,format){const load=publishedWorkspaceLoader(db,format);return async(tx,scope)=>(await load(tx,scope)).company;}
-export async function getProductionFiscalProfileRuntime(){
+export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapters}={}){
   const account=productionProfileConfig(process.env);
   const [{initializeApp,getApps,cert},{getFirestore},{getAuth},format]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('../_accounting/period-format.js')]);
   const name='lourex-production-fiscal-profile';let app=getApps().find(a=>a.name===name);
   if(app&&app.options.projectId!=='lourex-invoice')unavailable();
   if(!app)app=initializeApp({projectId:'lourex-invoice',credential:cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
-  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)})};
+  const loadWorkspace=publishedWorkspaceLoader(db,format);
+  // No default synthetic verifier, and no environment flag alone authorizes
+  // taxpayer onboarding. Hosting must explicitly supply reviewed adapters.
+  const enrollment=trustedEnrollmentAdapters&&process.env.LOUREX_FISCAL_LIVE_ENABLED==='true'?createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment:undefined;
+  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment})};
 }
