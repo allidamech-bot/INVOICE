@@ -58,6 +58,10 @@ export function createFiscalLedger(db,options={}){
         if(event.kind!=='uncertain'){
           const result=classifyStoredSubmissionResponse({httpStatus:saved.receipt.httpStatus,bytes:saved.bytes,mode:record.mode});
           if(result.status!==(record.mode==='clearance'?'clearance-response':'reporting-response')||result.warnings!==event.warnings||(record.mode==='clearance'&&(!Buffer.isBuffer(clearedBytes)||!result.clearedBytes.equals(clearedBytes))))throw Error('FISCAL_RESPONSE_NOT_ACCEPTED');
+          if(boundary.environment==='production'){
+            const a=await tx.get(db.doc(base+'/egs/'+authorizedScope.egsId+'/authorityAttempts/submit-'+record.uuid)),proof=a.exists?a.data():null;
+            if(!proof||proof.environment!=='production'||proof.accountUid!==authorizedScope.accountUid||proof.workspaceId!==authorizedScope.workspaceId||proof.egsId!==authorizedScope.egsId||proof.state!=='completed'||proof.claim?.uuid!==record.uuid||proof.claim?.mode!==record.mode||proof.claim?.invoiceHash!==record.invoiceHash||proof.claim?.artifactDigest!==record.artifactDigest||proof.evidence?.digest!==event.resultDigest||proof.evidence?.outcome!=='verified-pass')throw Error('PRODUCTION_RESULT_NOT_VERIFIED');
+          }
           // Re-check immutable artifacts at the final CAS, not only before verification.
           readBytes(await tx.get(db.doc(issue.path+'/artifacts/prepared')),record.artifactDigest);
           readBytes(await tx.get(db.doc(issue.path+'/artifacts/snapshot')),record.snapshotDigest);

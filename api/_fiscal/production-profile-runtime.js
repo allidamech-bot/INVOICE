@@ -1,5 +1,6 @@
 import {createProductionFiscalProfileService} from './production-profile.js';
 import {createProductionEnrollmentCommand} from './production-enrollment-command.js';
+import {createProductionIssuanceCommand} from './production-issuance-command.js';
 const unavailable=()=>{throw Error('FISCAL_PROFILE_UNAVAILABLE');};
 const data=s=>s.exists?s.data():null;
 export function productionProfileConfig(env){
@@ -13,7 +14,7 @@ export function productionProfileIdentity(decoded){
   if(!decoded||decoded.aud!=='lourex-invoice'||decoded.iss!=='https://securetoken.google.com/lourex-invoice'||typeof decoded.uid!=='string'||decoded.sub!==decoded.uid||!decoded.firebase?.sign_in_provider||decoded.firebase.sign_in_provider==='anonymous'||(decoded.lourexAiRole!==undefined&&decoded.lourexAiRole!=='owner')||(decoded.lourexWorkspaceUid!==undefined&&decoded.lourexWorkspaceUid!==decoded.uid))throw Error('FISCAL_PROFILE_FORBIDDEN');
   return {uid:decoded.uid,role:'owner'};
 }
-export function publishedWorkspaceLoader(db,{validateMeta,decodeWorkspace}){
+export function publishedWorkspaceLoader(db,{validateMeta,decodeWorkspace},{includeDocuments=false}={}){
   return async(tx,{accountUid,workspaceId})=>{
     const root='users/'+accountUid;
     const meta=data(await tx.get(db.doc(root+'/workspace/meta'))),control=data(await tx.get(db.doc(root+'/accounting/control')));
@@ -25,11 +26,11 @@ export function publishedWorkspaceLoader(db,{validateMeta,decodeWorkspace}){
     for(let i=0;i<meta.chunkCount;i++)chunks.push(data(await tx.get(db.doc(root+'/periodGenerations/'+meta.revision+'/chunks/chunk-'+meta.revision+'-'+String(i).padStart(5,'0')))));
     const payload=decodeWorkspace(meta,chunks),workspaces=payload.workspaces.filter(w=>w.id===workspaceId);
     if(workspaces.length!==1)throw Error('FISCAL_PROFILE_FORBIDDEN');
-    return {company:workspaces[0].company,branches:payload.branches.filter(b=>b.workspaceId===workspaceId&&b.active===true)};
+    return {company:workspaces[0].company,branches:payload.branches.filter(b=>b.workspaceId===workspaceId&&b.active===true),...(includeDocuments?{documents:payload.documents.filter(d=>d.workspaceId===workspaceId),sourceRevision:meta.revision,sourceSha256:meta.sha256,periodGeneration:control.generation}:{})};
   };
 }
 export function publishedCompanyLoader(db,format){const load=publishedWorkspaceLoader(db,format);return async(tx,scope)=>(await load(tx,scope)).company;}
-export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapters}={}){
+export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapters,trustedIssuanceAdapters}={}){
   const account=productionProfileConfig(process.env);
   const [{initializeApp,getApps,cert},{getFirestore},{getAuth},format]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('../_accounting/period-format.js')]);
   const name='lourex-production-fiscal-profile';let app=getApps().find(a=>a.name===name);
@@ -39,10 +40,11 @@ export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapte
   const loadWorkspace=publishedWorkspaceLoader(db,format);
   // No default synthetic verifier, and no environment flag alone authorizes
   // taxpayer onboarding. Hosting must explicitly supply reviewed adapters.
-  let enrollment;
+  let enrollment,issuance,authority;
   if(trustedEnrollmentAdapters&&process.env.LOUREX_FISCAL_LIVE_ENABLED==='true'){
-    const {createProductionEnrollmentRuntime}=await import('./production-enrollment-runtime.js');
-    enrollment=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment;
+    const {createProductionEnrollmentRuntime,createProductionFiscalRuntime}=await import('./production-enrollment-runtime.js');
+    if(trustedIssuanceAdapters){({enrollment,issuance,authority}=await createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters:trustedEnrollmentAdapters,issuanceAdapters:trustedIssuanceAdapters}));}
+    else enrollment=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment;
   }
-  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment})};
+  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
 }

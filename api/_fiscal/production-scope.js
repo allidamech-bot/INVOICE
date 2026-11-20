@@ -160,9 +160,10 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
     },
     async recordResult(s,slot,evidence){
       s=scope(s);need(id(slot)&&hex(evidence?.digest)&&['verified-pass','verified-fail'].includes(evidence?.outcome));
-      const initial=await db.runTransaction(async tx=>{await read(tx,s);const a=data(await tx.get(attemptRef(s,slot)));need(same(a,s)&&a.state==='dispatched');return a;});
+      const initial=await db.runTransaction(async tx=>{await read(tx,s);const a=data(await tx.get(attemptRef(s,slot)));need(same(a,s)&&['dispatched','completed'].includes(a.state));return a;});
       // No raw authority secrets / response bodies in this journal.
       const proof={digest:evidence.digest,outcome:evidence.outcome};
+      if(initial.state==='completed'){need(digest(initial.evidence)===digest(proof),'PRODUCTION_RESULT_NOT_VERIFIED');return {state:'completed',outcome:proof.outcome};}
       need(await verifyResult({attempt:structuredClone(initial),evidence:proof})===true,'PRODUCTION_RESULT_NOT_VERIFIED');
       return db.runTransaction(async tx=>{await read(tx,s);const ref=attemptRef(s,slot),a=data(await tx.get(ref));need(same(a,s)&&digest(a)===digest(initial),'PRODUCTION_ATTEMPT_HELD');tx.update(ref,{state:'completed',evidence:proof,completedAt:at()});return {state:'completed',outcome:proof.outcome};});
     }
