@@ -132,6 +132,11 @@ export default async function handler(request,response){
     const {default:periodHandler}=await import('./_accounting/workspace-handler.js');
     return periodHandler(request,response);
   }
+  // Production taxpayer intake; no authority or signing commands.
+  if(request.query?.lourexFiscalProfile==='1'||new URLSearchParams(String(request.url||'').split('?')[1]||'').get('lourexFiscalProfile')==='1'){
+    const {default:fiscalProfileHandler}=await import('./_fiscal/production-profile-handler.js');
+    return fiscalProfileHandler(request,response);
+  }
   // Read-only fiscal QA status uses the same function budget; disabled in production.
   if(request.query?.lourexFiscalStatus==='1'||new URLSearchParams(String(request.url||'').split('?')[1]||'').get('lourexFiscalStatus')==='1'){
     const {default:fiscalStatusHandler}=await import('./_fiscal/status-handler.js');
