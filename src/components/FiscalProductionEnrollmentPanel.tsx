@@ -25,7 +25,7 @@ export class FiscalProductionEnrollmentPanel extends React.Component<Props,State
    try{
      const result=await requestProductionEnrollment(workspaceId,action,controller.signal);
      const status=action.operation==='enrollment-status'?result:await requestProductionEnrollment(workspaceId,{operation:'enrollment-status'},controller.signal);
-     if(current()&&status)this.setState({status,selected:status.units.some(x=>x.egsId===previous)?previous:status.units.length===1?status.units[0].egsId:''});
+     if(current()&&status)this.setState({status,selected:status.units.some(x=>x.egsId===previous)?previous:status.units.length===1?(status.units[0]?.egsId??''):''});
    }catch{if(current())this.setState({error:t('Connection status could not be confirmed. Refresh before proceeding. Do not repeat an interrupted certificate request.','تعذر تأكيد حالة الربط. حدّث الحالة قبل المتابعة ولا تكرر طلب شهادة انقطع الاتصال أثناءه.')});}
    finally{window.clearTimeout(timer);if(this.pending===controller){this.pending=null;this.setState({busy:false});}}
  };
@@ -47,7 +47,7 @@ export class FiscalProductionEnrollmentPanel extends React.Component<Props,State
       </div>:null}
       {s.units.length>1?<Field label={t('Invoicing unit','وحدة الفوترة')}><Select value={this.state.selected} disabled={this.state.busy} onChange={(e:any)=>this.setState({selected:String(e.target.value),otp:''})}><option value="">{t('Select invoicing unit','اختر وحدة الفوترة')}</option>{s.units.map(x=><option key={x.egsId} value={x.egsId}>{x.branchId+' · '+x.egsId}</option>)}</Select></Field>:null}
       {u?<div role="status">
-        <p>{t('Invoicing unit','وحدة الفوترة')}: <strong>{u.unitActive?t('Activated','مفعّلة'):t(...labels[u.state])}</strong></p>
+        <p>{t('Invoicing unit','وحدة الفوترة')}: <strong>{u.unitActive?t('Activated','مفعّلة'):t(...(labels[u.state]??(['Verification unavailable','التحقق غير متاح'] as [string,string])))}</strong></p>
         <p>{t('Compliance checks','فحوصات الامتثال')}: {u.required?u.passed+' / '+u.required:'—'}</p>
         {u.enrollmentHeld?<p role="alert">{t('A held request requires reconciliation. Do not submit again.','هناك طلب معلق يحتاج إلى مطابقة. لا تعد الإرسال.')}</p>:null}
       </div>:null}
