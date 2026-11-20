@@ -41,6 +41,8 @@ export function createFiscalLedger(db,options={}){
   const {sdkInstallationManifestSha256}=options,boundary=issuanceBoundary(db,options),scope=boundary.base;
   if(sdkInstallationManifestSha256!==undefined&&(typeof sdkInstallationManifestSha256!=='string'||! /^[a-f0-9]{64}$/.test(sdkInstallationManifestSha256)))throw Error('FISCAL_OFFICIAL_VALIDATION_REQUIRED');
   if(!db||typeof db.runTransaction!=='function'||typeof db.doc!=='function')throw new Error('Admin transaction store required.');
+  const requireDispatch=options.requireStagingDispatch===true;
+  if(requireDispatch&&boundary.environment!=='simulation')throw Error('FISCAL_STAGING_DISPATCH_ONLY');
   const receipts=createAttemptResponseStore(db,options);
   async function applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes){
     const next=transitionFiscalIssue(record,expectedVersion,event);
@@ -81,7 +83,7 @@ export function createFiscalLedger(db,options={}){
     if(cleared)tx.create(db.doc(issue.path+'/artifacts/cleared'),cleared);
     tx.create(eventRef,{version:next.version,status:next.status,kind:event.kind,attemptId:event.attemptId,at:event.at,resultDigest:next.resultDigest,...(unverifiedDigest?{unverifiedEvidenceDigest:unverifiedDigest}:{})});
     tx.update(issue,next);
-    tx.update(db.doc(base+'/outbox/'+id(documentId)),outbox(next));
+    tx.update(db.doc(base+'/outbox/'+id(documentId)),{...outbox(next),...(requireDispatch?{dispatchState:next.status==='uncertain'?'held':'closed'}:{})});
     return next;
   }
   return {
@@ -175,11 +177,15 @@ export function createFiscalLedger(db,options={}){
         if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||state.egsId!==record.egsId||state.active!==true||state.environment!==boundary.environment)throw Error('Invalid simulation EGS.');
         const expected=outbox(record), actual=job.exists?job.data():null;
         if(!actual||expected.state!=='ready'||Object.keys(expected).some(k=>actual[k]!==expected[k]))throw Error('Fiscal queue not ready.');
+        if(requireDispatch){
+          const d=actual.dispatch;
+          if(actual.dispatchState!=='requested'||!d||d.environment!=='simulation'||d.accountUid!==authorizedScope.accountUid||d.workspaceId!==authorizedScope.workspaceId||d.egsId!==authorizedScope.egsId||d.documentId!==documentId||d.uuid!==record.uuid||d.version!==expectedVersion||d.artifactDigest!==record.artifactDigest||d.snapshotDigest!==record.snapshotDigest||d.requestedBy!==authorizedScope.accountUid||!Number.isFinite(Date.parse(d.requestedAt)))throw Error('FISCAL_STAGING_DISPATCH_REQUIRED');
+        }
         const xmlBytes=readBytes(prepared,record.artifactDigest), snapshotBytes=readBytes(snapshot,record.snapshotDigest);
         await readStoredSdkProof(db,tx,issue.path,record,sdkInstallationManifestSha256);
         const next=transitionFiscalIssue(record,expectedVersion,{kind:'start',attemptId,at});
         tx.create(db.doc(issue.path+'/events/'+String(next.version)),{version:next.version,status:next.status,kind:'start',attemptId,at,resultDigest:null});
-        tx.update(issue,next);tx.update(queue,outbox(next));
+        tx.update(issue,next);tx.update(queue,{...outbox(next),...(requireDispatch?{dispatchState:'claimed'}:{})});
         return {record:next,xmlBytes,snapshotBytes};
       });
     },

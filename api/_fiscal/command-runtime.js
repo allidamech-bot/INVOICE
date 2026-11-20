@@ -9,6 +9,7 @@ import {createFiscalAccounting} from './fiscal-accounting.js';
 import {createFiscalPeriodGuard} from './fiscal-period-guard.js';
 import {createIndependentFiscalPdfVerifier} from './pdf-archive-verifier.js';
 import {createSdk4LocalValidator} from './sdk4-local-validator.js';
+import {createStagingDispatchRequest} from './staging-dispatch.js';
 export function fiscalCommandConfig(env){
   const project=fiscalQaProject(env);
   if(env.LOUREX_FISCAL_COMMANDS_ENABLED!=='true')throw Error('FISCAL_COMMAND_UNAVAILABLE');
@@ -56,6 +57,9 @@ export async function getFiscalQaCommandRuntime({simulationAdapters,privateAccep
   // The standard hosted route does not supply it; no mock verifier or network
   // submission is enabled by default.
   let submit,reconcile,prepare,enrollment;
+  // Explicit preview-only outbound AWS submission. Existing owner authentication
+  // and selected EGS checks remain in the command service. Never enable live.
+  if(!configured&&process.env.LOUREX_FISCAL_AWS_QUEUE_ENABLED==='true')submit=createStagingDispatchRequest({db});
   if(configured){
     const {preparation:p,submission:s,enrollment:e}=simulationAdapters;
     const [{createCommercialFiscalPreparation},{getFiscalQaOnboardingRuntime}]=await Promise.all([import('./commercial-preparation.js'),import('./onboarding-runtime.js')]);
