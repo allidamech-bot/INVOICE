@@ -48,29 +48,49 @@ function environmentIsSafe(){
  e.FIRESTORE_EMULATOR_HOST||e.FIREBASE_AUTH_EMULATOR_HOST||e.LOUREX_FIREBASE_SERVICE_ACCOUNT_JSON||
  e.LOUREX_AWS_STAGING_ENABLED!=='true'||e.GOOGLE_APPLICATION_CREDENTIALS&&e.GOOGLE_APPLICATION_CREDENTIALS!==ADC_PATH)deny();
 }
+let stage='ENVIRONMENT';
+const allowedStages=Object.freeze(['ENVIRONMENT','ADC','NODE_DEPENDENCIES','QA_INITIALIZATION','QA_FIRESTORE','PRODUCTION_FIRESTORE']);
+export function safeProbeFailure(stage,error){
+ const s=allowedStages.includes(stage)?stage:'UNKNOWN';
+ if(error?.message==='LOUREX_PRODUCTION_ACCESS_ALLOWED')return 'PRODUCTION_ACCESS_ALLOWED';
+ if(error?.message==='LOUREX_PRODUCTION_DENIAL_UNCERTAIN')return 'PRODUCTION_DENIAL_UNCERTAIN';
+ if(error?.message==='LOUREX_QA_ADC_UNTRUSTED')return 'ADC_INVALID';
+ const code=String(error?.code??'');
+ const status=Number(error?.response?.status??error?.status??error?.code);
+ if([7,'7','permission-denied','PERMISSION_DENIED'].includes(error?.code)||error?.status==='PERMISSION_DENIED'||status===403)return s+'_PERMISSION_DENIED';
+ if(code==='MODULE_NOT_FOUND'||code==='ERR_MODULE_NOT_FOUND')return s+'_MODULE_MISSING';
+ if([4,14,408,429,500,502,503,504].includes(status))return s+'_REMOTE_UNAVAILABLE';
+ if(status===404||status===5)return s+'_RESOURCE_NOT_FOUND';
+ if(status===401||status===16)return s+'_UNAUTHENTICATED';
+ return s+'_UNCLASSIFIED';
+}
 async function main(){
- environmentIsSafe();
- readRootOwnedAdc();
+ stage='ENVIRONMENT';environmentIsSafe();
+ stage='ADC';readRootOwnedAdc();
  process.env.GOOGLE_APPLICATION_CREDENTIALS=ADC_PATH;
+ stage='NODE_DEPENDENCIES';
  // Resolve dependencies from the EXISTING EC2 LOUREX checkout; no reinstall.
  const require=createRequire('/home/ubuntu/lourex/package.json');
  const {applicationDefault,initializeApp,deleteApp}=require('firebase-admin/app');
  const {getFirestore}=require('firebase-admin/firestore');
+ stage='QA_INITIALIZATION';
  const qa=initializeApp({projectId:QA,credential:applicationDefault()},'lourex-qa-data-plane-probe');
  let prod,dbQa,dbProd;
  try{
   dbQa=getFirestore(qa);
   // The path is a deliberately absent probe document, not customer information.
+  stage='QA_FIRESTORE';
   await dbQa.doc('fiscalRuntimeProbesV1/non_customer_probe').get();
   console.log('LOUREX AWS QA FIRESTORE READ PASSED');
+  stage='PRODUCTION_FIRESTORE';
   prod=initializeApp({projectId:PRODUCTION,credential:applicationDefault()},'lourex-production-denial-probe');
   dbProd=getFirestore(prod);
-  let denied=false;
+  let disposition='allowed';
   try{
    // A successful read of a missing document STILL means the principal is overprivileged.
    await dbProd.doc('fiscalRuntimeProbesV1/non_customer_probe').get();
-  }catch(error){denied=isExplicitPermissionDenial(error);}
-  if(!denied)throw Error('LOUREX_PRODUCTION_ISOLATION_FAILED');
+  }catch(error){disposition=isExplicitPermissionDenial(error)?'denied':'unknown';}
+  if(disposition!=='denied')throw Error(disposition==='allowed'?'LOUREX_PRODUCTION_ACCESS_ALLOWED':'LOUREX_PRODUCTION_DENIAL_UNCERTAIN');
   console.log('LOUREX PRODUCTION FIRESTORE ACCESS DENIED AS REQUIRED');
   console.log('LOUREX AWS QA DATA PLANE READY');
  }finally{
@@ -81,9 +101,9 @@ async function main(){
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- try{await main();}catch{
+ try{await main();}catch(error){
   // Fixed vocabulary only: provider errors may include signed AWS tokens.
-  console.error('LOUREX AWS QA DATA PLANE NOT VERIFIED');
+  console.error('LOUREX AWS QA PROBE FAILED: '+safeProbeFailure(stage,error));
   process.exitCode=1;
  }
 }

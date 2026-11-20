@@ -38,3 +38,14 @@ test('only actual permission-denied outcomes prove production isolation',()=>{
   assert.equal(isExplicitPermissionDenial(error),false);
  }
 });
+
+test('safe staged diagnostics classify without leaking provider errors or credentials',async()=>{
+ const {safeProbeFailure}=await import('../scripts/fiscal/probe-aws-qa-data-plane.mjs');
+ assert.equal(safeProbeFailure('QA_FIRESTORE',{code:7,message:'Bearer sensitive-token'}),'QA_FIRESTORE_PERMISSION_DENIED');
+ assert.equal(safeProbeFailure('NODE_DEPENDENCIES',{code:'MODULE_NOT_FOUND',message:'private-path'}),'NODE_DEPENDENCIES_MODULE_MISSING');
+ assert.equal(safeProbeFailure('QA_FIRESTORE',{code:14,message:'session token secret'}),'QA_FIRESTORE_REMOTE_UNAVAILABLE');
+ assert.equal(safeProbeFailure('PRODUCTION_FIRESTORE',{message:'LOUREX_PRODUCTION_ACCESS_ALLOWED'}),'PRODUCTION_ACCESS_ALLOWED');
+ assert.equal(safeProbeFailure('PRODUCTION_FIRESTORE',{message:'LOUREX_PRODUCTION_DENIAL_UNCERTAIN'}),'PRODUCTION_DENIAL_UNCERTAIN');
+ assert.equal(safeProbeFailure('ADC',{message:'LOUREX_QA_ADC_UNTRUSTED'}),'ADC_INVALID');
+ assert.equal(safeProbeFailure('OTHER',{message:'secret/private_key/headers'}),'UNKNOWN_UNCLASSIFIED');
+});
