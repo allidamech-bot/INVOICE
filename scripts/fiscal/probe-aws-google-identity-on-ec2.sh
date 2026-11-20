@@ -15,7 +15,7 @@ import json,sys
 n='985119320046'
 project='lourex-invoice'
 pool='lourex-aws-staging'
-provider='ec2'
+provider='ec2-staging'
 sa='lourex-aws-staging@'+project+'.iam.gserviceaccount.com'
 metadata='http://169.254.169.254/latest/'
 config={

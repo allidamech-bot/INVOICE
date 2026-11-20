@@ -3,7 +3,7 @@ const fail=()=>{throw Error('AWS_GOOGLE_IDENTITY_NOT_VERIFIED');};
 const PROJECT='lourex-invoice';
 const NUMBER='985119320046';
 const SA='lourex-aws-staging@'+PROJECT+'.iam.gserviceaccount.com';
-const AUDIENCE='//iam.googleapis.com/projects/'+NUMBER+'/locations/global/workloadIdentityPools/lourex-aws-staging/providers/ec2';
+const AUDIENCE='//iam.googleapis.com/projects/'+NUMBER+'/locations/global/workloadIdentityPools/lourex-aws-staging/providers/ec2-staging';
 const IMDS='http://169.254.169.254/latest/';
 export function validateAwsIdentityAdc(config){
  const c=config,s=c?.credential_source;

@@ -8,7 +8,8 @@ AWS_ACCOUNT=466671147159
 AWS_ROLE=lourex-zatca-staging-wif
 AWS_INSTANCE=i-05530aee6c25c984e
 POOL=lourex-aws-staging
-PROVIDER=ec2
+PROVIDER=ec2-staging
+[[ "$PROVIDER" =~ ^[a-z0-9][a-z0-9-]{2,30}[a-z0-9]$ ]] || { echo 'GOOGLE PROVIDER ID INVALID';exit 2; }
 SA="lourex-aws-staging@${PROJECT}.iam.gserviceaccount.com"
 ACTUAL="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
 if [[ "$ACTUAL" != "$PROJECT_NUMBER" ]]; then
@@ -82,7 +83,7 @@ gcloud iam workload-identity-pools create-cred-config "projects/${PROJECT_NUMBER
 python3 - "$tmp/adc.json" "$SA" "$PROJECT_NUMBER" <<'PY'
 import json,sys
 c=json.load(open(sys.argv[1]))
-a=f"//iam.googleapis.com/projects/{sys.argv[3]}/locations/global/workloadIdentityPools/lourex-aws-staging/providers/ec2"
+a=f"//iam.googleapis.com/projects/{sys.argv[3]}/locations/global/workloadIdentityPools/lourex-aws-staging/providers/ec2-staging"
 assert c["type"]=="external_account" and c["audience"]==a
 assert c["service_account_impersonation_url"]=="https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/"+sys.argv[2]+":generateAccessToken"
 assert c["credential_source"]["imdsv2_session_token_url"]=="http://169.254.169.254/latest/api/token"
