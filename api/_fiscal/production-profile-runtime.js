@@ -1,6 +1,5 @@
 import {createProductionFiscalProfileService} from './production-profile.js';
 import {createProductionEnrollmentCommand} from './production-enrollment-command.js';
-import {createProductionEnrollmentRuntime} from './production-enrollment-runtime.js';
 const unavailable=()=>{throw Error('FISCAL_PROFILE_UNAVAILABLE');};
 const data=s=>s.exists?s.data():null;
 export function productionProfileConfig(env){
@@ -40,6 +39,10 @@ export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapte
   const loadWorkspace=publishedWorkspaceLoader(db,format);
   // No default synthetic verifier, and no environment flag alone authorizes
   // taxpayer onboarding. Hosting must explicitly supply reviewed adapters.
-  const enrollment=trustedEnrollmentAdapters&&process.env.LOUREX_FISCAL_LIVE_ENABLED==='true'?createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment:undefined;
+  let enrollment;
+  if(trustedEnrollmentAdapters&&process.env.LOUREX_FISCAL_LIVE_ENABLED==='true'){
+    const {createProductionEnrollmentRuntime}=await import('./production-enrollment-runtime.js');
+    enrollment=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment;
+  }
   return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment})};
 }

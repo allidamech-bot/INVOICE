@@ -3,6 +3,7 @@ import {fiscalProductionProfileClientEnabled,requestProductionProfile} from '../
 import type {ProductionProfileCommand,ProductionProfileDetails,ProductionProfileStatus,SellerIdScheme} from '../lib/fiscal-production-profile-client.js';
 import {t} from '../lib/i18n.js';
 import {Button,Field,Input,Select} from './UI.js';
+import {FiscalProductionEnrollmentPanel} from './FiscalProductionEnrollmentPanel.js';
 type Props={workspaceId:string;commercialRegistration:string;};
 type State={busy:boolean;uid:string;status:ProductionProfileStatus|null;details:ProductionProfileDetails;error:string;};
 const blank=(cr:string):ProductionProfileDetails=>({street:'',district:'',buildingNumber:'',postalCode:'',sellerIdScheme:cr.trim()?'CRN':'700',otherSellerId:''});
@@ -49,8 +50,7 @@ export class FiscalProductionProfilePanel extends React.Component<Props,State>{
         </div>
         <Button variant="primary" disabled={!complete||this.state.busy} onClick={()=>void this.run({operation:'save',expectedVersion:s.version,details})}>{t('Save fiscal profile','حفظ الملف الضريبي')}</Button>
       </div>:null}
-      <p className="commercial-empty-note">{t('Connection and official issuance remain disabled. Once eligible and the secure service is available, the authorized taxpayer obtains an OTP from the FATOORA portal. Do not generate or enter an OTP yet.','الربط والإصدار الرسمي غير مفعّلين. بعد التحقق من الأهلية وتوفير الخدمة الآمنة يستخرج المكلف المخوّل رمز التفعيل من بوابة فاتورة. لا تستخرج الرمز أو تدخله الآن.')}</p>
-      <a href="https://fatoora.zatca.gov.sa/" target="_blank" rel="noopener noreferrer">{t('Official FATOORA portal','بوابة فاتورة الرسمية')}</a>
+      {s?.state==='pending-verification'&&ready?<FiscalProductionEnrollmentPanel key={this.props.workspaceId+'-'+s.version} workspaceId={this.props.workspaceId}/>:<p className="commercial-empty-note">{t('Complete and save the company profile before connecting to the authority.','أكمل ملف المنشأة واحفظه قبل الربط بالهيئة.')}</p>}
     </div>;
   }
 }
