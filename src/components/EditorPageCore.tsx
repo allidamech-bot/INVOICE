@@ -40,6 +40,7 @@ function EditorDateInput(props:{value:string;label:string;onChange:(value:string
 interface Props {
   document:LourexDocument; documents:LourexDocument[]; documentEvents?:DocumentEventRecord[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; smartDefaults:AppSettings['smartDefaults'];
   onFiscalPublish?:(doc:LourexDocument)=>Promise<LourexDocument>;
+  onFiscalPosted?:(doc:LourexDocument)=>Promise<LourexDocument>;
   onEditActivity?:()=>void; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
   onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
@@ -167,7 +168,7 @@ export class EditorPage extends React.Component<Props,State>{
   };
 
   private mutate=(fn:(d:LourexDocument)=>LourexDocument)=>{
-    if(this.state.doc.status==='final'||this.issuancePending)return;
+    if(this.state.doc.status==='final'||this.issuancePending||this.state.fiscalOpen)return;
     this.props.onEditActivity?.();
     this.departureFlushQueued=false;
     this.editRevision+=1;
@@ -195,7 +196,7 @@ export class EditorPage extends React.Component<Props,State>{
   };
 
   private save=async(auto=false)=>{
-    if(this.state.doc.status==='final'||this.issuancePending)return;
+    if(this.state.doc.status==='final'||this.issuancePending||this.state.fiscalOpen)return;
     if(this.state.saving){if(auto)this.schedule();return;}
     const revisionAtStart=this.editRevision;
     const snapshot=this.state.doc;
@@ -236,6 +237,7 @@ export class EditorPage extends React.Component<Props,State>{
   private output=async(mode:'print'|'pdf'|'share')=>{
     if(this.issuancePending||!this.validateCurrent()||this.state.issuing)return;
     if(this.state.doc.status!=='final'){this.setState({reviewMode:mode,mobilePreview:false});return;}
+    if(needsSaudiFiscalIssuance(this.state.doc)&&this.props.onFiscalPublish){this.setState({fiscalOpen:true,mobilePreview:false});return;}
     try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
     this.issuancePending=true;
     this.setState({issuing:true,mobilePreview:false,errors:{}});
@@ -257,7 +259,10 @@ export class EditorPage extends React.Component<Props,State>{
         if(!this.props.onFiscalPublish||this.state.doc.status!=='draft')throw new Error(t('Fiscal output is unavailable.','المستند الضريبي غير متاح.'));
         this.setState({reviewMode:null,issuing:false,fiscalOpen:true});return;
       }
-      if(needsSaudiFiscalIssuance(this.state.doc))throw new Error(t('Saudi tax invoices can be drafted, but official issuance is not enabled yet.','يمكن حفظ مسودة الفاتورة الضريبية السعودية، ولكن الإصدار الرسمي غير متاح حالياً.'));
+      if(needsSaudiFiscalIssuance(this.state.doc)){
+        if(!this.props.onFiscalPublish)throw new Error(t('Fiscal output is unavailable.','المستند الضريبي غير متاح.'));
+        this.setState({reviewMode:null,issuing:false,fiscalOpen:true});return;
+      }
       const alreadyFinal=this.state.doc.status==='final';
       const finalDoc=alreadyFinal?this.state.doc:{...this.state.doc,status:'final' as const,updatedAt:new Date().toISOString()};
       if(!alreadyFinal){
@@ -411,7 +416,7 @@ export class EditorPage extends React.Component<Props,State>{
       <ConfirmDialog open={this.state.unlockConfirm} title={t('Create a safe revision?','إنشاء مراجعة آمنة؟')} message={t('The current Final is saved permanently in Document History before Revision '+String(d.revision+1)+' opens. The document number stays unchanged.','سيتم حفظ النسخة النهائية الحالية بشكل دائم في سجل المستند قبل فتح المراجعة '+String(d.revision+1)+'، وسيبقى رقم المستند كما هو.')} confirmLabel={t('Create Revision','إنشاء مراجعة')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm company={this.props.company} customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
       <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelectMany={this.addSavedItems} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
-      {this.state.fiscalOpen&&this.props.onFiscalPublish?<FiscalIssueDialog document={d} onPublish={this.props.onFiscalPublish} onClose={()=>this.setState({fiscalOpen:false})}/>:null}
+      {this.state.fiscalOpen&&this.props.onFiscalPublish?<FiscalIssueDialog document={d} onPublish={async doc=>{const published=await this.props.onFiscalPublish!(doc);this.setState({doc:published,previewDoc:previewDocument(published),saveState:'saved'});return published;}} onPosted={this.props.onFiscalPosted?async doc=>{const posted=await this.props.onFiscalPosted!(doc);this.departureFlushQueued=false;this.setState({doc:posted,previewDoc:previewDocument(posted),saveState:'saved',errors:{}});return posted;}:undefined} onClose={()=>this.setState({fiscalOpen:false})}/>:null}
       <DocumentReviewModal document={d} mode={this.state.reviewMode} issues={quality} working={this.state.issuing} onClose={()=>this.setState({reviewMode:null})} onConfirm={()=>void this.issueAndContinue()}/>
     </div>;
   }

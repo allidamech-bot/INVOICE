@@ -681,10 +681,19 @@ export class App extends React.Component<{},State> {
   private publishFiscalDraft=async(doc:LourexDocument):Promise<LourexDocument>=>{
     const uid=this.state.cloudUser?.uid,epoch=this.accountEpoch;
     const current=()=>Boolean(uid&&uid===currentCloudUser()?.uid&&uid===activeAccountStorageUid()&&epoch===this.accountEpoch&&this.state.unlocked&&this.requireVault().appSettings.activeWorkspaceId===(doc.workspaceId||this.requireVault().appSettings.activeWorkspaceId));
-    if(!fiscalQaInvoice(doc)||doc.status!=='draft'||!current()||!this.state.cloudLinked||this.state.cloudSyncState==='conflict'||typeof navigator!=='undefined'&&!navigator.onLine)throw new Error(t('An online isolated test workspace is required.','تلزم مساحة اختبار معزولة متصلة بالإنترنت.'));
+    if(!(fiscalQaInvoice(doc)&&doc.status==='draft'||needsSaudiFiscalIssuance(doc)&&['draft','final'].includes(doc.status))||!current()||!this.state.cloudLinked||this.state.cloudSyncState==='conflict'||typeof navigator!=='undefined'&&!navigator.onLine)throw new Error(t('A connected, synchronized fiscal workspace is required.','تلزم مساحة فوترة متصلة ومتزامنة.'));
     const vault=this.requireVault();
     const snapshot={...doc,workspaceId:doc.workspaceId||vault.appSettings.activeWorkspaceId,branchId:doc.branchId||vault.appSettings.activeBranchId};
     const saved=vault.documents.find(d=>d.id===snapshot.id);
+    if(needsSaudiFiscalIssuance(snapshot)){
+      // Never republish an already finalized remote invoice after an interrupted
+      // response. Read it without touching the immutable invoice or stock.
+      const remote=await downloadPlainCloudWorkspace(uid!);
+      const final=remote?.payload.documents.find(d=>d.id===snapshot.id&&d.status==='final');
+      if(!current())throw Error('FISCAL_ACCOUNT_CHANGED');
+      if(final&&remote?.meta.chunkStorage==='period-generations-v1'&&sameDocumentContent({...final,status:snapshot.status},snapshot))return structuredClone(final);
+      if(snapshot.status==='final')throw Error('FISCAL_PUBLISHED_SOURCE_REQUIRED');
+    }
     // Keep the reviewed draft stable: no needless save that changes the manifest.
     if(!saved||!sameDocumentContent(snapshot,saved))await this.saveDocument(snapshot,true);
     await this.beginProtectedOperation();
@@ -702,6 +711,24 @@ export class App extends React.Component<{},State> {
       const remoteDoc=remote?.payload.documents.find(d=>d.id===snapshot.id);
       if(!current()||!remote||remote.meta.chunkStorage!=='period-generations-v1'||!remoteDoc||!sameDocumentContent(snapshot,remoteDoc))throw Error('FISCAL_PUBLISHED_SOURCE_REQUIRED');
       return structuredClone(remoteDoc);
+    }finally{this.endProtectedOperation();}
+  };
+  private syncFiscalPosted=async(doc:LourexDocument):Promise<LourexDocument>=>{
+    const uid=this.state.cloudUser?.uid,epoch=this.accountEpoch;
+    const current=()=>Boolean(uid&&uid===currentCloudUser()?.uid&&uid===activeAccountStorageUid()&&epoch===this.accountEpoch&&this.state.unlocked&&this.state.editorDoc?.id===doc.id);
+    if(!current()||!uid||!needsSaudiFiscalIssuance(doc))throw Error('FISCAL_ACCOUNT_CHANGED');
+    await this.beginProtectedOperation();
+    try{
+      if(!current())throw Error('FISCAL_ACCOUNT_CHANGED');
+      const result=await reconcilePlainCloudWorkspace(uid);
+      if(result==='diverged'){this.handleCloudConflict();throw Error('FISCAL_CLOUD_CONFLICT');}
+      if(result!=='pulled'&&result!=='same')throw Error('FISCAL_POSTING_SYNC_REQUIRED');
+      const local=await getPlainWorkspace();
+      const posted=local?.payload.documents.find(d=>d.id===doc.id&&d.status==='final'&&d.revision===doc.revision&&d.workspaceId===doc.workspaceId);
+      if(!current()||!local||local.uid!==uid||!posted||!sameDocumentContent({...posted,status:doc.status},doc))throw Error('FISCAL_POSTING_SYNC_REQUIRED');
+      const vault=this.normalizedVault(local.payload);this.vaultWriteTail=Promise.resolve(vault);
+      await new Promise<void>(resolve=>this.setState({vault,editorDoc:posted,cloudSyncState:'synced',cloudSyncMessage:t('Fiscal invoice posted and synchronized.','تم ترحيل الفاتورة الضريبية ومزامنتها.')},resolve));
+      return structuredClone(posted);
     }finally{this.endProtectedOperation();}
   };
   private beginRevision=async(source:LourexDocument):Promise<LourexDocument>=>{const vault=this.requireVault();if(source.kind==='delivery-note'&&confirmedSalesDeliveries(source.id,vault.documentEvents).length)throw new Error(t('A confirmed Delivery Note cannot be revised.','لا يمكن تعديل سند التسليم المؤكد.'));if(isDeliveryLinkedInvoice(source.id,vault.documentEvents))throw new Error(t('An issued delivery-linked invoice cannot be revised. Correct it using a Credit Note.','لا يمكن مراجعة فاتورة صادرة مرتبطة بالتسليم. استخدم إشعارًا دائنًا للتصحيح.'));if(salesOrderForQuotation(source.id,vault.documentEvents))throw new Error(t('An accepted Sales Order locks this quotation against revision.','أمر البيع المعتمد يمنع مراجعة عرض السعر المرتبط به.'));const current=vault.documents.find(doc=>doc.id===source.id)??source;if(current.kind==='invoice'&&vault.inventoryMovements.some(m=>m.sourceId===current.id&&isIssuedInvoiceStockIssue(m)))throw new Error(t('Issued stock is immutable. Correct with an auditable stock reversal before revising.','صرف المخزون الصادر ثابت، ويلزم عكسه بحركة موثقة قبل مراجعة الفاتورة.'));if(current.kind==='invoice'&&current.role==='standard'){const exposure=invoiceCreditCapacity(current,vault.documents,vault.payments);if(exposure.paid!=='0.00'||exposure.credited!=='0.00')throw new Error(t('An invoice with payments or issued credit notes cannot be revised. Use a credit note for financial corrections.','لا يمكن مراجعة فاتورة عليها دفعات أو إشعارات دائنة صادرة. استخدم إشعارًا دائنًا للتصحيح المالي.'));}const draft=beginRevisionDraft(current);const revision=createRevisionRecord(current);const documents=vault.documents.map(doc=>doc.id===current.id?draft:doc);const documentRevisions=[...vault.documentRevisions,revision];const documentEvents=[...vault.documentEvents,createDocumentEvent(current,'revision-started',t(`Revision ${draft.revision} started.`,`بدأت المراجعة ${draft.revision}.`))];await this.persist({...vault,documents,documentRevisions,documentEvents});this.setState({editorDoc:draft});return draft;};
@@ -1015,7 +1042,7 @@ export class App extends React.Component<{},State> {
           {this.state.screen==='reports'?<ReportsPage workspaceId={vault.appSettings.activeWorkspaceId} key={'report-period-'+this.state.reportsPeriodVersion} initialPeriod={this.state.reportsPeriod||undefined} company={vault.company} customers={vault.customers} documents={vault.documents} payments={vault.payments} suppliers={vault.suppliers} purchases={vault.purchases} items={vault.savedItems}/>:null}
           {this.state.screen==='items'?<ProductsInventoryWorkspace currency={defaultCurrency} onSaveItem={this.saveSavedItem} onSaveItems={this.saveSavedItemsBatch} onDeleteItem={this.deleteSavedItem} {...operationsProps}/>:null}
           {this.state.screen==='operations'?<OperationsPage mode="purchasing" {...operationsProps}/>:null}
-          {this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} requiresStockProof={this.state.editorDoc.kind==='invoice'&&this.state.editorDoc.role==='standard'&&vault.inventoryMovements.some(m=>m.sourceId===this.state.editorDoc!.id&&isIssuedInvoiceStockIssue(m))} documents={vault.documents} customers={vault.customers} suppliers={vault.suppliers} company={vault.company} savedItems={vault.savedItems} payments={vault.payments} documentEvents={vault.documentEvents} documentRevisions={vault.documentRevisions} smartDefaults={vault.appSettings.smartDefaults} onEditActivity={this.deferQueuedCloudSaveForDocumentEdit} onClose={this.closeEditor} onFiscalPublish={this.publishFiscalDraft} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onUseSavedItems={this.useSavedItems} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onSavePayment={this.savePayment} onDeletePayment={this.deletePayment} onBeginRevision={this.beginRevision} onDiscardRevision={this.discardRevision} onVoidDocument={this.voidDocument} onCreateCreditNote={this.createCreditNote} onConvert={this.convert} onPrint={this.requestPrint}/>:null}
+          {this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} requiresStockProof={this.state.editorDoc.kind==='invoice'&&this.state.editorDoc.role==='standard'&&vault.inventoryMovements.some(m=>m.sourceId===this.state.editorDoc!.id&&isIssuedInvoiceStockIssue(m))} documents={vault.documents} customers={vault.customers} suppliers={vault.suppliers} company={vault.company} savedItems={vault.savedItems} payments={vault.payments} documentEvents={vault.documentEvents} documentRevisions={vault.documentRevisions} smartDefaults={vault.appSettings.smartDefaults} onEditActivity={this.deferQueuedCloudSaveForDocumentEdit} onClose={this.closeEditor} onFiscalPublish={this.publishFiscalDraft} onFiscalPosted={this.syncFiscalPosted} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onUseSavedItems={this.useSavedItems} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onSavePayment={this.savePayment} onDeletePayment={this.deletePayment} onBeginRevision={this.beginRevision} onDiscardRevision={this.discardRevision} onVoidDocument={this.voidDocument} onCreateCreditNote={this.createCreditNote} onConvert={this.convert} onPrint={this.requestPrint}/>:null}
         </main>
       </AppShell>
       <RecurringWorkflowsManager open={this.state.recurringOpen} filter={this.state.recurringFilter} workflows={vault.recurringWorkflows} sourceDocument={vault.documents.find(item=>item.id===this.state.recurringSourceDocumentId)??null} sourcePurchase={vault.purchases.find(item=>item.id===this.state.recurringSourcePurchaseId)??null} onClose={this.closeRecurringManager} onSave={this.saveRecurringWorkflow} onDelete={this.deleteRecurringWorkflow} onGenerate={this.generateRecurringWorkflow} onOpenGenerated={this.openRecurringGenerated}/>

@@ -32,3 +32,11 @@ test('interrupted response recovery and reconciliation are distinct from submiss
 });
 
 test('only verified terminal artifacts are downloadable',()=>{assert.throws(()=>validateFiscalDocumentState({...base,artifacts:{xml:true,pdf:true}},doc));assert.throws(()=>validateFiscalDocumentState({...base,artifacts:{xml:false,pdf:true}},doc));});
+
+test('production status must be explicitly selected and cannot borrow simulation output',()=>{
+ const live={...base,environment:'production',commercialPosted:false};
+ assert.equal(validateFiscalDocumentState(live,doc,'production').commercialPosted,false);
+ assert.throws(()=>validateFiscalDocumentState(base,doc,'production'));
+ assert.throws(()=>validateFiscalDocumentState({...live,commercialPosted:true},doc,'production'));
+ assert.throws(()=>validateFiscalDocumentState({...live,commercialPosted:undefined},doc,'production'));
+});
