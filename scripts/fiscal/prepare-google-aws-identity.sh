@@ -34,11 +34,15 @@ import json,sys
 p=json.load(open(sys.argv[1]))
 assert p.get("state")=="ACTIVE" and not p.get("disabled",False), "GOOGLE POOL IS NOT ACTIVE"
 PY
-if ! gcloud iam workload-identity-pools providers describe "$PROVIDER" --location=global --project="$PROJECT" --workload-identity-pool="$POOL" --format=json >"$tmp/provider" 2>"$tmp/error"; then
-  grep -Eqi 'NOT_FOUND|not found|does not exist' "$tmp/error" || { echo "GOOGLE PROVIDER LOOKUP FAILED";exit 1; }
-  gcloud iam workload-identity-pools providers create-aws "$PROVIDER" --location=global --project="$PROJECT" --workload-identity-pool="$POOL" --account-id="$AWS_ACCOUNT" --attribute-mapping='google.subject=assertion.arn' --attribute-condition="$COND" --display-name='LOUREX AWS EC2 identity' >/dev/null
-  gcloud iam workload-identity-pools providers describe "$PROVIDER" --location=global --project="$PROJECT" --workload-identity-pool="$POOL" --format=json >"$tmp/provider"
+# A GET on a not-yet-created provider can return PERMISSION_DENIED rather
+# than NOT_FOUND. List the pool first; fail closed on a genuine list denial.
+if ! gcloud iam workload-identity-pools providers list --location=global --project="$PROJECT" --workload-identity-pool="$POOL" --format='value(name)' >"$tmp/providers" 2>"$tmp/error"; then
+  echo "GOOGLE PROVIDER LIST DENIED"; cat "$tmp/error" >&2; exit 1
 fi
+if ! grep -Fxq "projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL/providers/$PROVIDER" "$tmp/providers"; then
+  gcloud iam workload-identity-pools providers create-aws "$PROVIDER" --location=global --project="$PROJECT" --workload-identity-pool="$POOL" --account-id="$AWS_ACCOUNT" --attribute-mapping='google.subject=assertion.arn' --attribute-condition="$COND" --display-name='LOUREX AWS EC2 identity' >/dev/null
+fi
+gcloud iam workload-identity-pools providers describe "$PROVIDER" --location=global --project="$PROJECT" --workload-identity-pool="$POOL" --format=json >"$tmp/provider"
 python3 - "$tmp/provider" "$AWS_ACCOUNT" "$COND" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1]))
@@ -46,11 +50,14 @@ assert p["aws"]["accountId"]==sys.argv[2] and p["attributeCondition"]==sys.argv[
 assert p["attributeMapping"].get("google.subject")=="assertion.arn", "GOOGLE PROVIDER MAPPING CHANGED"
 assert p.get("state")=="ACTIVE" and not p.get("disabled",False), "GOOGLE PROVIDER NOT ACTIVE"
 PY
-if ! gcloud iam service-accounts describe "$SA" --project="$PROJECT" --format=json >"$tmp/sa" 2>"$tmp/error"; then
-  grep -Eqi 'NOT_FOUND|not found|does not exist' "$tmp/error" || { echo "GOOGLE SERVICE ACCOUNT LOOKUP FAILED";exit 1; }
-  gcloud iam service-accounts create lourex-aws-staging --project="$PROJECT" --display-name='LOUREX EC2 WIF identity only' >/dev/null
-  gcloud iam service-accounts describe "$SA" --project="$PROJECT" --format=json >"$tmp/sa"
+# Same principle: list rather than interpreting a non-existent account GET.
+if ! gcloud iam service-accounts list --project="$PROJECT" --format='value(email)' >"$tmp/accounts" 2>"$tmp/error"; then
+  echo "GOOGLE SERVICE ACCOUNT LIST DENIED"; cat "$tmp/error" >&2; exit 1
 fi
+if ! grep -Fxq "$SA" "$tmp/accounts"; then
+  gcloud iam service-accounts create lourex-aws-staging --project="$PROJECT" --display-name='LOUREX EC2 WIF identity only' >/dev/null
+fi
+gcloud iam service-accounts describe "$SA" --project="$PROJECT" --format=json >"$tmp/sa"
 python3 - "$tmp/sa" "$SA" <<'PY'
 import json,sys
 a=json.load(open(sys.argv[1]))
