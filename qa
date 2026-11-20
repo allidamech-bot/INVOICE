@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Short local-only QA entrypoint for the fiscal PR. No deployment or merge.
+set -Eeuo pipefail
+cd "$(git rev-parse --show-toplevel)"
+[[ "$(git branch --show-current)" == "feat/fiscal-batch2-remaining-settlements" ]] || { echo "Wrong branch"; exit 1; }
+[[ -z "$(git status --porcelain)" ]] || { echo "Working tree is not clean"; exit 1; }
+[[ "$(node -p 'process.versions.node.split(".")[0]')" == 24 ]] || { echo "Node 24 required"; exit 1; }
+command -v javac >/dev/null
+echo "QA HEAD: $(git rev-parse HEAD)"
+sudo apt-get install -y python3-venv libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fontconfig fonts-noto-core fonts-dejavu-core
+python3 -m venv /tmp/lourex-qa
+export LOUREX_FISCAL_PYTHON=/tmp/lourex-qa/bin/python
+"$LOUREX_FISCAL_PYTHON" -m pip install -r scripts/fiscal/requirements-pdfa.txt
+export PATH="/tmp/lourex-qa/bin:$PATH"
+if [[ ! -d node_modules/typescript ]]; then npm ci; fi
+log="/tmp/lourex-qa-$(git rev-parse --short HEAD).log"
+if node scripts/verify-local.mjs --quick >"$log" 2>&1; then
+  tail -n 15 "$log"
+  echo "QUICK QA PASSED — emulator and browsers NOT RUN."
+else
+  echo "QUICK QA FAILED — full log: $log"
+  grep -E '^([✖✗]|not ok |# (tests|pass|fail)|.*error TS[0-9]+|.*Error:)' "$log" | tail -n 35 || true
+  exit 1
+fi
