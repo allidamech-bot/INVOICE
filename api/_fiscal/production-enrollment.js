@@ -84,17 +84,27 @@ export function createProductionEnrollment({db,authority,vault,resolveSigner,res
       const credential=await vault.load(s,v.current.credentialRef,'compliance');
       need(same(credential,s)&&sha(credential.binarySecurityToken)===v.current.binding.certificateDigest&&credential.requestId===v.current.binding.requestId,'COMPLIANCE_BINDING_MISMATCH');
       await verifyCertificate(s,v.u,credential,'compliance');
-      const candidate=await buildComplianceInvoice({scope:s,type,profile:structuredClone(v.u),credential:structuredClone(credential)});
-      need(candidate?.type===type&&candidate.mode===mode&&candidate.verifiedByOfficialSdk===true&&typeof candidate.uuid==='string'&&typeof candidate.invoiceHash==='string','PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
-      const xml=bytes(candidate.invoice,512*1024),artifactDigest=sha(xml);
-      const proof=normalizeSdk4Proof(candidate.sdkProof,{uuid:candidate.uuid,mode,artifactDigest});
-      need(proof.kind===type&&proof.installationManifestSha256===sdkManifestSha256&&candidate.onboardingVersion===v.current.version,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
       const candidateRef=db.doc(root(s)+'/complianceCandidates/'+type);
-      await db.runTransaction(async tx=>{
-        const latest=await readEnrollment(tx,s);assertStage(latest,v.current.version,'checking');
-        need(!data(await tx.get(candidateRef)),'PRODUCTION_ATTEMPT_HELD');
-        tx.create(candidateRef,{...s,type,mode,uuid:candidate.uuid,icv:candidate.icv,number:candidate.number,issueDate:candidate.issueDate,invoiceHash:candidate.invoiceHash,artifactDigest,credentialRequestId:credential.requestId,onboardingVersion:v.current.version,invoice:candidate.invoice,sdkProof:proof});
-      });
+      // A crash before reservation does not authorize another invoice identity.
+      // Reuse the persisted SDK-validated bytes only when no attempt exists.
+      let candidate=await db.runTransaction(async tx=>{const latest=await readEnrollment(tx,s);assertStage(latest,v.current.version,'checking');return data(await tx.get(candidateRef));});
+      if(!candidate){
+        const built=await buildComplianceInvoice({scope:s,type,profile:structuredClone(v.u),credential:structuredClone(credential)});
+        need(built?.type===type&&built.mode===mode&&built.verifiedByOfficialSdk===true&&built.onboardingVersion===v.current.version,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+        const xml=bytes(built.invoice,512*1024),artifactDigest=sha(xml);
+        const proof=normalizeSdk4Proof(built.sdkProof,{uuid:built.uuid,mode,artifactDigest});
+        need(proof.kind===type&&proof.installationManifestSha256===sdkManifestSha256,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+        const next={...s,type,mode,uuid:built.uuid,icv:built.icv,number:built.number,issueDate:built.issueDate,invoiceHash:built.invoiceHash,artifactDigest,credentialRequestId:credential.requestId,onboardingVersion:v.current.version,invoice:built.invoice,sdkProof:proof};
+        candidate=await db.runTransaction(async tx=>{
+          const latest=await readEnrollment(tx,s);assertStage(latest,v.current.version,'checking');
+          const prior=data(await tx.get(candidateRef));if(prior)return prior;
+          tx.create(candidateRef,next);return next;
+        });
+      }
+      const xml=bytes(candidate.invoice,512*1024),artifactDigest=sha(xml);
+      need(same(candidate,s)&&candidate.type===type&&candidate.mode===mode&&candidate.onboardingVersion===v.current.version&&candidate.credentialRequestId===credential.requestId&&candidate.artifactDigest===artifactDigest,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+      const proof=normalizeSdk4Proof(candidate.sdkProof,{uuid:candidate.uuid,mode,artifactDigest});
+      need(proof.kind===type&&proof.installationManifestSha256===sdkManifestSha256,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
       await authority.reserveAttempt(slot,{scope:s,operation:'compliance-check',mode,uuid:candidate.uuid,invoiceHash:candidate.invoiceHash,artifactDigest,credentialRequestId:credential.requestId});
       const response=await client(s,slot).checkCompliance(credential,{uuid:candidate.uuid,invoiceHash:candidate.invoiceHash,invoice:candidate.invoice},mode);
       const outcome=verifiedComplianceReceipt({mode,httpStatus:response.httpStatus,bytes:response.evidenceBytes,evidenceDigest:response.evidenceDigest});
