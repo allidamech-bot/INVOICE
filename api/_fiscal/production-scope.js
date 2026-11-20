@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {fiscalCompanySourceDigest,parseProductionProfileCommand} from './production-profile.js';
+import {normalizeSdk4Proof} from './sdk4-local-validator.js';
 import {requiredComplianceChecks} from './onboarding.js';
 import {verifyManagedProductionCsr} from './managed-csr.js';
 
@@ -33,7 +34,7 @@ function normalizeClaim(v){
 }
 // Private production composition. No browser-facing provisioning or activation.
 // Real eligibility and HSM verification are mandatory independently supplied services.
-export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistration,verifyOperation,verifyResult,kmsProjectId,clock=()=>new Date().toISOString()}){
+export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistration,verifyOperation,verifyResult,kmsProjectId,sdkManifestSha256,clock=()=>new Date().toISOString()}){
   need(typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&[loadWorkspace,verifyRegistration,verifyOperation,verifyResult,clock].every(f=>typeof f==='function')&&typeof kmsProjectId==='string'&&/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(kmsProjectId)&&!kmsProjectId.endsWith('-fiscal-qa'),'PRODUCTION_SCOPE_UNAVAILABLE');
   const base=s=>'fiscalProductionV1/'+s.accountUid+'/workspaces/'+s.workspaceId;
   const unitRef=s=>db.doc(base(s)+'/egs/'+s.egsId);
@@ -88,7 +89,14 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
     need(same(current?.binding,s)&&current.csrDigest===u.csrDigest&&current.functionalityMap===u.unit.functionalityMap&&positive(current.version)&&Array.isArray(current.checks)&&current.binding.requestId===c.credentialRequestId,'PRODUCTION_ONBOARDING_STALE');
     const completedSlots=['compliance-csid',...current.checks.filter(x=>x.outcome==='verified-pass').map(x=>'check-'+x.type)];
     for(const k of completedSlots){const prior=data(await tx.get(attemptRef(s,k)));need(same(prior,s)&&prior.state==='completed'&&prior.evidence?.outcome==='verified-pass','PRODUCTION_ATTEMPT_HELD');}
-    if(c.operation==='compliance-check'){need(current.state==='checking'&&slot==='check-'+required.find(t=>!current.checks.some(x=>x.type===t)),'PRODUCTION_ONBOARDING_STALE');}
+    if(c.operation==='compliance-check'){
+      const type=required.find(t=>!current.checks.some(x=>x.type===t));
+      need(current.state==='checking'&&slot==='check-'+type,'PRODUCTION_ONBOARDING_STALE');
+      const a=data(await tx.get(db.doc(root+'/complianceCandidates/'+type)));
+      need(same(a,s)&&a.type===type&&a.onboardingVersion===current.version&&['mode','uuid','invoiceHash','artifactDigest','credentialRequestId'].every(k=>a[k]===c[k])&&typeof a.invoice==='string'&&a.invoice.length<=Math.ceil(512*1024/3)*4,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+      const bytes=Buffer.from(a.invoice,'base64');need(bytes.length>0&&bytes.toString('base64')===a.invoice&&sha(bytes)===c.artifactDigest,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+      const proof=normalizeSdk4Proof(a.sdkProof,c);need(hex(sdkManifestSha256)&&proof.kind===type&&proof.installationManifestSha256===sdkManifestSha256,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+    }
     else need(current.checks.length===required.length&&required.every(t=>current.checks.filter(x=>x.type===t&&x.outcome==='verified-pass').length===1)&&(dispatch?(current.state==='operational-request-held'&&current.version===c.onboardingVersion+1):(current.state==='checks-complete'&&current.version===c.onboardingVersion)),'PRODUCTION_ONBOARDING_STALE');
   }
   function slotFor(u,input,claim){

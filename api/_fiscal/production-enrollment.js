@@ -3,6 +3,8 @@ import {createManagedProductionCsr,verifyManagedProductionCsr} from './managed-c
 import {createProductionOnboardingStore} from './onboarding-store.js';
 import {createZatcaProductionClient} from './zatca-simulation.js';
 import {requiredComplianceChecks} from './onboarding.js';
+import {normalizeSdk4Proof} from './sdk4-local-validator.js';
+import {verifiedComplianceReceipt} from './production-compliance-input.js';
 import {requireProtectedSigningSession} from './protected-signing.js';
 
 // Private production coordinator. All external adapters must be independently
@@ -28,8 +30,9 @@ function checkLeaf(credential,u,s,kind){
   need(leaf.publicKey.asymmetricKeyType==='ec'&&leaf.publicKey.asymmetricKeyDetails?.namedCurve==='secp256k1'&&sha(leaf.publicKey.export({type:'spki',format:'der'}))===u.binding.publicKeyDigest,'PRODUCTION_CERTIFICATE_KEY_MISMATCH');
   return sha(leaf.raw);
 }
-export function createProductionEnrollment({db,authority,vault,resolveSigner,resolveProtectedSession,verifyCredential,buildComplianceInvoice,verifyComplianceResult,fetchImpl,makeId=randomUUID,clock=()=>new Date().toISOString()}){
-  need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&['readUnit','recordCsr','reserveAttempt','operationAuthorizer','recordResult'].every(k=>typeof authority?.[k]==='function')&&['store','load'].every(k=>typeof vault?.[k]==='function')&&[resolveSigner,resolveProtectedSession,verifyCredential,buildComplianceInvoice,verifyComplianceResult,makeId,clock].every(f=>typeof f==='function'),'PRODUCTION_ENROLLMENT_UNAVAILABLE');
+export function createProductionEnrollment({db,authority,vault,resolveSigner,resolveProtectedSession,verifyCredential,buildComplianceInvoice,sdkManifestSha256,fetchImpl,makeId=randomUUID,clock=()=>new Date().toISOString()}){
+  need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&['readUnit','recordCsr','reserveAttempt','operationAuthorizer','recordResult'].every(k=>typeof authority?.[k]==='function')&&['store','load'].every(k=>typeof vault?.[k]==='function')&&[resolveSigner,resolveProtectedSession,verifyCredential,buildComplianceInvoice,makeId,clock].every(f=>typeof f==='function'),'PRODUCTION_ENROLLMENT_UNAVAILABLE');
+  need(HEX.test(sdkManifestSha256??''),'PRODUCTION_ENROLLMENT_UNAVAILABLE');
   const store=createProductionOnboardingStore({db,vault,readUnit:authority.readUnit});
   const root=s=>'fiscalProductionV1/'+s.accountUid+'/workspaces/'+s.workspaceId+'/egs/'+s.egsId;
   const slots=u=>['compliance-csid',...requiredComplianceChecks(u.unit.functionalityMap).map(t=>'check-'+t),'operational-csid'];
@@ -84,10 +87,18 @@ export function createProductionEnrollment({db,authority,vault,resolveSigner,res
       const candidate=await buildComplianceInvoice({scope:s,type,profile:structuredClone(v.u),credential:structuredClone(credential)});
       need(candidate?.type===type&&candidate.mode===mode&&candidate.verifiedByOfficialSdk===true&&typeof candidate.uuid==='string'&&typeof candidate.invoiceHash==='string','PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
       const xml=bytes(candidate.invoice,512*1024),artifactDigest=sha(xml);
+      const proof=normalizeSdk4Proof(candidate.sdkProof,{uuid:candidate.uuid,mode,artifactDigest});
+      need(proof.kind===type&&proof.installationManifestSha256===sdkManifestSha256&&candidate.onboardingVersion===v.current.version,'PRODUCTION_COMPLIANCE_ARTIFACT_NOT_VERIFIED');
+      const candidateRef=db.doc(root(s)+'/complianceCandidates/'+type);
+      await db.runTransaction(async tx=>{
+        const latest=await readEnrollment(tx,s);assertStage(latest,v.current.version,'checking');
+        need(!data(await tx.get(candidateRef)),'PRODUCTION_ATTEMPT_HELD');
+        tx.create(candidateRef,{...s,type,mode,uuid:candidate.uuid,icv:candidate.icv,number:candidate.number,issueDate:candidate.issueDate,invoiceHash:candidate.invoiceHash,artifactDigest,credentialRequestId:credential.requestId,onboardingVersion:v.current.version,invoice:candidate.invoice,sdkProof:proof});
+      });
       await authority.reserveAttempt(slot,{scope:s,operation:'compliance-check',mode,uuid:candidate.uuid,invoiceHash:candidate.invoiceHash,artifactDigest,credentialRequestId:credential.requestId});
       const response=await client(s,slot).checkCompliance(credential,{uuid:candidate.uuid,invoiceHash:candidate.invoiceHash,invoice:candidate.invoice},mode);
-      const outcome=await verifyComplianceResult({scope:s,type,candidate:{...candidate},response:{...response,evidenceBytes:Buffer.from(response.evidenceBytes)}});
-      need((outcome==='verified-pass'&&response.status==='compliance-response')||outcome==='verified-fail','PRODUCTION_COMPLIANCE_UNRESOLVED');
+      const outcome=verifiedComplianceReceipt({mode,httpStatus:response.httpStatus,bytes:response.evidenceBytes,evidenceDigest:response.evidenceDigest});
+      need(outcome==='verified-pass'&&response.status==='compliance-response','PRODUCTION_COMPLIANCE_UNRESOLVED');
       need(sha(response.evidenceBytes)===response.evidenceDigest,'PRODUCTION_COMPLIANCE_UNRESOLVED');
       await store.recordCheck(s,v.current.version,{type,outcome,artifactBytes:xml,responseBytes:response.evidenceBytes});
       await authority.recordResult(s,slot,{digest:response.evidenceDigest,outcome});

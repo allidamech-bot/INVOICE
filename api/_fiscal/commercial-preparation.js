@@ -45,7 +45,7 @@ export function createCommercialFiscalPreparation({db,ledger,canonicalize,valida
     if(mapped.mode==='reporting'){
       need(typeof resolveProtectedSession==='function'&&policy,'FISCAL_SIGNING_NOT_CONFIGURED');
       const session=await resolveProtectedSession(scope,structuredClone(p.issuer));
-      need(session?.scope&&['accountUid','workspaceId','egsId','environment'].every(k=>session.scope[k]===scope[k])&&session.issuerVat===p.issuer.vatNumber,'FISCAL_SIGNING_SCOPE_MISMATCH');
+      need(session?.scope&&(scope.environment!=='production'||session.credentialKind==='operational')&&['accountUid','workspaceId','egsId','environment'].every(k=>session.scope[k]===scope[k])&&session.issuerVat===p.issuer.vatNumber,'FISCAL_SIGNING_SCOPE_MISMATCH');
       const signed=await buildManagedSdk4SimplifiedStamp({unsigned:bytes,session,policy,canonicalize});
       need(signed.invoiceHash===invoiceHash,'FISCAL_SIGNED_HASH_MISMATCH');
       bytes=Buffer.from(signed.bytes);
