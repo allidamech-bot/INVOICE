@@ -21,7 +21,7 @@ ARN=arn:aws:sts::$ACCOUNT:assumed-role/$ROLE/$INSTANCE
 [[ "$(gcloud projects describe "$QA" --format='value(projectId)')" == "$QA" ]]
 [[ "$(gcloud projects describe "$QA" --format='value(lifecycleState)')" == ACTIVE ]]
 gcloud firestore databases describe --project="$QA" --database='(default)' --format='value(name)' > /dev/null
-for api in iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com firestore.googleapis.com; do
+for api in iam.googleapis.com iamcredentials.googleapis.com firestore.googleapis.com; do
  [[ "$(gcloud services list --project="$QA" --enabled --filter="config.name=$api" --format='value(config.name)')" == "$api" ]] || { echo "QA API NOT READY: $api";exit 2; }
 done
 TMP=$(mktemp)

@@ -33,7 +33,7 @@ function abortableDelay(ms,signal){
 export function createStagingServiceSupervisor({cycle,scopes,intervalMs=5000,delay=abortableDelay}){
  if(typeof cycle!=='function'||typeof delay!=='function'||!Number.isSafeInteger(intervalMs)||intervalMs<1000||intervalMs>60000)deny();
  const selected=validateStagingServiceScopes(scopes);
- let busy=false;
+ let busy=false,serving=false;
  async function runOnce(){
   if(busy)deny();
   busy=true;
@@ -47,11 +47,14 @@ export function createStagingServiceSupervisor({cycle,scopes,intervalMs=5000,del
   }finally{busy=false;}
  }
  async function serve(signal){
-  if(!signal||typeof signal.aborted!=='boolean'||typeof signal.addEventListener!=='function')deny();
-  while(!signal.aborted){
-   await runOnce();
-   if(!signal.aborted)await delay(intervalMs,signal);
-  }
+  if(serving||busy||!signal||typeof signal.aborted!=='boolean'||typeof signal.addEventListener!=='function')deny();
+  serving=true;
+  try{
+   while(!signal.aborted){
+    await runOnce();
+    if(!signal.aborted)await delay(intervalMs,signal);
+   }
+  }finally{serving=false;}
  }
  return Object.freeze({runOnce,serve});
 }

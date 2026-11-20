@@ -15,7 +15,13 @@ Environment=NODE_ENV=production
 Environment=LOUREX_AWS_STAGING_ENABLED=true
 Environment=LOUREX_AWS_WORKER_ENABLED=true
 UMask=0077
+# Existing root-owned secrets are copied into private per-service credentials.
+# The trusted runtime adapter must read them from CREDENTIALS_DIRECTORY.
+LoadCredential=wrapping-key:/etc/lourex-staging/secrets/wrapping-key
+LoadCredential=pin-derivation-key:/etc/lourex-staging/secrets/pin-derivation-key
 NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
 PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict

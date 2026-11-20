@@ -5,7 +5,6 @@ import {dirname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createStagingServiceSupervisor,validateStagingServiceScopes} from '../../api/_fiscal/staging-service-supervisor.js';
 import {initializeAwsStagingFirebase} from '../../api/_fiscal/staging-aws-firebase.js';
-import {createStagingFiscalRuntime} from '../../api/_fiscal/staging-runtime.js';
 
 const denied=()=>{throw Error('LOUREX_AWS_WORKER_NOT_READY');};
 function protectedFile(path,maxBytes){
@@ -30,6 +29,7 @@ async function main(){
  const adapter=await import(pathToFileURL('/etc/lourex-staging/runtime-adapter.mjs').href);
  if(typeof adapter.createTrustedStagingRuntime!=='function')denied();
  const {db,auth}=await initializeAwsStagingFirebase(config);
+ const {createStagingFiscalRuntime}=await import('../../api/_fiscal/staging-runtime.js');
  const runtime=await adapter.createTrustedStagingRuntime({db,auth,createStagingFiscalRuntime});
  if(typeof runtime?.cycle!=='function')denied();
  const supervisor=createStagingServiceSupervisor({scopes,cycle:runtime.cycle});
