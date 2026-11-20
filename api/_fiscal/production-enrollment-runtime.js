@@ -6,19 +6,21 @@ import {createProductionCredentialVault} from './credential-vault.js';
 import {createProductionProtectedSigningSession,createProductionComplianceSigningSession} from './protected-signing.js';
 import {verifyProductionAuthorityCertificate} from './authority-certificate.js';
 import {X509Certificate,createHash} from 'node:crypto';
+import {createProductionJournalVerification} from './production-journal-verification.js';
 import {createProductionComplianceBuilder} from './production-compliance-builder.js';
 
 // Use on a trusted server supporting the pinned SDK and OpenSSL. This is not
 // browser-configurable and must never be instantiated with synthetic adapters.
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const need=(ok,code='FISCAL_ENROLLMENT_UNAVAILABLE')=>{if(!ok)throw Error(code);};
-export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId,keyName,getAccessToken,trust,loadCertificateChain,verifyTaxpayerRegistration,verifyOperation,verifyResult,sdk,canonicalize,policy,testBuyer,sdkManifestSha256}){
-  need(trust?.environment==='production'&&/^[a-f0-9]{64}$/.test(trust.rootDigest??'')&&typeof trust.egsPolicyOid==='string'&&/^[a-f0-9]{64}$/.test(sdkManifestSha256??'')&&sdk?.manifestSha256===sdkManifestSha256&&policy&&[loadCertificateChain,verifyTaxpayerRegistration,verifyOperation,verifyResult,canonicalize,getAccessToken].every(f=>typeof f==='function'));
+export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId,keyName,getAccessToken,trust,loadCertificateChain,verifyTaxpayerRegistration,sdk,canonicalize,policy,clearance,testBuyer,sdkManifestSha256}){
+  need(trust?.environment==='production'&&/^[a-f0-9]{64}$/.test(trust.rootDigest??'')&&typeof trust.egsPolicyOid==='string'&&/^[a-f0-9]{64}$/.test(sdkManifestSha256??'')&&sdk?.manifestSha256===sdkManifestSha256&&policy&&[loadCertificateChain,verifyTaxpayerRegistration,canonicalize,getAccessToken].every(f=>typeof f==='function'));
   const kms=createProductionManagedKms({projectId:kmsProjectId,keyName,getAccessToken});
-  let authority;
+  let authority,vault;
+  const journal=createProductionJournalVerification({db,getAuthority:()=>authority,getVault:()=>vault,verifyCertificate:certificate,manifestSha256:sdkManifestSha256,canonicalize,policy,clearance});
   const signer=b=>createProductionManagedSigner({projectId:kmsProjectId,binding:b,getAccessToken,authorizeBinding:authority.authorizeBinding});
-  authority=createProductionScopeAuthority({db,loadWorkspace,kmsProjectId,sdkManifestSha256,verifyOperation,verifyResult,verifyRegistration:verifyTaxpayerRegistration});
-  const vault=createProductionCredentialVault({db,...kms,authorizeScope:authority.authorizeCredential});
+  authority=createProductionScopeAuthority({db,loadWorkspace,kmsProjectId,sdkManifestSha256,verifyOperation:journal.verifyOperation,verifyResult:journal.verifyResult,verifyRegistration:verifyTaxpayerRegistration});
+  vault=createProductionCredentialVault({db,...kms,authorizeScope:authority.authorizeCredential});
   async function certificate(scope,profile,credential){
     need(credential.environment==='production'&&['accountUid','workspaceId','egsId'].every(k=>credential[k]===scope[k]));
     const leaf=new X509Certificate(Buffer.from(credential.binarySecurityToken,'base64')),digest=sha(leaf.raw);
@@ -62,7 +64,7 @@ export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId
 // hosted profile handler. It cannot accept a browser-selected signer or vault.
 export async function createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters,issuanceAdapters}){
   need(enrollmentAdapters&&issuanceAdapters&&issuanceAdapters.sdk?.manifestSha256===enrollmentAdapters.sdkManifestSha256);
-  const registered=createProductionEnrollmentRuntime({...enrollmentAdapters,sdk:issuanceAdapters.sdk,canonicalize:issuanceAdapters.canonicalize,policy:issuanceAdapters.policy,db,loadWorkspace});
+  const registered=createProductionEnrollmentRuntime({...enrollmentAdapters,sdk:issuanceAdapters.sdk,canonicalize:issuanceAdapters.canonicalize,policy:issuanceAdapters.policy,clearance:issuanceAdapters.clearance,db,loadWorkspace});
   const {createProductionIssuanceRuntime}=await import('./production-issuance-runtime.js');
   const issuance=createProductionIssuanceRuntime({...issuanceAdapters,db,productionAuthority:registered.authority,resolveCredential:registered.resolveOperationalCredential,resolveProtectedSession:registered.resolveOperationalSession});
   return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,issuance});

@@ -110,7 +110,7 @@ export function createProductionEnrollment({db,authority,vault,resolveSigner,res
       const outcome=verifiedComplianceReceipt({mode,httpStatus:response.httpStatus,bytes:response.evidenceBytes,evidenceDigest:response.evidenceDigest});
       need(outcome==='verified-pass'&&response.status==='compliance-response','PRODUCTION_COMPLIANCE_UNRESOLVED');
       need(sha(response.evidenceBytes)===response.evidenceDigest,'PRODUCTION_COMPLIANCE_UNRESOLVED');
-      await store.recordCheck(s,v.current.version,{type,outcome,artifactBytes:xml,responseBytes:response.evidenceBytes});
+      await store.recordCheck(s,v.current.version,{type,outcome,artifactBytes:xml,responseBytes:response.evidenceBytes,httpStatus:response.httpStatus});
       await authority.recordResult(s,slot,{digest:response.evidenceDigest,outcome});
       return projection(await load(s));
     },

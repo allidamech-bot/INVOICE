@@ -40,15 +40,16 @@ function createOnboardingStore({db,vault,readUnit},environment){
         tx.create(p.record,initial);tx.create(event(p,1),{version:1,state:initial.state});return initial;
       });
     },
-    async recordCheck(s,expected,{type,outcome,artifactBytes,responseBytes}){
+    async recordCheck(s,expected,{type,outcome,artifactBytes,responseBytes,httpStatus}){
       const p=paths(db,s,environment), artifact=evidence(artifactBytes), response=evidence(responseBytes);
+      if(environment==='production'&&![200,202].includes(httpStatus))throw Error('INVALID_ONBOARDING_EVIDENCE');
       return db.runTransaction(async tx=>{
         await context(tx,p,s);
         const current=data(await tx.get(p.record));version(current,expected);binding(current,s);
         const next=recordComplianceCheck(current,expected,{type,outcome,artifactDigest:artifact.sha256,responseDigest:response.sha256});
         const e=event(p,next.version);
         tx.create(db.doc(e.path+'/artifacts/invoice'),artifact);tx.create(db.doc(e.path+'/artifacts/response'),response);
-        tx.create(e,{version:next.version,state:next.state,type,outcome,artifactDigest:artifact.sha256,responseDigest:response.sha256});
+        tx.create(e,{version:next.version,state:next.state,type,outcome,artifactDigest:artifact.sha256,responseDigest:response.sha256,...(environment==='production'?{httpStatus}:{})});
         tx.update(p.record,next);return next;
       });
     },

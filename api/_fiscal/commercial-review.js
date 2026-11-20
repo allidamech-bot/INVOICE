@@ -2,6 +2,7 @@ import {issuanceBoundary,assertProductionSale} from './issuance-boundary.js';
 import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
 import {resolveFiscalCreditOriginal} from './commercial-credit.js';
+import {complianceSeller} from './production-compliance-input.js';
 import {resolveCommercialScenario} from './commercial-scenarios.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].every(k=>row[k]===s[k]);
@@ -32,13 +33,18 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString(),..
       need(d.revision===cmd.documentRevision&&payload.workspaces.some(w=>w.id===s.workspaceId)&&payload.branches.some(b=>b.id===d.branchId&&b.workspaceId===s.workspaceId&&b.active===true),'FISCAL_REVIEW_CHANGED');
       need(d.invoiceMode===undefined||d.invoiceMode==='tax','FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE');
       need(!source.closedThrough||d.issueDate>source.closedThrough,'FISCAL_PERIOD_CLOSED');
-      const profile=s.environment==='production'?{...unit,state:'approved'}:data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/enrollment/approved'))),sellerProfile=data(await tx.get(db.doc(base+'/sellerProfile/current')));
+      const profile=s.environment==='production'?{...unit,state:'approved'}:data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/enrollment/approved'))),sellerProfile=s.environment==='production'?null:data(await tx.get(db.doc(base+'/sellerProfile/current')));
       need(same(profile,s)&&profile.state==='approved'&&profile.issuer&&unit.issuerVat===profile.issuer.vatNumber&&unit.operationalCredentialRef,'FISCAL_ISSUER_NOT_VERIFIED');
-      const seller=legalParty(sellerProfile,d.companySnapshot,s,true,cmd.invoiceType);
+      let seller;
+      if(s.environment==='production'){
+        const company=payload.workspaces.find(w=>w.id===s.workspaceId).company,p=data(await tx.get(db.doc(base+'/profiles/current')));
+        need(clean(d.companySnapshot?.addressAr||d.companySnapshot?.addressEn)===clean(company.addressAr||company.addressEn),'FISCAL_PARTY_MISMATCH');
+        seller=complianceSeller(company,p,unit);
+      }else seller=legalParty(sellerProfile,d.companySnapshot,s,true,cmd.invoiceType);
       need(seller.vatNumber===unit.issuerVat,'FISCAL_ISSUER_NOT_VERIFIED');
       let buyer=null;
       if(d.customerSnapshot){const customerId=d.customerSnapshot.sourceCustomerId;need(typeof customerId==='string'&&ID.test(customerId));const p=data(await tx.get(db.doc(base+'/buyerProfiles/'+customerId)));buyer=legalParty(p,d.customerSnapshot,s,false,cmd.invoiceType);}
-      else need(cmd.invoiceType==='simplified'&&sellerProfile.allowAnonymousSimplified===true);
+      else need(cmd.invoiceType==='simplified'&&(s.environment==='production'||sellerProfile.allowAnonymousSimplified===true));
       // Zero-rate/exemption/out-of-scope classification is an independent,
       // revision-bound private decision; never infer it from a disabled tax box.
       const classification=data(await tx.get(db.doc(base+'/taxClassifications/'+d.id)));
