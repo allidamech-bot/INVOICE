@@ -1,5 +1,6 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
+import {STAGING_PROTECTION,stagingKeyLocator} from './softhsm-staging-signer.js';
 import {requiredComplianceChecks} from './onboarding.js';
 import {createZatcaSimulationClient} from './zatca-simulation.js';
 
@@ -22,13 +23,13 @@ function commandScope(identity,command,extra){
 // No browser-supplied CSR, invoice bytes, certificate, credential ref, result,
 // or authority URL. Every remote request is authorized against private data
 // and is claimed durably before execution. Unknown results stay held.
-export function createSimulationEnrollment({db,vault,onboarding,verifyCsr,verifyCredential,buildComplianceInvoice,verifyComplianceResult,fetchImpl,clock=()=>new Date().toISOString(),makeId=randomUUID}){
+function createEnrollment({db,vault,onboarding,verifyCsr,verifyCredential,buildComplianceInvoice,verifyComplianceResult,fetchImpl,clock=()=>new Date().toISOString(),makeId=randomUUID},softwareStaging){
   need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&typeof vault?.store==='function'&&typeof vault?.load==='function'&&['start','recordCheck','claimOperational','recordOperational'].every(k=>typeof onboarding?.[k]==='function')&&[verifyCsr,verifyCredential,buildComplianceInvoice,verifyComplianceResult,clock,makeId].every(f=>typeof f==='function'),'ONBOARDING_RUNTIME_UNAVAILABLE');
   function refs(s){const unit=simulationBase(s)+'/egs/'+s.egsId;return {unit,profile:db.doc(unit+'/enrollment/approved'),current:db.doc(unit+'/onboarding/current'),attempt:k=>db.doc(unit+'/enrollmentAttempts/'+k)};}
   function at(){const v=clock();need(typeof v==='string'&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v,'INVALID_ONBOARDING_TIME');return v;}
   function id(){const v=makeId();need(typeof v==='string'&&ID.test(v),'INVALID_ONBOARDING_ATTEMPT');return v;}
   function profileValue(p,s){
-    need(same(p,s)&&p.state==='approved'&&p.issuer?.accountUid===s.accountUid&&p.issuer?.workspaceId===s.workspaceId&&p.issuer?.issuerCountry==='SA'&&p.issuer?.saRegime==='phase-2'&&/^3[0-9]{13}3$/.test(p.issuer?.vatNumber)&&p.keyBinding&&same(p.keyBinding,s)&&typeof p.keyBinding.publicKeyDigest==='string'&&HEX.test(p.keyBinding.publicKeyDigest)&&typeof p.keyBinding.keyVersion==='string'&&p.keyBinding.keyVersion&&['HSM','HSM_SINGLE_TENANT'].includes(p.keyBinding.protectionLevel),'ONBOARDING_PROFILE_NOT_APPROVED');
+    need(same(p,s)&&p.state==='approved'&&p.issuer?.accountUid===s.accountUid&&p.issuer?.workspaceId===s.workspaceId&&p.issuer?.issuerCountry==='SA'&&p.issuer?.saRegime==='phase-2'&&/^3[0-9]{13}3$/.test(p.issuer?.vatNumber)&&p.keyBinding&&same(p.keyBinding,s)&&typeof p.keyBinding.publicKeyDigest==='string'&&HEX.test(p.keyBinding.publicKeyDigest)&&typeof p.keyBinding.keyVersion==='string'&&p.keyBinding.keyVersion&&(softwareStaging?p.keyBinding.protectionLevel===STAGING_PROTECTION&&p.keyBinding.keyVersion===stagingKeyLocator(s).keyVersion:['HSM','HSM_SINGLE_TENANT'].includes(p.keyBinding.protectionLevel)),'ONBOARDING_PROFILE_NOT_APPROVED');
     requiredComplianceChecks(p.functionalityMap);
     need(sha(decode(p.csr))===p.csrDigest,'ONBOARDING_CSR_MISMATCH');return p;
   }
@@ -111,3 +112,6 @@ export function createSimulationEnrollment({db,vault,onboarding,verifyCsr,verify
     }
   });
 }
+
+export const createSimulationEnrollment=options=>createEnrollment(options,false);
+export const createStagingSimulationEnrollment=options=>createEnrollment(options,true);

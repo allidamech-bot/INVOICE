@@ -1,6 +1,7 @@
 """Isolated staging-only PKCS#11 helper. Never handles production keys."""
 import base64
 import hashlib
+import fcntl
 import json
 import os
 import re
@@ -20,21 +21,46 @@ def main():
     need(len(raw) < 800000)
     q = json.loads(raw)
     op, label, pin = q["op"], q["token"], q["pin"]
-    need(op in ("provision", "public", "sign") and re.fullmatch(r"lourex-qa-[a-z0-9-]{1,22}", label))
+    need(op in ("provision", "ensure", "public", "sign") and re.fullmatch(r"lourex-qa-[a-z0-9-]{1,22}", label))
     need(re.fullmatch(r"[0-9]{8,32}", pin))
     kid = bytes.fromhex(q["keyId"])
     need(len(kid) == 32 and kid.hex() == q["keyId"])
     lib = p.PyKCS11Lib()
     lib.load(MODULE)
-    slots = [s for s in lib.getSlotList(tokenPresent=True) if lib.getTokenInfo(s).label.strip() == label]
+    def matching():
+        return [s for s in lib.getSlotList(tokenPresent=True) if lib.getTokenInfo(s).label.strip() == label]
+    if op == "ensure":
+        # Parent holds a global flock in a private, persistent directory. Never
+        # initialize an existing token or replace an incomplete key pair.
+        so = q["soPin"]
+        need(re.fullmatch(r"[0-9]{8,32}", so))
+        slots = matching()
+        if not slots:
+            free = [s for s in lib.getSlotList(tokenPresent=True)
+                    if not lib.getTokenInfo(s).flags & p.CKF_TOKEN_INITIALIZED]
+            need(len(free) == 1)
+            lib.initToken(free[0], so, label)
+            slots = matching()
+        need(len(slots) == 1)
+        if not lib.getTokenInfo(slots[0]).flags & p.CKF_USER_PIN_INITIALIZED:
+            session = lib.openSession(slots[0], p.CKF_SERIAL_SESSION | p.CKF_RW_SESSION)
+            try:
+                session.login(so, p.CKU_SO)
+                try:
+                    session.initPin(pin)
+                finally:
+                    session.logout()
+            finally:
+                session.closeSession()
+    slots = matching()
     need(len(slots) == 1)
-    s = lib.openSession(slots[0], p.CKF_SERIAL_SESSION | (p.CKF_RW_SESSION if op == "provision" else 0))
+    s = lib.openSession(slots[0], p.CKF_SERIAL_SESSION | (p.CKF_RW_SESSION if op in ("provision", "ensure") else 0))
     try:
         s.login(pin)
         ident = (p.CKA_ID, tuple(kid))
         def objects(cls):
             return s.findObjects([(p.CKA_CLASS, cls), ident])
-        if op == "provision":
+        if op == "provision" or (op == "ensure" and not objects(p.CKO_PUBLIC_KEY) and not objects(p.CKO_PRIVATE_KEY)):
             need(not objects(p.CKO_PUBLIC_KEY) and not objects(p.CKO_PRIVATE_KEY))
             s.generateKeyPair([(p.CKA_TOKEN, True), (p.CKA_VERIFY, True), (p.CKA_EC_PARAMS, tuple(PARAMS)), ident],
                               [(p.CKA_TOKEN, True), (p.CKA_PRIVATE, True), (p.CKA_SENSITIVE, True), (p.CKA_EXTRACTABLE, False), (p.CKA_SIGN, True), ident],
@@ -71,7 +97,18 @@ def main():
 
 if __name__ == "__main__":
     try:
-        print(json.dumps(main(), separators=(",", ":")))
+        # Only the persistent provisioner sets this environment variable. Serialize
+        # token initialization across processes, with automatic release on exit.
+        lock = os.environ.get("LOUREX_STAGING_LOCK")
+        if lock:
+            fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+                print(json.dumps(main(), separators=(",", ":")))
+            finally:
+                os.close(fd)
+        else:
+            print(json.dumps(main(), separators=(",", ":")))
     except Exception:
         sys.stderr.write("STAGING_PKCS11_FAILED\n")
         sys.exit(1)
