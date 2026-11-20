@@ -5,6 +5,7 @@ set -Eeuo pipefail
 cd /home/ubuntu/lourex-fiscal
 [[ "$(id -un)" == ubuntu ]]
 [[ "$(git branch --show-current)" == feat/fiscal-batch2-remaining-settlements ]]
+[[ $# == 0 || ($# == 1 && "$1" == --sts-only) ]] || { echo 'STAGING_PROBE_ARGUMENT_INVALID'; exit 2; }
 TOKEN="$(curl -fsS --max-time 5 -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token)"
 ROLE="$(curl -fsS --max-time 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/)"
 [[ "$ROLE" == lourex-zatca-staging-wif ]] || { echo 'AWS IAM ROLE NOT VERIFIED';exit 2; }
@@ -41,12 +42,12 @@ sudo install -o root -g root -m 644 "$TMP" /etc/lourex-staging/aws-identity-adc.
 PROBE_DIR="$(mktemp -d /tmp/lourex-google-id-qa.XXXXXX)"
 trap 'rm -f -- "$TMP"; rm -rf -- "$PROBE_DIR"' EXIT
 chmod 755 "$PROBE_DIR"
-git archive HEAD api/_fiscal/aws-google-identity.js scripts/fiscal/probe-aws-google-identity.mjs package.json | tar -x -C "$PROBE_DIR"
+git archive HEAD api/_fiscal/aws-google-identity.js scripts/fiscal/probe-aws-google-identity.mjs scripts/fiscal/probe-aws-sts-only.mjs package.json | tar -x -C "$PROBE_DIR"
 cp -a -- node_modules "$PROBE_DIR/node_modules"
 install -m 755 "$(command -v node)" "$PROBE_DIR/node"
 (
   cd "$PROBE_DIR"
   sudo -u lourex-staging env -i HOME=/var/lib/lourex-staging PATH=/usr/bin:/bin LANG=C.UTF-8 \
-   "$PROBE_DIR/node" scripts/fiscal/probe-aws-google-identity.mjs
+   "$PROBE_DIR/node" "scripts/fiscal/$([[ "${1:-}" == --sts-only ]] && echo probe-aws-sts-only.mjs || echo probe-aws-google-identity.mjs)"
 )
-echo 'LOUREX AWS GOOGLE FEDERATION READY'
+if [[ "${1:-}" == --sts-only ]]; then echo 'LOUREX AWS STS-ONLY DIAGNOSTIC FINISHED'; else echo 'LOUREX AWS GOOGLE FEDERATION READY'; fi
