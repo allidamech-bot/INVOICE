@@ -2,6 +2,7 @@ import {initializeApp,getApps,applicationDefault,cert} from 'firebase-admin/app'
 import {getFirestore} from 'firebase-admin/firestore';
 import {createPeriodService} from './period-store.js';
 import {fail} from './period-format.js';
+import {createProductionPeriodGuard} from '../_fiscal/production-period-guard.js';
 
 export function getProductionPeriodService(){
   // Activation is a release operation after rules and client compatibility QA.
@@ -21,5 +22,6 @@ export function getProductionPeriodService(){
     }
     app=initializeApp({projectId:'lourex-invoice',credential},'lourex-period-writer');
   }
-  return createPeriodService(getFirestore(app));
+  const db=getFirestore(app);
+  return createPeriodService(db,{fiscalGuard:createProductionPeriodGuard(db)});
 }

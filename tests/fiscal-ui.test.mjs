@@ -11,7 +11,7 @@ test('complete local profile still never shows enabled or verified government se
   setUiLanguage('en');
   assert.ok(fiscalProfileFieldChecks(company).every(item=>item.present));
   const view=FiscalComplianceSettings({company});const copy=text(view);
-  assert.match(copy,/Not available yet/);assert.match(copy,/not registration, eligibility or certificate verification/);
+  assert.match(copy,/Official issuance is not available yet/);assert.match(copy,/not registration, eligibility or certificate verification/);
   assert.doesNotMatch(copy,/300000000000003|1000000000/);
   assert.ok(elements(view).every(node=>!['button','input','form','a'].includes(node.tag)));
 });
