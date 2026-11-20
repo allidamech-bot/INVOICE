@@ -1,0 +1,36 @@
+[Unit]
+Description=LOUREX restricted outbound fiscal simulation worker (QA only)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=lourex-staging
+Group=lourex-staging
+WorkingDirectory=/home/ubuntu/lourex
+ExecStart=/usr/bin/node /home/ubuntu/lourex/scripts/fiscal/run-aws-staging-worker.mjs
+Environment=NODE_ENV=production
+Environment=LOUREX_AWS_STAGING_ENABLED=true
+Environment=LOUREX_AWS_WORKER_ENABLED=true
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/lourex-staging
+Restart=on-failure
+RestartSec=20s
+TimeoutStopSec=90s
+
+[Install]
+WantedBy=multi-user.target

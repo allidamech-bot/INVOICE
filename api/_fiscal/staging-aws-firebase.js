@@ -2,10 +2,10 @@ import {openSync,readFileSync,fstatSync,closeSync,constants} from 'node:fs';
 import {isAbsolute} from 'node:path';
 const need=ok=>{if(!ok)throw Error('AWS_STAGING_FIREBASE_UNAVAILABLE');};
 const QA=/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/;
-const AUD=/^\/\/iam\.googleapis\.com\/projects\/[0-9]+\/locations\/global\/workloadIdentityPools\/[a-z0-9-]+\/providers\/[a-z0-9-]+$/;
+const AUDIENCE='//iam.googleapis.com/projects/985119320046/locations/global/workloadIdentityPools/lourex-aws-staging/providers/ec2-staging';
 const METADATA='http://169.254.169.254/latest/';
 export function validateAwsStagingAdc({projectId,audience,serviceAccount},config){
- need(typeof projectId==='string'&&QA.test(projectId)&&typeof audience==='string'&&AUD.test(audience)&&typeof serviceAccount==='string'&&/^[a-z][a-z0-9-]{4,29}@/.test(serviceAccount)&&serviceAccount.endsWith('@'+projectId+'.iam.gserviceaccount.com'));
+ need(typeof projectId==='string'&&QA.test(projectId)&&audience===AUDIENCE&&typeof serviceAccount==='string'&&/^[a-z][a-z0-9-]{4,29}@/.test(serviceAccount)&&serviceAccount.endsWith('@'+projectId+'.iam.gserviceaccount.com'));
  need(config?.type==='external_account'&&config.audience===audience&&config.subject_token_type==='urn:ietf:params:aws:token-type:aws4_request'&&config.token_url==='https://sts.googleapis.com/v1/token'&&config.service_account_impersonation_url==='https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/'+serviceAccount+':generateAccessToken');
  need(!Object.hasOwn(config,'private_key')&&!Object.hasOwn(config,'client_secret')&&(!config.universe_domain||config.universe_domain==='googleapis.com'));
  const s=config.credential_source;
@@ -18,7 +18,7 @@ export function validateAwsStagingAdc({projectId,audience,serviceAccount},config
 function readRootConfig(path){
  need(typeof path==='string'&&isAbsolute(path));
  const fd=openSync(path,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
- try{const s=fstatSync(fd);need(s.isFile()&&s.uid===0&&(s.mode&0o022)===0&&s.size>0&&s.size<=16384);return JSON.parse(readFileSync(fd,'utf8'));}finally{closeSync(fd);}
+ try{const s=fstatSync(fd);need(s.isFile()&&s.nlink===1&&s.uid===0&&(s.mode&0o022)===0&&s.size>0&&s.size<=16384);return JSON.parse(readFileSync(fd,'utf8'));}finally{closeSync(fd);}
 }
 // ADC must derive short-lived credentials from the attached EC2 role through
 // Google STS. No service account private key or environment AWS access key.
