@@ -56,6 +56,17 @@ import json,sys
 a=json.load(open(sys.argv[1]))
 assert a.get("email")==sys.argv[2] and not a.get("disabled",False), "INVALID STAGING SERVICE ACCOUNT"
 PY
+# An existing dedicated account must not have acquired broader project roles.
+gcloud projects get-iam-policy "$PROJECT" --format=json > "$tmp/project-policy"
+python3 - "$tmp/project-policy" "$SA" <<'PY'
+import json,sys
+policy=json.load(open(sys.argv[1]))
+member='serviceAccount:'+sys.argv[2]
+assert not any(member in b.get('members',[]) for b in policy.get('bindings',[])), "STAGING IDENTITY ALREADY HAS PROJECT ACCESS"
+PY
+if [[ -n "$(gcloud iam service-accounts keys list --iam-account="$SA" --project="$PROJECT" --managed-by=user --format='value(name)')" ]]; then
+  echo "STAGING IDENTITY HAS STATIC KEYS: STOP";exit 2
+fi
 # Do NOT grant roles/datastore.user, roles/datastore.viewer or any project-level
 # role. The EC2 worker can only exchange short-lived credentials with Google.
 MEMBER="principal://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL}/subject/${ARN}"
