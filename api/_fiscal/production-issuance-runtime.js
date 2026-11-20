@@ -8,13 +8,16 @@ import {createFiscalAccounting} from './fiscal-accounting.js';
 import {createFiscalOutputService} from './fiscal-output.js';
 import {issuanceBoundary} from './issuance-boundary.js';
 import {createFiscalReconciler} from './reconciliation.js';
+import {createProductionPreparedVerifier,createProductionAuthorityResultVerifier} from './production-issue-verification.js';
 import {createFiscalResponseStatus} from './response-status.js';
 // Internal trusted composition only. No live endpoint or deployment switch.
-export function createProductionIssuanceRuntime({db,productionAuthority,resolveCredential,resolveProtectedSession,verifyPrepared,verifyAuthorityResult,verifyPdf,sdk,canonicalize,policy}){
-  if(!productionAuthority||[resolveCredential,resolveProtectedSession,verifyPrepared,verifyAuthorityResult,verifyPdf,canonicalize].some(f=>typeof f!=='function')||!policy)throw Error('PRODUCTION_ISSUANCE_NOT_CONFIGURED');
+export function createProductionIssuanceRuntime({db,productionAuthority,resolveCredential,resolveProtectedSession,verifyPdf,sdk,canonicalize,policy,clearance}){
+  if(!productionAuthority||[resolveCredential,resolveProtectedSession,verifyPdf,canonicalize].some(f=>typeof f!=='function')||!policy)throw Error('PRODUCTION_ISSUANCE_NOT_CONFIGURED');
   const options={productionAuthority,sdkInstallationManifestSha256:sdk?.manifestSha256};
   issuanceBoundary(db,options);
   const ledger=createFiscalLedger(db,options);
+  const verifyPrepared=createProductionPreparedVerifier({db,authority:productionAuthority,manifestSha256:sdk.manifestSha256,canonicalize,policy});
+  const verifyAuthorityResult=createProductionAuthorityResultVerifier({db,authority:productionAuthority,ledger,clearance});
   const validateOfficial=createProductionSdk4LocalValidator({...sdk,canonicalize});
   const review=createCommercialReview({db,...options}),approve=createCommercialIssueApproval({db,...options});
   const prepare=createCommercialFiscalPreparation({db,ledger,canonicalize,validateOfficial,resolveProtectedSession,policy,...options});

@@ -5,11 +5,11 @@ import {hashArtifact} from './fiscal-artifacts.js';
 // matching establishes authority approval. All three trusted checks are required.
 const digest=b=>createHash('sha256').update(b).digest('hex');
 const cap=512*1024;
-export function createStandardClearanceVerifier({verifyContent,verifyStamp,verifyQr}){
+function createVerifier(environment,{verifyContent,verifyStamp,verifyQr}){
   if([verifyContent,verifyStamp,verifyQr].some(f=>typeof f!=='function'))throw Error('CLEARANCE_VERIFIER_NOT_CONFIGURED');
   return async ({scope,record,result,xml})=>{
     try{
-      if(scope?.environment!=='simulation'||record?.mode!=='clearance'||['accountUid','workspaceId','egsId'].some(k=>typeof scope[k]!=='string'||!scope[k]||scope[k]!==record[k]))return false;
+      if(scope?.environment!==environment||(environment==='production'&&record?.environment!=='production')||record?.mode!=='clearance'||['accountUid','workspaceId','egsId'].some(k=>typeof scope[k]!=='string'||!scope[k]||scope[k]!==record[k]))return false;
       if(hashArtifact(xml)!==record.artifactDigest||result?.status!=='clearance-response'||![200,202].includes(result.httpStatus)||typeof result.warnings!=='boolean')return false;
       const evidence=Buffer.from(result.evidenceBytes),cleared=Buffer.from(result.clearedBytes);
       if(!evidence.length||evidence.length>2*1024*1024||!cleared.length||cleared.length>cap||digest(evidence)!==result.evidenceDigest)return false;
@@ -24,3 +24,6 @@ export function createStandardClearanceVerifier({verifyContent,verifyStamp,verif
     }catch{return false;}
   };
 }
+
+export const createStandardClearanceVerifier=options=>createVerifier('simulation',options);
+export const createProductionStandardClearanceVerifier=options=>createVerifier('production',options);
