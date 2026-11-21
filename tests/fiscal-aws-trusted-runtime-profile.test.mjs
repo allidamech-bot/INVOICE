@@ -49,6 +49,10 @@ test('read-only binding supplies original reviewed fiscal runtime, no mock verif
 test('fails closed when trusted material changes, credentials are missing or no cycle exists',()=>{
  const base={profile,scopes:[scope],credentialsDirectory:'/run/credentials/lourex-aws-staging.service',db:{},
   readFile:ref=>files.get(ref.path),createStagingFiscalRuntime:()=>({cycle(){}})};
+ const enrollment=bindAwsTrustedRuntime({...base,
+  credentialsDirectory:'/run/credentials/lourex-aws-enrollment.service'});
+ assert.equal(typeof enrollment.cycle,'function');
+ assert.throws(()=>bindAwsTrustedRuntime({...base,credentialsDirectory:'/run/credentials/lourex-unapproved.service'}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
  assert.throws(()=>bindAwsTrustedRuntime({...base,credentialsDirectory:'/tmp/secret'}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
  assert.throws(()=>bindAwsTrustedRuntime({...base,readFile:()=>Buffer.from('evil')}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
  assert.throws(()=>bindAwsTrustedRuntime({...base,createStagingFiscalRuntime:()=>({})}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);

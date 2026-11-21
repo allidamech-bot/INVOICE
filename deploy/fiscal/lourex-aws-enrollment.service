@@ -1,0 +1,48 @@
+[Unit]
+Description=LOUREX fiscal Simulation EGS enrollment operator (one-shot, manually invoked)
+After=network-online.target
+Wants=network-online.target
+ConditionPathIsDirectory=/opt/lourex-fiscal/current
+ConditionPathExists=/etc/lourex-staging/worker.json
+ConditionPathExists=/etc/lourex-staging/trusted-runtime-profile.json
+ConditionPathExists=/etc/lourex-staging/enrollment-command.json
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=lourex-staging
+Group=lourex-staging
+WorkingDirectory=/opt/lourex-fiscal/current
+ExecStart=/usr/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-enrollment.mjs
+Environment=NODE_ENV=production
+Environment=LOUREX_AWS_STAGING_ENABLED=true
+Environment=LOUREX_AWS_ENROLLMENT_APPROVED=true
+UMask=0077
+# Key wrapping and SoftHSM PIN derivation are identical to those for worker.
+LoadCredential=wrapping-key:/etc/lourex-staging/secrets/wrapping-key
+LoadCredential=pin-derivation-key:/etc/lourex-staging/secrets/pin-derivation-key
+# Optional, securely delivered by the service manager for the 'begin' step only.
+# Absence must block CSR/Compliance CSID request rather than prompt or log.
+ImportCredential=otp
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/lourex-fiscal/current
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/lourex-staging
+Restart=no
+TimeoutStartSec=220s
+TimeoutStopSec=30s
+
+# Intentionally no [Install] section. Never enable this unit. It is a
+# manually approved ONE-SHOT operation, not an auto-run service.

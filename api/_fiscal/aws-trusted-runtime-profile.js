@@ -86,7 +86,8 @@ export function readVerifiedAwsTrustFile(ref){
 }
 export function bindAwsTrustedRuntime({profile,scopes,readFile=readVerifiedAwsTrustFile,credentialsDirectory,createStagingFiscalRuntime,db}){
  validateAwsTrustedRuntimeProfile(profile,scopes);
- if(credentialsDirectory!=='/run/credentials/lourex-aws-staging.service'||
+ if(!['/run/credentials/lourex-aws-staging.service',
+       '/run/credentials/lourex-aws-enrollment.service'].includes(credentialsDirectory)||
  typeof createStagingFiscalRuntime!=='function'||!db||typeof readFile!=='function')deny();
  const load=ref=>{
   const bytes=readFile(ref);
