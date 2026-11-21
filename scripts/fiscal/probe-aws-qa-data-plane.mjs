@@ -49,7 +49,7 @@ function environmentIsSafe(){
  e.LOUREX_AWS_STAGING_ENABLED!=='true'||e.GOOGLE_APPLICATION_CREDENTIALS&&e.GOOGLE_APPLICATION_CREDENTIALS!==ADC_PATH)deny();
 }
 let stage='ENVIRONMENT';
-const allowedStages=Object.freeze(['ENVIRONMENT','ADC','NODE_DEPENDENCIES','QA_INITIALIZATION','QA_FIRESTORE','PRODUCTION_FIRESTORE']);
+const allowedStages=Object.freeze(['ENVIRONMENT','ADC','NODE_PACKAGE_ACCESS','NODE_ADMIN_IMPORT','NODE_FIRESTORE_IMPORT','QA_INITIALIZATION','QA_FIRESTORE','PRODUCTION_FIRESTORE']);
 export function safeProbeFailure(stage,error){
  const s=allowedStages.includes(stage)?stage:'UNKNOWN';
  if(error?.message==='LOUREX_PRODUCTION_ACCESS_ALLOWED')return 'PRODUCTION_ACCESS_ALLOWED';
@@ -58,6 +58,11 @@ export function safeProbeFailure(stage,error){
  const code=String(error?.code??'');
  const status=Number(error?.response?.status??error?.status??error?.code);
  if([7,'7','permission-denied','PERMISSION_DENIED'].includes(error?.code)||error?.status==='PERMISSION_DENIED'||status===403)return s+'_PERMISSION_DENIED';
+ if(code==='EACCES'||code==='EPERM')return s+'_FILESYSTEM_PERMISSION_DENIED';
+ if(code==='ENOENT'||code==='ENOTDIR')return s+'_PATH_NOT_FOUND';
+ if(code==='ERR_PACKAGE_PATH_NOT_EXPORTED')return s+'_PACKAGE_EXPORT_REJECTED';
+ if(code==='ERR_REQUIRE_ESM')return s+'_MODULE_FORMAT_UNSUPPORTED';
+ if(code==='ERR_DLOPEN_FAILED')return s+'_NATIVE_MODULE_LOAD_FAILED';
  if(code==='MODULE_NOT_FOUND'||code==='ERR_MODULE_NOT_FOUND')return s+'_MODULE_MISSING';
  if([4,14,408,429,500,502,503,504].includes(status))return s+'_REMOTE_UNAVAILABLE';
  if(status===404||status===5)return s+'_RESOURCE_NOT_FOUND';
@@ -68,10 +73,19 @@ async function main(){
  stage='ENVIRONMENT';environmentIsSafe();
  stage='ADC';readRootOwnedAdc();
  process.env.GOOGLE_APPLICATION_CREDENTIALS=ADC_PATH;
- stage='NODE_DEPENDENCIES';
- // Resolve dependencies from the EXISTING EC2 LOUREX checkout; no reinstall.
- const require=createRequire('/home/ubuntu/lourex/package.json');
+ // Earlier preflight checked Node dependency files as ubuntu, not as the
+ // restricted lourex-staging user. Confirm this user can traverse/read them.
+ stage='NODE_PACKAGE_ACCESS';
+ const checkout='/home/ubuntu/lourex/package.json';
+ const packageFd=openSync(checkout,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
+ try{
+  const st=fstatSync(packageFd);
+  if(!st.isFile()||st.size<1||st.size>65536)throw Error('LOCAL_PACKAGE_INVALID');
+ }finally{closeSync(packageFd);}
+ const require=createRequire(checkout);
+ stage='NODE_ADMIN_IMPORT';
  const {applicationDefault,initializeApp,deleteApp}=require('firebase-admin/app');
+ stage='NODE_FIRESTORE_IMPORT';
  const {getFirestore}=require('firebase-admin/firestore');
  stage='QA_INITIALIZATION';
  const qa=initializeApp({projectId:QA,credential:applicationDefault()},'lourex-qa-data-plane-probe');

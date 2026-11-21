@@ -42,7 +42,10 @@ test('only actual permission-denied outcomes prove production isolation',()=>{
 test('safe staged diagnostics classify without leaking provider errors or credentials',async()=>{
  const {safeProbeFailure}=await import('../scripts/fiscal/probe-aws-qa-data-plane.mjs');
  assert.equal(safeProbeFailure('QA_FIRESTORE',{code:7,message:'Bearer sensitive-token'}),'QA_FIRESTORE_PERMISSION_DENIED');
- assert.equal(safeProbeFailure('NODE_DEPENDENCIES',{code:'MODULE_NOT_FOUND',message:'private-path'}),'NODE_DEPENDENCIES_MODULE_MISSING');
+ assert.equal(safeProbeFailure('NODE_ADMIN_IMPORT',{code:'MODULE_NOT_FOUND',message:'private-path'}),'NODE_ADMIN_IMPORT_MODULE_MISSING');
+ assert.equal(safeProbeFailure('NODE_PACKAGE_ACCESS',{code:'EACCES',message:'sensitive server path'}),'NODE_PACKAGE_ACCESS_FILESYSTEM_PERMISSION_DENIED');
+ assert.equal(safeProbeFailure('NODE_FIRESTORE_IMPORT',{code:'EPERM',message:'customer secret'}),'NODE_FIRESTORE_IMPORT_FILESYSTEM_PERMISSION_DENIED');
+ assert.equal(safeProbeFailure('NODE_FIRESTORE_IMPORT',{code:'ERR_PACKAGE_PATH_NOT_EXPORTED',message:'sensitive error'}),'NODE_FIRESTORE_IMPORT_PACKAGE_EXPORT_REJECTED');
  assert.equal(safeProbeFailure('QA_FIRESTORE',{code:14,message:'session token secret'}),'QA_FIRESTORE_REMOTE_UNAVAILABLE');
  assert.equal(safeProbeFailure('PRODUCTION_FIRESTORE',{message:'LOUREX_PRODUCTION_ACCESS_ALLOWED'}),'PRODUCTION_ACCESS_ALLOWED');
  assert.equal(safeProbeFailure('PRODUCTION_FIRESTORE',{message:'LOUREX_PRODUCTION_DENIAL_UNCERTAIN'}),'PRODUCTION_DENIAL_UNCERTAIN');
