@@ -50,3 +50,65 @@ test('production KMS rejects QA project; signer requires registered binding and 
   await assert.rejects(signer.getPublicKey(scope),/SIGNING_SCOPE_MISMATCH/);
   await assert.rejects(signer.getPublicKey({...scope,workspaceId:'company2'}),/SIGNING_SCOPE_MISMATCH/);assert.equal(calls,0);
 });
+
+
+test('production vault rechecks EGS authorization after KMS unwrap before releasing credentials',async()=>{
+ const docs=new Map(),checks=[];let authorized=true,unwrapped=0,unwrappedPlain;
+ const db={doc:p=>p,runTransaction:async fn=>fn({
+   get:async p=>({exists:docs.has(p),data:()=>structuredClone(docs.get(p))}),
+   create:(p,v)=>docs.set(p,structuredClone(v))
+ })};
+ const vault=createProductionCredentialVault({db,
+   authorizeScope:async(_tx,c,operation)=>{
+     checks.push({kind:c.kind,workspaceId:c.workspaceId,egsId:c.egsId,operation});
+     return authorized&&c.environment==='production'&&c.workspaceId==='company1'&&c.egsId==='unit1';
+   },
+   wrapKey:async({key})=>({keyId:'synthetic-only-kms',wrappedKey:Buffer.from(key)}),
+   unwrapKey:async({wrappedKey})=>{
+     unwrapped++;
+     unwrappedPlain=Buffer.from(wrappedKey);
+     // Security hold is committed while the external KMS response is in flight.
+     authorized=false;
+     return unwrappedPlain;
+   }
+ });
+ await vault.store(scope,'hold-race',credential);
+ checks.length=0;
+ await assert.rejects(vault.load(scope,'hold-race','compliance'),e=>
+   e.message==='CREDENTIAL_LOAD_FAILED');
+ assert.equal(unwrapped,1);
+ assert.equal(checks.length,2);
+ assert.deepEqual(checks.map(c=>c.operation),['load','load']);
+ assert(checks.every(c=>c.workspaceId==='company1'&&c.egsId==='unit1'));
+ assert(unwrappedPlain.equals(Buffer.alloc(32))); // ephemeral unwrap key is zeroized
+ assert.equal(JSON.stringify(checks).includes(credential.secret),false);
+ await assert.rejects(vault.load(scope,'hold-race','compliance'),e=>
+   e.message==='CREDENTIAL_LOAD_FAILED');
+ assert.equal(unwrapped,1); // rejected before another KMS operation
+});
+
+test('production vault returns credential only after two independent successful scope checks',async()=>{
+ const docs=new Map();let authorized=true,checks=0,unwrapped=0;
+ const db={doc:p=>p,runTransaction:async fn=>fn({
+   get:async p=>({exists:docs.has(p),data:()=>structuredClone(docs.get(p))}),
+   create:(p,v)=>docs.set(p,structuredClone(v))
+ })};
+ const vault=createProductionCredentialVault({db,
+   authorizeScope:async(_tx,c,operation)=>{
+     if(operation==='load'){checks++;return authorized&&c.egsId==='unit1';}
+     return authorized;
+   },
+   wrapKey:async({key})=>({keyId:'synthetic-only-kms',wrappedKey:Buffer.from(key)}),
+   unwrapKey:async({wrappedKey})=>{unwrapped++;return Buffer.from(wrappedKey);}
+ });
+ await vault.store(scope,'verified-twice',credential);
+ checks=0;
+ assert.deepEqual(await vault.load(scope,'verified-twice','compliance'),credential);
+ assert.equal(checks,2);
+ assert.equal(unwrapped,1);
+ authorized=false;
+ await assert.rejects(vault.load(scope,'verified-twice','compliance'),e=>
+   e.message==='CREDENTIAL_LOAD_FAILED');
+ assert.equal(checks,3);
+ assert.equal(unwrapped,1);
+});
