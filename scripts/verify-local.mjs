@@ -616,7 +616,7 @@ function runFirestoreQa(){
   }
 }
 async function main(){
-  if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory emulator and browser QA; not a merge signoff.');
+  if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory browser QA and Firestore emulator QA; not a merge signoff.');
   runLocalChecks();
   if(!args.has('--quick'))runFirestoreQa();
   if(!args.has('--quick')||args.has('--legacy')){
