@@ -29,6 +29,8 @@ test('pins simulation, tenant + EGS, authority root, SDK and approved evidence',
   {...profile,clearance:{...profile.clearance,qrProfile:'test'}},
   {...profile,chains:[{...profile.chains[0],scope:{...scope,egsId:'other'}}]},
   {...profile,chains:[{...profile.chains[0],leafDigest:root.sha256}]},
+  {...profile,chains:[]},
+  {...profile,chains:[profile.chains[0],profile.chains[0]]},
  ])assert.throws(()=>validateAwsTrustedRuntimeProfile(p,[scope]),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
 });
 test('read-only binding supplies original reviewed fiscal runtime, no mock verifier',async()=>{
@@ -49,4 +51,11 @@ test('fails closed when trusted material changes, credentials are missing or no 
  assert.throws(()=>bindAwsTrustedRuntime({...base,credentialsDirectory:'/tmp/secret'}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
  assert.throws(()=>bindAwsTrustedRuntime({...base,readFile:()=>Buffer.from('evil')}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
  assert.throws(()=>bindAwsTrustedRuntime({...base,createStagingFiscalRuntime:()=>({})}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+});
+
+test('every selected EGS requires its own pinned certificate chain',()=>{
+ const second={...scope,egsId:'egs2'};
+ assert.throws(()=>validateAwsTrustedRuntimeProfile(profile,[scope,second]),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ const full={...profile,chains:[profile.chains[0],{...profile.chains[0],scope:second}]};
+ assert.equal(validateAwsTrustedRuntimeProfile(full,[scope,second]),full);
 });

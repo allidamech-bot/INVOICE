@@ -46,6 +46,9 @@ export function validateAwsTrustedRuntimeProfile(profile,scopes){
    if(!scopeKeys.has(k)||seen.has(k))deny();seen.add(k);
    if(row.certificates[0].sha256!==row.leafDigest||row.certificates.at(-1).sha256!==profile.trust.rootDigest)deny();
   }
+  // The service polls every selected EGS. A missing certificate chain must
+  // fail startup rather than leave that unit in an untestable partial state.
+  if(seen.size!==scopeKeys.size)deny();
   return profile;
  }catch{deny();}
 }
