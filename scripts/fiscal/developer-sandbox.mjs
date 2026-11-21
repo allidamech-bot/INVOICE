@@ -53,8 +53,10 @@ function cleared(r){
 }
 try{
  process.umask(0o077);
- const request=csr(),args=process.argv.slice(2);
+ const args=process.argv.slice(2);
+ // No key generation or network request without a single explicit mode.
  need(args.length===1&&['--csr-only','--live-developer-sandbox'].includes(args[0]),'EXPLICIT_SANDBOX_MODE_REQUIRED');
+ const request=csr();
  if(args[0]==='--csr-only')console.log('OFFLINE CSR ONLY; no request sent.');
  else{
   stage='prepare-standard-invoice';

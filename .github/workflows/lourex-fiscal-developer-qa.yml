@@ -1,0 +1,39 @@
+name: LOUREX Fiscal Developer Portal Offline QA
+
+on:
+  pull_request:
+    paths:
+      - 'api/_fiscal/zatca-simulation.js'
+      - 'scripts/fiscal/developer-sandbox.mjs'
+      - 'tests/fiscal-multitenant-developer-flow.test.mjs'
+      - 'tests/fiscal-developer-csr-offline.test.mjs'
+      - '.github/workflows/lourex-fiscal-developer-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/_fiscal/zatca-simulation.js'
+      - 'scripts/fiscal/developer-sandbox.mjs'
+      - 'tests/fiscal-multitenant-developer-flow.test.mjs'
+      - 'tests/fiscal-developer-csr-offline.test.mjs'
+      - '.github/workflows/lourex-fiscal-developer-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-fiscal-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate transport and tests syntax
+        run: |
+          node --check api/_fiscal/zatca-simulation.js
+          node --check scripts/fiscal/developer-sandbox.mjs
+          node --check tests/fiscal-multitenant-developer-flow.test.mjs
+          node --check tests/fiscal-developer-csr-offline.test.mjs
+      - name: Test two synthetic taxpayers, six compliance checks, clearance/reporting, and offline CSR
+        run: node --test tests/fiscal-zatca-simulation.test.mjs tests/fiscal-multitenant-developer-flow.test.mjs tests/fiscal-developer-csr-offline.test.mjs
