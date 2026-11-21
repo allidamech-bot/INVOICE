@@ -78,5 +78,21 @@ export async function createProductionFiscalRuntime({db,loadWorkspace,enrollment
     return session.credentialKind==='operational'&&session.scope.environment==='production'&&
       ['accountUid','workspaceId','egsId'].every(k=>session.scope[k]===scope[k]);
   }
-  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,registerVerifiedUnit:registered.registerVerifiedUnit,issuance,verifyIssuanceReady});
+  // Operator-only provisioning path; never exposed through the hosted
+  // customer profile handler. All three independently supplied production
+  // capabilities are mandatory and there is no synthetic fallback.
+  let provisionRequestedUnit;
+  if(['authorizeOperator','verifyTaxpayerEligibility','resolveApprovedHsmKey']
+    .every(k=>typeof enrollmentAdapters[k]==='function')){
+    const {createProductionProvisioningBridge}=await import('./production-provisioning-bridge.js');
+    provisionRequestedUnit=createProductionProvisioningBridge({
+      db,loadWorkspace,registerVerifiedUnit:registered.registerVerifiedUnit,
+      authorizeOperator:enrollmentAdapters.authorizeOperator,
+      verifyTaxpayerEligibility:enrollmentAdapters.verifyTaxpayerEligibility,
+      resolveApprovedHsmKey:enrollmentAdapters.resolveApprovedHsmKey,
+    });
+  }
+  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,
+    registerVerifiedUnit:registered.registerVerifiedUnit,
+    provisionRequestedUnit,issuance,verifyIssuanceReady});
 }
