@@ -92,7 +92,17 @@ export async function createProductionFiscalRuntime({db,loadWorkspace,enrollment
       resolveApprovedHsmKey:enrollmentAdapters.resolveApprovedHsmKey,
     });
   }
+  // Separate immutable, independently approved emergency hold. This does not
+  // enable a browser suspension route or an automatic reactivation path.
+  let holdUnit;
+  if(typeof enrollmentAdapters.authorizeOperator==='function'&&
+    typeof enrollmentAdapters.verifyHoldEvidence==='function'){
+    const {createProductionSecurityHold}=await import('./production-security-hold.js');
+    holdUnit=createProductionSecurityHold({db,
+      authorizeOperator:enrollmentAdapters.authorizeOperator,
+      verifyEvidence:enrollmentAdapters.verifyHoldEvidence});
+  }
   return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,
     registerVerifiedUnit:registered.registerVerifiedUnit,
-    provisionRequestedUnit,issuance,verifyIssuanceReady});
+    provisionRequestedUnit,holdUnit,issuance,verifyIssuanceReady});
 }
