@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/fiscal/install-aws-fiscal-units.sh'
       - 'scripts/fiscal/aws-readiness-gate.mjs'
+      - 'scripts/fiscal/audit-google-qa-preview-wif.mjs'
+      - 'tests/fiscal-qa-preview-wif-attestation.test.mjs'
       - 'tests/fiscal-aws-readiness-gate.test.mjs'
       - 'tests/fiscal-aws-immutable-release-upgrade.test.mjs'
       - '.github/workflows/lourex-fiscal-aws-release-qa.yml'
@@ -13,6 +15,8 @@ on:
     paths:
       - 'scripts/fiscal/install-aws-fiscal-units.sh'
       - 'scripts/fiscal/aws-readiness-gate.mjs'
+      - 'scripts/fiscal/audit-google-qa-preview-wif.mjs'
+      - 'tests/fiscal-qa-preview-wif-attestation.test.mjs'
       - 'tests/fiscal-aws-readiness-gate.test.mjs'
       - 'tests/fiscal-aws-immutable-release-upgrade.test.mjs'
       - '.github/workflows/lourex-fiscal-aws-release-qa.yml'
@@ -31,5 +35,7 @@ jobs:
           node-version: '24'
       - name: Verify fiscal installer shell syntax
         run: bash -n scripts/fiscal/install-aws-fiscal-units.sh
+      - name: Verify read-only QA identity audit syntax
+        run: node --check scripts/fiscal/audit-google-qa-preview-wif.mjs
       - name: Test immutable release and read-only fiscal readiness
-        run: node --test tests/fiscal-aws-readiness-gate.test.mjs tests/fiscal-aws-immutable-release-upgrade.test.mjs
+        run: node --test tests/fiscal-aws-readiness-gate.test.mjs tests/fiscal-aws-immutable-release-upgrade.test.mjs tests/fiscal-qa-preview-wif-attestation.test.mjs tests/fiscal-qa-vercel-federation.test.mjs tests/fiscal-qa-credential-files.test.mjs
