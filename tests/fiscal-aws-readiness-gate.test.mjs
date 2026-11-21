@@ -24,3 +24,17 @@ test('operator output is read-only HOLD with nonzero exit',()=>{
   assert.equal(r.decision,'HOLD');
   assert.ok(!('secret' in r));
 });
+
+test('read-only audit accepts only an explicitly pinned, matching installed release SHA',()=>{
+  const sha='b'.repeat(40);
+  const options={
+    base:'/absent-qa',releaseRoot:'/opt/fiscal-test',serviceStopped:()=>true,
+    read:p=>p==='/opt/fiscal-test/.lourex-fiscal-commit'?Buffer.from(sha+'\n'):null,
+    readJson:()=>null
+  };
+  assert.equal(fiscalAudit({...options,expectedReleaseSha:sha}).checks.reviewedReleaseInstalled,'PASS');
+  assert.equal(fiscalAudit({...options,expectedReleaseSha:''}).checks.reviewedReleaseInstalled,'BLOCKED');
+  assert.equal(fiscalAudit({...options,expectedReleaseSha:'a'.repeat(40)}).checks.reviewedReleaseInstalled,'BLOCKED');
+  assert.equal(fiscalAudit({...options,expectedReleaseSha:'invalid'}).checks.reviewedReleaseInstalled,'BLOCKED');
+  assert.equal(fiscalAudit({...options,expectedReleaseSha:sha}).decision,'HOLD');
+});
