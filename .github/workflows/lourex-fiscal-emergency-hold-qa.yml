@@ -1,0 +1,37 @@
+name: LOUREX Fiscal Emergency Hold QA
+
+on:
+  pull_request:
+    paths:
+      - 'api/_fiscal/production-scope.js'
+      - 'api/_fiscal/production-security-hold.js'
+      - 'api/_fiscal/production-enrollment-runtime.js'
+      - 'tests/fiscal-production-scope.test.mjs'
+      - '.github/workflows/lourex-fiscal-emergency-hold-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-security-hold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      LOUREX_FISCAL_LIVE_ENABLED: 'false'
+      LOUREX_AWS_WORKER_ENABLED: 'false'
+      LOUREX_AWS_DISPATCH_APPROVED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check syntax
+        run: |
+          node --check api/_fiscal/production-scope.js
+          node --check api/_fiscal/production-security-hold.js
+          node --check api/_fiscal/production-enrollment-runtime.js
+      - name: Test security hold and production isolation
+        run: |
+          node --test tests/fiscal-production-scope.test.mjs tests/fiscal-production-registration-coordinator.test.mjs tests/fiscal-production-enrollment-command.test.mjs

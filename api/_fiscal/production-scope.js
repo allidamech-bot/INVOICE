@@ -72,6 +72,11 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
     return {...s,branchId:input.branchId,issuer:i,unit:u,binding:b,profileVersion:p.version,profileDigest:digest(p),eligibilityEvidenceDigest:input.eligibilityEvidenceDigest};
   }
   async function read(tx,s){
+    // An independently authorized emergency hold is immutable and denies
+    // every future enrollment, credential load, signing and ZATCA dispatch.
+    // Never bypass it by relying on a cached active EGS document.
+    const hold=data(await tx.get(db.doc(base(s)+'/egs/'+s.egsId+'/security/hold')));
+    need(!hold,'PRODUCTION_SECURITY_HOLD');
     const {workspace,p}=await currentProfile(tx,s),u=data(await tx.get(unitRef(s)));
     checkProfileLock(data(await tx.get(profileLockRef(s))),s,p);
     need(same(u,s)&&['enrolling','active'].includes(u.state)&&u.profileVersion===p.version&&u.profileDigest===digest(p));
@@ -116,6 +121,8 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
       return db.runTransaction(async tx=>{
         const {workspace,p}=await currentProfile(tx,s),next=registration(input,s,workspace,p);
         need(digest(next)===digest(initial),'PRODUCTION_PROFILE_CHANGED');
+        const securityHold=data(await tx.get(db.doc(base(s)+'/egs/'+s.egsId+'/security/hold')));
+        need(!securityHold,'PRODUCTION_SECURITY_HOLD');
         const existing=data(await tx.get(unitRef(s))),key=data(await tx.get(keyRef(next.binding))),pub=data(await tx.get(pubRef(next.binding))),lock=data(await tx.get(profileLockRef(s)));
         if(lock)checkProfileLock(lock,s,p);
         const request=data(await tx.get(requestRef(s,next.branchId)));

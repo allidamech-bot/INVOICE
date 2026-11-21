@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,generateKeyPairSync,sign} from 'node:crypto';
 import {createProductionScopeAuthority} from '../api/_fiscal/production-scope.js';
+import {createProductionSecurityHold} from '../api/_fiscal/production-security-hold.js';
 import {fiscalCompanySourceDigest} from '../api/_fiscal/production-profile.js';
 import {createManagedProductionCsr,verifyManagedProductionCsr,verifyManagedSimulationCsr} from '../api/_fiscal/managed-csr.js';
 import {createZatcaProductionClient} from '../api/_fiscal/zatca-simulation.js';
@@ -25,7 +26,7 @@ function fixture(options={}){
   rows.set('fiscalProductionV1/owner/workspaces/'+workspaceId+'/provisioningRequests/main',{environment:'production',accountUid:'owner',workspaceId,branchId:'main',state:'pending',profileVersion:1,sourceDigest:fiscalCompanySourceDigest(company),functionalityMap:unit.functionalityMap,businessCategory:unit.businessCategory});
  }
  const authority=createProductionScopeAuthority({db,loadWorkspace:async(_tx,s)=>{assert.equal(s.accountUid,'owner');return structuredClone(workspaces.get(s.workspaceId));},verifyRegistration:async()=>true,verifyOperation:async()=>true,verifyResult:async()=>true,kmsProjectId:project,clock:()=> '2026-11-20T00:00:00.000Z',...options});
- return {authority,rows,workspaces};
+ return {authority,rows,workspaces,db};
 }
 test('registration binds both entire HSM key and public digest to one company and EGS',async()=>{
  const {authority,rows}=fixture();const input=registration();
@@ -81,4 +82,58 @@ test('unverified operation and altered CSR cannot dispatch, enrolling unit canno
 test('registration requires a matching current branch request',async()=>{
  const {authority,rows}=fixture();rows.delete('fiscalProductionV1/owner/workspaces/one/provisioningRequests/main');
  await assert.rejects(authority.registerUnit(owner,registration()),/REQUEST_REQUIRED/);
+});
+
+test('immutable emergency hold immediately denies EGS keys, submissions and registration replay',async()=>{
+ const {authority,rows,db}=fixture();
+ const input=registration();
+ await authority.registerUnit(owner,input);
+ const operator='trusted-security-operator';
+ const hold=createProductionSecurityHold({db,
+   authorizeOperator:async(s,context,operation)=>context===operator&&
+     operation==='security-hold'&&s.accountUid===scope.accountUid&&
+     s.workspaceId===scope.workspaceId&&s.egsId===scope.egsId,
+   verifyEvidence:async evidence=>evidence.scope.egsId===scope.egsId&&
+     evidence.reason==='suspected-key-compromise'&&evidence.evidenceDigest===sha('verified incident'),
+   clock:()=> '2026-11-21T12:00:00.000Z',
+ });
+ const command={scope,reason:'suspected-key-compromise',evidenceDigest:sha('verified incident')};
+ await assert.rejects(hold(command,'other-operator'),/PRODUCTION_SECURITY_HOLD_DENIED/);
+ assert.equal(await authority.authorizeBinding(input.binding),true);
+ assert.deepEqual(await hold(command,operator),{state:'held'});
+ assert.deepEqual(await hold(command,operator),{state:'already-held'});
+ const root='fiscalProductionV1/owner/workspaces/one/egs/egs1';
+ const evidence=rows.get(root+'/security/hold');
+ assert.equal(evidence.state,'held');
+ assert.equal(evidence.evidenceDigest,command.evidenceDigest);
+ assert.equal(rows.get(root).state,'enrolling'); // historical identity untouched
+ assert.equal(await authority.authorizeBinding(input.binding),false);
+ assert.equal(await db.runTransaction(tx=>authority.authorizeCredential(tx,{
+   ...scope,ref:'stored-credential',kind:'compliance'},'load')),false);
+ await assert.rejects(db.runTransaction(tx=>authority.readUnit(tx,scope)),
+   /PRODUCTION_SECURITY_HOLD/);
+ await assert.rejects(authority.registerUnit(owner,input),/PRODUCTION_SECURITY_HOLD/);
+ await assert.rejects(authority.reserveAttempt('compliance-csid',{
+   scope,operation:'compliance-csid',csrDigest:sha('csr')}),/PRODUCTION_SECURITY_HOLD/);
+ await assert.rejects(hold({...command,evidenceDigest:sha('another')},operator));
+ assert.equal(rows.get(root+'/security/hold').evidenceDigest,command.evidenceDigest);
+});
+test('operator and evidence requirements cannot be bypassed using a tenant identity',async()=>{
+ const {db}=fixture();
+ const input={scope,reason:'taxpayer-request',evidenceDigest:sha('document')};
+ assert.throws(()=>createProductionSecurityHold({db,
+   authorizeOperator:undefined,verifyEvidence:async()=>true}),
+   /PRODUCTION_SECURITY_HOLD_DENIED/);
+ const denyOperator=createProductionSecurityHold({db,
+   authorizeOperator:async()=>false,verifyEvidence:async()=>true});
+ await assert.rejects(denyOperator(input,{uid:'owner',role:'owner'}),/PRODUCTION_SECURITY_HOLD_DENIED/);
+ const denyEvidence=createProductionSecurityHold({db,
+   authorizeOperator:async()=>true,verifyEvidence:async()=>false});
+ await assert.rejects(denyEvidence(input,'trusted'),/PRODUCTION_SECURITY_EVIDENCE_UNVERIFIED/);
+ for(const bad of [
+   {...input,scope:{...scope,environment:'simulation'}},
+   {...input,scope:{...scope,egsId:'../../other'}},
+   {...input,reason:'enable-certificate'},
+   {...input,secret:'browser credential'},
+ ])await assert.rejects(denyEvidence(bad,'trusted'),/PRODUCTION_SECURITY_HOLD_DENIED/);
 });
