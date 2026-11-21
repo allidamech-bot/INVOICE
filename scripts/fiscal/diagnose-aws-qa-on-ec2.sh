@@ -12,8 +12,8 @@ sudo test -f /etc/lourex-staging/aws-adc.json || fail 'EXISTING_QA_ADC_MISSING'
 TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
 chmod 0755 "$TMP"
-readonly REF='34633bb180f0aa69cfa0a2a7bd44dcd11e34eb89'
-readonly BLOB='1e9173c075b87bdc332c1ba6bff8d4a6c35ef342'
+readonly REF='73feef228578c5cdd062bd730592c73973914815'
+readonly BLOB='9dac9628f6a94eb5e19ca7b0dafe98301bfdd2e0'
 curl -fsSL --max-time 45 "https://raw.githubusercontent.com/allidamech-bot/INVOICE/$REF/scripts/fiscal/probe-aws-qa-data-plane.mjs" -o "$TMP/diagnostic.mjs" || fail 'PINNED_DIAGNOSTIC_DOWNLOAD_FAILED'
 [[ "$(git hash-object "$TMP/diagnostic.mjs")" == "$BLOB" ]] || fail 'PINNED_DIAGNOSTIC_HASH_FAILED'
 chmod 0644 "$TMP/diagnostic.mjs"
