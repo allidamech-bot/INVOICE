@@ -14,7 +14,7 @@ test('installer is syntax valid and pinned to the existing instance + fiscal bra
  assert.match(code,/refs\/heads\/feat\/fiscal-batch2-remaining-settlements/);
  assert.match(code,/rev-parse FETCH_HEAD/);
  assert.match(code,/BRANCH_CHANGED_ABORT/);
- assert.match(code,/git sparse-checkout set api\/_fiscal api\/_accounting scripts\/fiscal deploy\/fiscal src/);
+ assert.match(code,/git -C "\$GIT_REPO" sparse-checkout set api\/_fiscal api\/_accounting scripts\/fiscal deploy\/fiscal src/);
  assert.match(code,/--depth 1 --filter=blob:none/);
  assert.match(code,/RUN_AS_UBUNTU_ON_EXISTING_EC2/);
  assert.match(code,/EXISTING_FISCAL_RELEASE_DIFFERS/);
