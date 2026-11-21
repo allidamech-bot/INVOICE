@@ -44,11 +44,11 @@ export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapte
   const loadWorkspace=publishedWorkspaceLoader(db,format);
   // No default synthetic verifier, and no environment flag alone authorizes
   // taxpayer onboarding. Hosting must explicitly supply reviewed adapters.
-  let enrollment,issuance,authority,verifyIssuanceReady;
+  let enrollment,issuance,authority,verifyIssuanceReady,provisionRequestedUnit;
   if(trustedEnrollmentAdapters&&process.env.LOUREX_FISCAL_LIVE_ENABLED==='true'){
     const {createProductionEnrollmentRuntime,createProductionFiscalRuntime}=await import('./production-enrollment-runtime.js');
-    if(trustedIssuanceAdapters){({enrollment,issuance,authority,verifyIssuanceReady}=await createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters:trustedEnrollmentAdapters,issuanceAdapters:trustedIssuanceAdapters}));}
-    else enrollment=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment;
+    if(trustedIssuanceAdapters){({enrollment,issuance,authority,verifyIssuanceReady,provisionRequestedUnit}=await createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters:trustedEnrollmentAdapters,issuanceAdapters:trustedIssuanceAdapters}));}
+    else ({enrollment,provisionRequestedUnit}=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}));
   }
-  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured:!!issuance,verifyIssuanceReady}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
+  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured:!!issuance,verifyIssuanceReady,provisioningConfigured:typeof provisionRequestedUnit==='function'}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
 }
