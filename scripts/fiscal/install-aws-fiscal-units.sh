@@ -50,8 +50,15 @@ done
 "$NODE" "$SOURCE/node_modules/typescript/bin/tsc" \
  --target ES2022 --module ES2022 --moduleResolution Bundler --skipLibCheck \
  --rootDir "$GIT_REPO/src" --outDir "$WORK/compiled/dist/src" \
- "$GIT_REPO/src/lib/fiscal-issuance.ts" || fail 'FISCAL_STATE_MACHINE_COMPILE_FAILED'
-[[ -s "$WORK/compiled/dist/src/lib/fiscal-issuance.js" ]] || fail 'FISCAL_STATE_MACHINE_MISSING'
+ "$GIT_REPO/src/lib/fiscal-issuance.ts" \
+ "$GIT_REPO/src/lib/fiscal-issuer.ts" \
+ "$GIT_REPO/src/lib/fiscal-routing.ts" \
+ "$GIT_REPO/src/lib/fiscal-tax.ts" \
+ "$GIT_REPO/src/lib/money.ts" || fail 'FISCAL_STATE_MACHINE_COMPILE_FAILED'
+for financial in fiscal-issuance fiscal-issuer fiscal-routing fiscal-tax money;do
+ [[ -s "$WORK/compiled/dist/src/lib/$financial.js" ]] || fail 'FISCAL_FINANCIAL_MODULE_MISSING'
+ "$NODE" --check "$WORK/compiled/dist/src/lib/$financial.js" || fail 'FISCAL_FINANCIAL_MODULE_SYNTAX_FAILED'
+done
 "$NODE" --check "$WORK/compiled/dist/src/lib/fiscal-issuance.js" || fail 'FISCAL_COMPILED_SYNTAX_FAILED'
 
 # Create a private, root-controlled release in the fiscal directory only.

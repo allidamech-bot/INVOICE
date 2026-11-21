@@ -27,6 +27,9 @@ test('root release is independent of website Node, does not enable or start serv
  }
  assert.match(audit,/execFileSync\('\/opt\/lourex-fiscal\/bin\/node'/);
  assert.match(code,/FISCAL_STATE_MACHINE_COMPILE_FAILED/);
+ for(const name of ['fiscal-issuer','fiscal-routing','fiscal-tax','money','fiscal-issuance'])
+  assert(code.includes('"$GIT_REPO/src/lib/'+name+'.ts"'));
+ assert.match(code,/FISCAL_FINANCIAL_MODULE_MISSING/);
  assert.match(code,/FISCAL_RUNTIME_IMPORT_FAILED/);
  assert.match(code,/sudo systemctl daemon-reload/);
  assert.doesNotMatch(code,/sudo systemctl (?:start|enable|restart|try-restart|preset|reenable|unmask|stop)\b/);
