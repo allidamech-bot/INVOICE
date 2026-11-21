@@ -1,0 +1,39 @@
+name: LOUREX ZATCA Developer Portal Synthetic Smoke (One-shot)
+
+# THIS IS A DEVELOPER-INTEGRATION-SANDBOX TEST, NEVER AN ACCEPTANCE OF
+# ZATCA SIMULATION OR PRODUCTION. All entities, keys and CSIDs are synthetic.
+# The narrow PR file trigger performs a single opt-in investigation. Future
+# changes to unrelated files cannot silently re-run external API requests.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/lourex-fiscal-live-developer-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  developer-sandbox-qa-only:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      LOUREX_FISCAL_LIVE_ENABLED: 'false'
+      LOUREX_AWS_WORKER_ENABLED: 'false'
+      LOUREX_AWS_DISPATCH_APPROVED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies without scripts or external build deploy
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build only local fiscal dependencies
+        run: npm run build
+      - name: Synthetic Developer Portal transport (no customer, no AWS, no OTP from portal)
+        run: node scripts/fiscal/developer-sandbox.mjs --live-developer-sandbox
