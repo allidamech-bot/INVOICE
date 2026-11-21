@@ -79,6 +79,10 @@ try{
   stage='test-clearance';
   const response=await post('invoices/clearance/single',payload,{...auth(operational),'Clearance-Status':'1'});
   need(cleared(response),'SANDBOX_CLEARANCE_NOT_CONFIRMED');
+  const warningCodes=(response.value?.validationResults?.warningMessages??[])
+    .map(v=>safeCode(v?.code??v?.errorCode)).filter(Boolean);
+  // Only warning identifiers; never print raw validation messages or certificates.
+  console.log(JSON.stringify({stage:'clearance-warning-identifiers',warningCodes}));
   const clearedEvidence=verifyDeveloperSandboxClearance({
     httpStatus:response.status,body:response.value,request:payload,
     canonicalize:bytes=>run('java',['-cp',dir,'CanonicalInvoice','invoice'],bytes)

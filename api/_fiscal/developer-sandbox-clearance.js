@@ -4,7 +4,7 @@ import {createHash,timingSafeEqual} from 'node:crypto';
 
 const MAX=512*1024;
 const BAD='DEVELOPER_CLEARED_ARTIFACT_UNVERIFIED';
-const need=x=>{if(!x)throw Error(BAD);};
+const need=(x,reason='UNVERIFIED')=>{if(!x)throw Error(BAD+'_'+reason);};
 const SHA=/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/;
 function strict64(v){
  need(typeof v==='string'&&v.length>0&&v.length<=Math.ceil(MAX/3)*4+4&&/^[A-Za-z0-9+/]+={0,2}$/.test(v));
@@ -27,12 +27,13 @@ export function verifyDeveloperSandboxClearance({httpStatus,body,request,canonic
  const canonicalSent=canonicalize(sent),canonicalCleared=canonicalize(cleared);
  need(Buffer.isBuffer(canonicalSent)&&Buffer.isBuffer(canonicalCleared)&&
    canonicalSent.length>0&&canonicalCleared.length>0&&
-   canonicalSent.length<=MAX&&canonicalCleared.length<=MAX);
+   canonicalSent.length<=MAX&&canonicalCleared.length<=MAX,'CANONICAL_OUTPUT_INVALID');
  // A CLEARED text flag alone is not enough. The returned invoice, after the
  // same ZATCA-style signature/QR exclusions, must canonically match the input.
  const sentHash=digest(canonicalSent),receivedHash=digest(canonicalCleared);
- need(timingSafeEqual(sentHash,expectedHash)&&timingSafeEqual(receivedHash,expectedHash)&&
-   canonicalSent.equals(canonicalCleared));
+ need(timingSafeEqual(sentHash,expectedHash),'SENT_HASH_MISMATCH');
+ need(timingSafeEqual(receivedHash,expectedHash),'RETURNED_HASH_MISMATCH');
+ need(canonicalSent.equals(canonicalCleared),'RETURNED_CANONICAL_BYTES_CHANGED');
  const codes=body.validationResults.warningMessages.map(x=>code(x?.code??x?.errorCode)).filter(Boolean);
  return Object.freeze({status:'DEVELOPER_CLEARED_ARTIFACT_MATCHED',warningCount:body.validationResults.warningMessages.length,warningCodes:Object.freeze(codes)});
 }
