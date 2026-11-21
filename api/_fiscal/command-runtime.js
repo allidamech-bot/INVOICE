@@ -1,4 +1,5 @@
 import {fiscalQaProject,fiscalQaIdentity} from './status-runtime.js';
+import {prepareFiscalQaPreviewCredential,requireFiscalQaPreviewFederation} from './vercel-qa-federation.js';
 import {createFiscalCommandService} from './command-service.js';
 import {createFiscalResponseStatus} from './response-status.js';
 import {createFiscalLedger} from './ledger.js';
@@ -13,9 +14,8 @@ import {createStagingDispatchRequest} from './staging-dispatch.js';
 export function fiscalCommandConfig(env){
   const project=fiscalQaProject(env);
   if(env.LOUREX_FISCAL_COMMANDS_ENABLED!=='true')throw Error('FISCAL_COMMAND_UNAVAILABLE');
-  let account,reader;try{account=JSON.parse(env.LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON||'');reader=JSON.parse(env.LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON||'');}catch{throw Error('FISCAL_COMMAND_UNAVAILABLE');}
-  if(account?.project_id!==project||reader?.project_id!==project||typeof account.client_email!=='string'||!account.client_email.endsWith('@'+project+'.iam.gserviceaccount.com')||typeof reader.client_email!=='string'||account.client_email===reader.client_email||typeof account.private_key!=='string'||!account.private_key)throw Error('FISCAL_COMMAND_UNAVAILABLE');
-  return {project,account};
+  requireFiscalQaPreviewFederation(env);
+  return {project};
 }
 // Trusted server composition only, never request options. A complete set
 // of separately verified adapters is required before remote commands exist.
@@ -33,16 +33,17 @@ export function privateAcceptanceAdaptersConfigured(options){
   if(!options||typeof options!=='object'||Array.isArray(options)||!Object.keys(options).length||Object.keys(options).some(k=>!['pdf','verifySupplierSettlementEvidence','verifyStockGlEvidence'].includes(k))||Object.hasOwn(options,'verifySupplierSettlementEvidence')&&typeof options.verifySupplierSettlementEvidence!=='function'||Object.hasOwn(options,'verifyStockGlEvidence')&&typeof options.verifyStockGlEvidence!=='function'||Object.hasOwn(options,'pdf')&&!options.pdf)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
   return Object.freeze({...(options.pdf===undefined?{}:{pdf:createIndependentFiscalPdfVerifier(options.pdf)}),verifySupplierSettlementEvidence:options.verifySupplierSettlementEvidence,verifyStockGlEvidence:options.verifyStockGlEvidence});
 }
-export async function getFiscalQaCommandRuntime({simulationAdapters,privateAcceptanceAdapters}={}){
+export async function getFiscalQaCommandRuntime({simulationAdapters,privateAcceptanceAdapters}={},request){
   const configured=fiscalSimulationAdaptersConfigured(simulationAdapters);
   const awsDispatch=process.env.LOUREX_FISCAL_AWS_QUEUE_ENABLED==='true';
   if(configured&&awsDispatch)throw Error('FISCAL_VERIFICATION_UNAVAILABLE');
   const privateAdapters=privateAcceptanceAdaptersConfigured(privateAcceptanceAdapters);
-  const {project,account}=fiscalCommandConfig(process.env);
-  const [{initializeApp,getApps,cert},{getFirestore},{getAuth},{createCommercialIssueApproval},{createCommercialReview}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js'),import('./commercial-review.js')]);
+  const {project}=fiscalCommandConfig(process.env);
+  prepareFiscalQaPreviewCredential(request);
+  const [{initializeApp,getApps,applicationDefault},{getFirestore},{getAuth},{createCommercialIssueApproval},{createCommercialReview}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js'),import('./commercial-review.js')]);
   const name='lourex-fiscal-qa-command';let app=getApps().find(a=>a.name===name);
   if(app&&app.options.projectId!==project)throw Error('FISCAL_COMMAND_UNAVAILABLE');
-  if(!app)app=initializeApp({projectId:project,credential:cert(account)},name);
+  if(!app)app=initializeApp({projectId:project,credential:applicationDefault()},name);
   const db=getFirestore(app),auth=getAuth(app);
   const ledger=createFiscalLedger(db,configured?{sdkInstallationManifestSha256:simulationAdapters.preparation.sdk.manifestSha256}:awsDispatch?{requireStagingDispatch:true}:{}),accounting=createFiscalAccounting({db,verifySupplierSettlementEvidence:privateAdapters?.verifySupplierSettlementEvidence,verifyStockGlEvidence:privateAdapters?.verifyStockGlEvidence});
   const output=createFiscalOutputService({db,verifyPdf:privateAdapters?.pdf});

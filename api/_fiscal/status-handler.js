@@ -23,7 +23,7 @@ export function createFiscalStatusHandler({getRuntime}){
     const token=String(request.headers?.authorization||'').match(/^Bearer ([A-Za-z0-9._~-]{100,8192})$/)?.[1];
     if(!token){send(response,401,{code:'FISCAL_AUTH_REQUIRED'});return;}
     let runtime;
-    try{runtime=await getRuntime();}catch{send(response,503,{code:'FISCAL_STATUS_UNAVAILABLE'});return;}
+    try{runtime=await getRuntime(request);}catch{send(response,503,{code:'FISCAL_STATUS_UNAVAILABLE'});return;}
     let identity;
     try{identity=await runtime.verifyIdentity(token);}catch{send(response,401,{code:'FISCAL_AUTH_INVALID'});return;}
     if(identity?.role!=='owner'||typeof identity.uid!=='string'||!ID.test(identity.uid)){send(response,403,{code:'FISCAL_STATUS_FORBIDDEN'});return;}
@@ -33,4 +33,4 @@ export function createFiscalStatusHandler({getRuntime}){
     catch(e){const denied=e?.message==='FISCAL_STATUS_FORBIDDEN';send(response,denied?403:503,{code:denied?'FISCAL_STATUS_FORBIDDEN':'FISCAL_STATUS_UNAVAILABLE'});}
   };
 }
-export default createFiscalStatusHandler({getRuntime:async()=>{const {getFiscalQaRuntime}=await import('./status-runtime.js');return getFiscalQaRuntime();}});
+export default createFiscalStatusHandler({getRuntime:async request=>{const {getFiscalQaRuntime}=await import('./status-runtime.js');return getFiscalQaRuntime(request);}});

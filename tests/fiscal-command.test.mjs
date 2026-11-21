@@ -34,9 +34,11 @@ test('HTTP verifies origin and identity and returns only bounded public errors',
  assert.equal((await http(h)).status,200);assert.equal((await http(h,{body:{...cmd('inspect'),secret:'x'}})).status,400);assert.equal((await http(h,{method:'GET'})).status,405);assert.equal((await http(h,{body:cmd('prepare',doc)})).status,503);
  const revoked=createFiscalCommandHandler({getRuntime:async()=>({verifyIdentity:async()=>{throw Error('private');},execute:f.execute})});assert.deepEqual(await http(revoked),{status:401,body:{code:'FISCAL_AUTH_INVALID'}});
 });
-test('QA writer key cannot use production or reader identity',()=>{
- const project='lourex-fiscal-qa',reader={project_id:project,client_email:'reader@'+project+'.iam.gserviceaccount.com',private_key:'test'},writer={...reader,client_email:'writer@'+project+'.iam.gserviceaccount.com'},env={VERCEL_ENV:'preview',LOUREX_FISCAL_STATUS_ENABLED:'true',LOUREX_FISCAL_COMMANDS_ENABLED:'true',LOUREX_FISCAL_QA_PROJECT_ID:project,LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON:JSON.stringify(reader),LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(writer)};
- assert.deepEqual(fiscalCommandConfig(env),{project,account:writer});for(const p of [{VERCEL_ENV:'production'},{LOUREX_FISCAL_COMMANDS_ENABLED:'false'},{LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(reader)}])assert.throws(()=>fiscalCommandConfig({...env,...p}));
+test('QA command runtime requires preview keyless WIF and rejects static keys',()=>{
+ const project='lourex-fiscal-qa';
+ const env={VERCEL_ENV:'preview',VERCEL_PROJECT_ID:'prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ',LOUREX_FISCAL_QA_AUTH_MODE:'vercel-oidc',LOUREX_FISCAL_STATUS_ENABLED:'true',LOUREX_FISCAL_COMMANDS_ENABLED:'true',LOUREX_FISCAL_QA_PROJECT_ID:project};
+ assert.deepEqual(fiscalCommandConfig(env),{project});
+ for(const patch of [{VERCEL_ENV:'production'},{LOUREX_FISCAL_COMMANDS_ENABLED:'false'},{VERCEL_PROJECT_ID:'other'},{LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:'private-key'},{LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON:'private-key'},{LOUREX_FISCAL_QA_AUTH_MODE:'key'}])assert.throws(()=>fiscalCommandConfig({...env,...patch}));
 });
 
 test('held enrollment attempt is visible even before onboarding exists and prevents new remote commands',async()=>{const f=fixture({enrollment:{begin:async()=>{throw Error('must not call');}}});f.rows.set(base+'/egs/egs',{...scope,active:false});f.rows.set(base+'/egs/egs/enrollmentAttempts/compliance-csid',{...scope,state:'held'});const s=await f.execute(owner,cmd('inspect'));assert.equal(s.enrollmentHeld,true);assert.equal(s.onboarding,null);await assert.rejects(f.execute(owner,cmd('enroll',{otp:'123456'})),/ATTEMPT_HELD/);});
