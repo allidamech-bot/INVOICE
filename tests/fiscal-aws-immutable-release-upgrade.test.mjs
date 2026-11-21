@@ -56,6 +56,6 @@ check_fiscal_unit_mode "$1"
     if(state!=='disabled')assert.equal(run('lourex-aws-staging',state).status,77,'dispatch '+state);
   }
   assert.equal(run('random-unit','static').status,77);
-  assert.match(source,/check_fiscal_unit_mode "\\$name"/);
+  assert(source.includes('check_fiscal_unit_mode "$name"'));
   assert.doesNotMatch(source,/systemctl is-enabled --quiet/);
 });
