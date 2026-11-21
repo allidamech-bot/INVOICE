@@ -62,6 +62,10 @@ export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,i
     const cmd=parseProductionEnrollmentCommand(input);
     need(identity?.role==='owner'&&id(identity.uid));
     if(cmd.operation==='enrollment-request'){
+      // Never persist an apparently successful registration request when the
+      // independently provisioned ZATCA runtime is not available. A pending
+      // local document does not mean an authority registration has started.
+      need(configured,'FISCAL_ENROLLMENT_UNAVAILABLE');
       const w=cmd.workspaceId,base=root(identity.uid,w);
       await db.runTransaction(async tx=>{
         const workspace=await loadWorkspace(tx,{accountUid:identity.uid,workspaceId:w});
