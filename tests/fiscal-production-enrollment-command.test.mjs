@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createProductionEnrollmentCommand,parseProductionEnrollmentCommand} from '../api/_fiscal/production-enrollment-command.js';
 const owner={uid:'owner',role:'owner'},w='company',unit={environment:'production',accountUid:'owner',workspaceId:w,egsId:'unit',branchId:'branch',state:'enrolling',privateKey:'never-return'};
-function fixture(configured=true,{active=false,issuanceConfigured=false,verifyIssuanceReady,twoUnits=false}={}){
+function fixture(configured=true,{active=false,issuanceConfigured=false,verifyIssuanceReady,twoUnits=false,provisioningConfigured=false}={}){
  const selectedUnit={...unit,state:active?'active':unit.state};
  const secondUnit={...selectedUnit,egsId:'unit2',branchId:'branch2'};
  const entries=[selectedUnit,...(twoUnits?[secondUnit]:[])];
  const calls=[],db={doc:p=>p,collection:p=>({limit:()=>p}),runTransaction:async fn=>fn({get:async path=>({exists:false,docs:path==='fiscalProductionV1/owner/workspaces/company/egs'?entries.map(u=>({id:u.egsId,data:()=>u})):[]})})};
  const loadWorkspace=async(_tx,s)=>{assert.equal(s.accountUid,'owner');return {branches:entries.map(u=>({id:u.branchId,workspaceId:w,active:true}))};};
  const enrollment=Object.fromEntries(['inspect','begin','check','operational','activate'].map(k=>[k,async(_i,args)=>{calls.push([k,args]);const selected=entries.find(x=>x.egsId===args?.egsId)??selectedUnit;return {...selected,state:active?'operational-recorded':'not-started',unitActive:active,enrollmentHeld:false,version:active?9:0,passed:active?6:0,required:6,secret:'never-return'};}]));
- return {calls,execute:createProductionEnrollmentCommand({db,loadWorkspace,enrollment:configured?enrollment:undefined,issuanceConfigured,verifyIssuanceReady})};
+ return {calls,execute:createProductionEnrollmentCommand({db,loadWorkspace,enrollment:configured?enrollment:undefined,issuanceConfigured,verifyIssuanceReady,provisioningConfigured})};
 }
 test('strict command schema refuses credentials, environment and foreign identities',()=>{
  const input={operation:'enrollment-begin',workspaceId:w,egsId:'unit',otp:'123456'};
@@ -19,7 +19,7 @@ test('strict command schema refuses credentials, environment and foreign identit
 });
 test('missing live runtime exposes status but never accepts OTP',async()=>{
  const {execute,calls}=fixture(false);
- assert.deepEqual(await execute(owner,{operation:'enrollment-status',workspaceId:w}),{environment:'production',workspaceId:w,available:false,registeredUnits:1,units:[],branches:[{branchId:'branch',label:'branch',state:'registered'}],profileVersion:0,issuanceEnabled:false});
+ assert.deepEqual(await execute(owner,{operation:'enrollment-status',workspaceId:w}),{environment:'production',workspaceId:w,available:false,registrationIntakeEnabled:false,registeredUnits:1,units:[],branches:[{branchId:'branch',label:'branch',state:'registered'}],profileVersion:0,issuanceEnabled:false});
  await assert.rejects(execute(owner,{operation:'enrollment-begin',workspaceId:w,egsId:'unit',otp:'123456'}),/UNAVAILABLE/);assert.equal(calls.length,0);
 });
 test('authenticated owner selects only a published branch unit; response is redacted and refresh-only',async()=>{
@@ -49,7 +49,7 @@ test('unavailable ZATCA runtime rejects provisioning before any Firestore read o
 
 test('customer registration controls are hidden until a trusted enrollment runtime is available',async()=>{
  const ui=await readFile(new URL('../src/components/FiscalProductionEnrollmentPanel.tsx',import.meta.url),'utf8');
- assert.match(ui,/s\.available&&s\.profileVersion>0&&s\.branches\.some/);
+ assert.match(ui,/s\.available&&s\.registrationIntakeEnabled&&s\.profileVersion>0&&s\.branches\.some/);
  assert.match(ui,/طلب تسجيل داخلي محفوظ في LOUREX/);
 });
 
@@ -112,4 +112,36 @@ test('fiscal client and UI require exact per-device readiness instead of workspa
  assert.match(client,/v\.issuanceEnabled!==units\.some\(u=>u\.issuanceReady\)/);
  assert.match(panel,/u\?\.issuanceReady/);
  assert.doesNotMatch(panel,/s\.issuanceEnabled\?t\(/);
+});
+
+test('new registration cannot be accepted when enrollment exists but no trusted operator is wired',async()=>{
+ const db={
+   doc:()=>{throw Error('UNEXPECTED_DB_ACCESS');},
+   collection:()=>{throw Error('UNEXPECTED_DB_ACCESS');},
+   runTransaction:()=>{throw Error('UNEXPECTED_DB_ACCESS');},
+ };
+ const enrollment=Object.fromEntries(['inspect','begin','check','operational','activate'].map(k=>[k,async()=>({})]));
+ const execute=createProductionEnrollmentCommand({db,loadWorkspace:async()=>{throw Error('UNEXPECTED_LOADER');},enrollment});
+ await assert.rejects(execute(owner,{operation:'enrollment-request',workspaceId:w,
+   branchId:'branch',expectedProfileVersion:1,functionalityMap:'1100',businessCategory:'Retail'}),
+   e=>e.message==='FISCAL_ENROLLMENT_UNAVAILABLE');
+});
+test('enrollment status separates new-registration operator readiness from existing EGS operations',async()=>{
+ const unavailable=fixture(true,{provisioningConfigured:false});
+ const status=await unavailable.execute(owner,{operation:'enrollment-status',workspaceId:w});
+ assert.equal(status.available,true);
+ assert.equal(status.registrationIntakeEnabled,false);
+ assert.equal(status.registeredUnits,1);
+ const ready=fixture(true,{provisioningConfigured:true});
+ const enabled=await ready.execute(owner,{operation:'enrollment-status',workspaceId:w});
+ assert.equal(enabled.registrationIntakeEnabled,true);
+ assert.equal(enabled.issuanceEnabled,false);
+});
+test('fiscal UI must explicitly gate registration on the trusted operator, not merely enrollment',async()=>{
+ const panel=await readFile(new URL('../src/components/FiscalProductionEnrollmentPanel.tsx',import.meta.url),'utf8');
+ const client=await readFile(new URL('../src/lib/fiscal-production-enrollment-client.ts',import.meta.url),'utf8');
+ assert.match(panel,/s\.available&&s\.registrationIntakeEnabled&&s\.profileVersion>0/);
+ assert.match(panel,/طلبات التسجيل الجديدة متوقفة حتى تجهيز مشغّل EGS موثوق/);
+ assert.match(client,/registrationIntakeEnabled:boolean/);
+ assert.match(client,/v\.registrationIntakeEnabled&&!v\.available/);
 });
