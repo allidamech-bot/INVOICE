@@ -1,6 +1,10 @@
 [Unit]
 Description=LOUREX restricted outbound fiscal simulation worker (QA only)
 After=network-online.target
+# Never start from an incomplete checkout or without protected configuration.
+ConditionPathIsDirectory=/opt/lourex-fiscal/current
+ConditionPathExists=/etc/lourex-staging/worker.json
+ConditionPathExists=/etc/lourex-staging/trusted-runtime-profile.json
 Wants=network-online.target
 StartLimitIntervalSec=300
 StartLimitBurst=3
@@ -16,7 +20,7 @@ Environment=LOUREX_AWS_STAGING_ENABLED=true
 Environment=LOUREX_AWS_WORKER_ENABLED=true
 UMask=0077
 # Existing root-owned secrets are copied into private per-service credentials.
-# The trusted runtime adapter must read them from CREDENTIALS_DIRECTORY.
+# The reviewed runtime binds only these systemd credentials; no env secrets.
 LoadCredential=wrapping-key:/etc/lourex-staging/secrets/wrapping-key
 LoadCredential=pin-derivation-key:/etc/lourex-staging/secrets/pin-derivation-key
 NoNewPrivileges=true
@@ -26,8 +30,8 @@ PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=true
-# The code must be provisioned as an immutable root-owned release under /opt.
-# This candidate service is NOT installed or enabled by this commit.
+# Immutable root-managed application, SDK and Python dependencies live under /opt.
+# This candidate is NOT installed, enabled, or approved for dispatch.
 ReadOnlyPaths=/opt/lourex-fiscal/current
 ProtectKernelTunables=true
 ProtectKernelModules=true
