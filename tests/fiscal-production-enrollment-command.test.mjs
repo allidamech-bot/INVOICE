@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createProductionEnrollmentCommand,parseProductionEnrollmentCommand} from '../api/_fiscal/production-enrollment-command.js';
 const owner={uid:'owner',role:'owner'},w='company',unit={environment:'production',accountUid:'owner',workspaceId:w,egsId:'unit',branchId:'branch',state:'enrolling',privateKey:'never-return'};
-function fixture(configured=true){
- const calls=[],db={doc:p=>p,collection:p=>({limit:()=>p}),runTransaction:async fn=>fn({get:async path=>({exists:false,docs:path==='fiscalProductionV1/owner/workspaces/company/egs'?[{id:'unit',data:()=>unit}]:[]})})};
+function fixture(configured=true,{active=false,issuanceConfigured=false,verifyIssuanceReady}={}){
+ const selectedUnit={...unit,state:active?'active':unit.state};
+ const calls=[],db={doc:p=>p,collection:p=>({limit:()=>p}),runTransaction:async fn=>fn({get:async path=>({exists:false,docs:path==='fiscalProductionV1/owner/workspaces/company/egs'?[{id:'unit',data:()=>selectedUnit}]:[]})})};
  const loadWorkspace=async(_tx,s)=>{assert.equal(s.accountUid,'owner');return {branches:[{id:'branch',workspaceId:w,active:true}]};};
- const enrollment=Object.fromEntries(['inspect','begin','check','operational','activate'].map(k=>[k,async(_i,args)=>{calls.push([k,args]);return {...unit,state:'not-started',unitActive:false,enrollmentHeld:false,version:0,passed:0,required:6,secret:'never-return'};}]));
- return {calls,execute:createProductionEnrollmentCommand({db,loadWorkspace,enrollment:configured?enrollment:undefined})};
+ const enrollment=Object.fromEntries(['inspect','begin','check','operational','activate'].map(k=>[k,async(_i,args)=>{calls.push([k,args]);return {...selectedUnit,state:active?'operational-recorded':'not-started',unitActive:active,enrollmentHeld:false,version:active?9:0,passed:active?6:0,required:6,secret:'never-return'};}]));
+ return {calls,execute:createProductionEnrollmentCommand({db,loadWorkspace,enrollment:configured?enrollment:undefined,issuanceConfigured,verifyIssuanceReady})};
 }
 test('strict command schema refuses credentials, environment and foreign identities',()=>{
  const input={operation:'enrollment-begin',workspaceId:w,egsId:'unit',otp:'123456'};
@@ -48,4 +49,32 @@ test('customer registration controls are hidden until a trusted enrollment runti
  const ui=await readFile(new URL('../src/components/FiscalProductionEnrollmentPanel.tsx',import.meta.url),'utf8');
  assert.match(ui,/s\.available&&s\.profileVersion>0&&s\.branches\.some/);
  assert.match(ui,/طلب تسجيل داخلي محفوظ في LOUREX/);
+});
+
+test('a persisted active unit never enables issuance without current signing-session proof',async()=>{
+ const {execute}=fixture(true,{active:true,issuanceConfigured:true});
+ const status=await execute(owner,{operation:'enrollment-status',workspaceId:w});
+ assert.equal(status.units[0].unitActive,true);
+ assert.equal(status.issuanceEnabled,false);
+ assert(!JSON.stringify(status).includes('never-return'));
+});
+test('issuance readiness calls only the authenticated tenant scope and returns redacted status',async()=>{
+ const calls=[],verifyIssuanceReady=async scope=>{calls.push(scope);return true;};
+ const {execute}=fixture(true,{active:true,issuanceConfigured:true,verifyIssuanceReady});
+ const status=await execute(owner,{operation:'enrollment-status',workspaceId:w});
+ assert.equal(status.issuanceEnabled,true);
+ assert.deepEqual(calls,[{environment:'production',accountUid:'owner',workspaceId:'company',egsId:'unit'}]);
+ assert(!JSON.stringify(status).includes('never-return'));
+});
+test('expired or unreachable protected signer denies readiness without exposing errors',async()=>{
+ for(const verifyIssuanceReady of [async()=>false,async()=>{throw Error('secret signer failure');}]){
+  const {execute}=fixture(true,{active:true,issuanceConfigured:true,verifyIssuanceReady});
+  const status=await execute(owner,{operation:'enrollment-status',workspaceId:w});
+  assert.equal(status.issuanceEnabled,false);
+  assert(!JSON.stringify(status).includes('secret signer failure'));
+ }
+ let checked=false;
+ const {execute}=fixture(true,{issuanceConfigured:true,verifyIssuanceReady:async()=>{checked=true;return true;}});
+ assert.equal((await execute(owner,{operation:'enrollment-status',workspaceId:w})).issuanceEnabled,false);
+ assert.equal(checked,false);
 });

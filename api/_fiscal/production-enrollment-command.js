@@ -26,7 +26,7 @@ function cleanStatus(v,scope,branchId){
   need(v?.environment==='production'&&v.workspaceId===scope.workspaceId&&v.egsId===scope.egsId&&v.branchId===branchId&&states.includes(v.state)&&typeof v.unitActive==='boolean'&&typeof v.enrollmentHeld==='boolean'&&Number.isSafeInteger(v.version)&&v.version>=0&&Number.isInteger(v.passed)&&[3,6].includes(v.required)&&v.passed>=0&&v.passed<=v.required,'FISCAL_ENROLLMENT_UNAVAILABLE');
   return {egsId:v.egsId,branchId:v.branchId,state:v.state,unitActive:v.unitActive,enrollmentHeld:v.enrollmentHeld,version:v.version,passed:v.passed,required:v.required};
 }
-export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured=false,clock=()=>new Date().toISOString()}){
+export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured=false,verifyIssuanceReady,clock=()=>new Date().toISOString()}){
   need(typeof db?.collection==='function'&&typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&typeof loadWorkspace==='function','FISCAL_ENROLLMENT_UNAVAILABLE');
   const configured=Boolean(enrollment&&['inspect',...Object.values(methods)].every(k=>typeof enrollment[k]==='function'));
   const root=(uid,w)=>'fiscalProductionV1/'+uid+'/workspaces/'+w;
@@ -90,7 +90,20 @@ export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,i
         try{status.push(cleanStatus(await enrollment.inspect(identity,{workspaceId:cmd.workspaceId,egsId:item.egsId}),{workspaceId:cmd.workspaceId,egsId:item.egsId},item.branchId));}
         catch{status.push({...item,state:'unavailable',unitActive:false,enrollmentHeld:true,version:0,passed:0,required:0});}
       }
-      return {environment:'production',workspaceId:cmd.workspaceId,available:configured,registeredUnits:units.length,units:status,branches,profileVersion,issuanceEnabled:issuanceConfigured===true&&configured&&status.some(u=>u.unitActive&&!u.enrollmentHeld)};
+      // Database activation is not sufficient to claim the customer can issue.
+      // Reopen a freshly PKIX-checked, tenant-bound operational signing session
+      // through the private runtime. Any error, missing adapter, expired or
+      // revoked certificate keeps issuance readiness false.
+      let issuanceEnabled=false;
+      if(configured&&issuanceConfigured===true&&typeof verifyIssuanceReady==='function'){
+        for(let i=0;i<units.length;i++){
+          if(!status[i]?.unitActive||status[i].enrollmentHeld)continue;
+          const item=units[i],scope={environment:'production',accountUid:identity.uid,workspaceId:cmd.workspaceId,egsId:item.egsId};
+          try{if(await verifyIssuanceReady(scope)===true){issuanceEnabled=true;break;}}
+          catch{/* Readiness must fail closed without exposing signing details. */}
+        }
+      }
+      return {environment:'production',workspaceId:cmd.workspaceId,available:configured,registeredUnits:units.length,units:status,branches,profileVersion,issuanceEnabled};
     }
     need(configured,'FISCAL_ENROLLMENT_UNAVAILABLE');
     need(units.some(u=>u.egsId===cmd.egsId));

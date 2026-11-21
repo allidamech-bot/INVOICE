@@ -44,11 +44,11 @@ export async function getProductionFiscalProfileRuntime({trustedEnrollmentAdapte
   const loadWorkspace=publishedWorkspaceLoader(db,format);
   // No default synthetic verifier, and no environment flag alone authorizes
   // taxpayer onboarding. Hosting must explicitly supply reviewed adapters.
-  let enrollment,issuance,authority;
+  let enrollment,issuance,authority,verifyIssuanceReady;
   if(trustedEnrollmentAdapters&&process.env.LOUREX_FISCAL_LIVE_ENABLED==='true'){
     const {createProductionEnrollmentRuntime,createProductionFiscalRuntime}=await import('./production-enrollment-runtime.js');
-    if(trustedIssuanceAdapters){({enrollment,issuance,authority}=await createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters:trustedEnrollmentAdapters,issuanceAdapters:trustedIssuanceAdapters}));}
+    if(trustedIssuanceAdapters){({enrollment,issuance,authority,verifyIssuanceReady}=await createProductionFiscalRuntime({db,loadWorkspace,enrollmentAdapters:trustedEnrollmentAdapters,issuanceAdapters:trustedIssuanceAdapters}));}
     else enrollment=createProductionEnrollmentRuntime({...trustedEnrollmentAdapters,db,loadWorkspace}).enrollment;
   }
-  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured:!!issuance}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
+  return {verifyIdentity:async token=>productionProfileIdentity(await auth.verifyIdToken(token,true)),execute:createProductionFiscalProfileService({db,loadCompany:publishedCompanyLoader(db,format)}),executeEnrollment:createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured:!!issuance,verifyIssuanceReady}),executeIssuance:createProductionIssuanceCommand({db,loadWorkspace:publishedWorkspaceLoader(db,format,{includeDocuments:true}),issuance,authority})};
 }
