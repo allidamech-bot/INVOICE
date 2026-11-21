@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 
 // QA PREVIEW ONLY. Separate identity and IAM principal from production and AWS.
 // Google STS verifies the JWT signature and provider condition, not this parser.
-const PROJECT='lourex-fiscal-qa',TEAM='alidaamishs-projects',VERCEL_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ';
+const PROJECT='lourex-fiscal-qa',TEAM='alidaamishs-projects',VERCEL_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ',PROJECT_NAME='invoice';
 const SUBJECT='owner:'+TEAM+':project:invoice:environment:preview';
 const AUDIENCE='//iam.googleapis.com/projects/985119320046/locations/global/workloadIdentityPools/lourex-vercel/providers/vercel-qa';
 const SERVICE='lourex-qa-vercel@'+PROJECT+'.iam.gserviceaccount.com';
@@ -31,11 +31,11 @@ export function validateFiscalQaPreviewToken(request,env,now=Math.floor(Date.now
   header=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8'));
   claims=JSON.parse(Buffer.from(parts[1],'base64url').toString('utf8'));
  }catch{deny();}
- if(header?.alg!=='RS256'||typeof header.kid!=='string'||!header.kid||
+ if(header?.alg!=='RS256'||header.typ!=='JWT'||typeof header.kid!=='string'||!header.kid||
  claims?.iss!=='https://oidc.vercel.com/'+TEAM||
  claims.aud!=='https://vercel.com/'+TEAM||claims.sub!==SUBJECT||
- (claims.project_id!==undefined&&claims.project_id!==VERCEL_ID)||
- (claims.environment!==undefined&&claims.environment!=='preview')||
+ claims.project_id!==VERCEL_ID||claims.project!==PROJECT_NAME||
+ claims.owner!==TEAM||claims.environment!=='preview'||
  !Number.isSafeInteger(claims.iat)||claims.iat>now+60||claims.iat<now-10800||
  !Number.isSafeInteger(claims.nbf)||claims.nbf>now+60||
  !Number.isSafeInteger(claims.exp)||claims.exp<=now+60||claims.exp>now+10800)deny();

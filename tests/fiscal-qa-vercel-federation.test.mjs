@@ -5,7 +5,7 @@ import {fiscalQaPreviewExternalAccount,requireFiscalQaPreviewFederation,validate
 const now=1795241000,TEAM='alidaamishs-projects',PROJECT='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ';
 const env={VERCEL_ENV:'preview',VERCEL_PROJECT_ID:PROJECT,LOUREX_FISCAL_QA_AUTH_MODE:'vercel-oidc',LOUREX_FISCAL_QA_PROJECT_ID:'lourex-fiscal-qa'};
 const claims={iss:'https://oidc.vercel.com/'+TEAM,aud:'https://vercel.com/'+TEAM,sub:'owner:'+TEAM+':project:invoice:environment:preview',
- project_id:PROJECT,environment:'preview',iat:now,nbf:now,exp:now+7200};
+ project_id:PROJECT,project:'invoice',owner:TEAM,environment:'preview',iat:now,nbf:now,exp:now+7200};
 const enc=o=>Buffer.from(JSON.stringify(o)).toString('base64url');
 const make=(p=claims,h={alg:'RS256',kid:'synthetic',typ:'JWT'})=>({headers:{'x-vercel-oidc-token':enc(h)+'.'+enc(p)+'.'+'s'.repeat(128)}});
 test('preview-only QA principal is distinct from production provider and AWS worker',()=>{
@@ -29,10 +29,10 @@ test('no production environment, static key, emulator, wrong deployment, or AWS 
 });
 test('OIDC claims must be exact preview scope; local parsing never substitutes Google STS verification',()=>{
  for(const patch of [{iss:'invalid'},{aud:'invalid'},{sub:claims.sub.replace('preview','production')},{project_id:'other'},
-  {environment:'production'},{iat:now-10801},{nbf:now+100},{exp:now+40},{exp:now+10801}]){
+  {environment:'production'},{project:undefined},{project:'other'},{project_id:undefined},{owner:undefined},{owner:'another-team'},{environment:undefined},{iat:now-10801},{nbf:now+100},{exp:now+40},{exp:now+10801}]){
   assert.throws(()=>validateFiscalQaPreviewToken(make({...claims,...patch}),env,now),/FISCAL_QA_FEDERATION_UNAVAILABLE/);
  }
- for(const header of [{alg:'none',kid:'synthetic'},{alg:'HS256',kid:'synthetic'},{alg:'RS256',kid:''}]){
+ for(const header of [{alg:'none',kid:'synthetic'},{alg:'HS256',kid:'synthetic'},{alg:'RS256',kid:''},{alg:'RS256',kid:'synthetic',typ:undefined}]){
   assert.throws(()=>validateFiscalQaPreviewToken(make(claims,header),env,now),/FISCAL_QA_FEDERATION_UNAVAILABLE/);
  }
  assert.throws(()=>validateFiscalQaPreviewToken({headers:{}},env,now),/FISCAL_QA_FEDERATION_UNAVAILABLE/);
