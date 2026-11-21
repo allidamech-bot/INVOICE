@@ -30,7 +30,7 @@ export function auditAwsFiscalWorkerLocal({
     processUser===0||!Number.isSafeInteger(processUser))deny('RESTRICTED_USER_REQUIRED');
  const login=execFileSync('/usr/bin/id',['-un'],{encoding:'utf8',timeout:5000,maxBuffer:256}).trim();
  if(login!=='lourex-staging')deny('RESTRICTED_USER_REQUIRED');
- const node=execFileSync('/usr/bin/node',['--version'],{encoding:'utf8',timeout:5000,maxBuffer:256}).trim();
+ const node=execFileSync('/opt/lourex-fiscal/bin/node',['--version'],{encoding:'utf8',timeout:5000,maxBuffer:256}).trim();
  if(!/^v24\./.test(node))deny('SYSTEMD_NODE24_NOT_FOUND');
  const root=lstatSync(BASE);
  if(!root.isDirectory()||root.isSymbolicLink()||root.uid!==0||(root.mode&0o022)!==0)deny('IMMUTABLE_RELEASE_NOT_READY');

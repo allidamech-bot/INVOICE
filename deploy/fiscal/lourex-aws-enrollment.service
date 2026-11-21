@@ -13,7 +13,7 @@ Type=oneshot
 User=lourex-staging
 Group=lourex-staging
 WorkingDirectory=/opt/lourex-fiscal/current
-ExecStart=/usr/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-enrollment.mjs
+ExecStart=/opt/lourex-fiscal/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-enrollment.mjs
 Environment=NODE_ENV=production
 Environment=LOUREX_AWS_STAGING_ENABLED=true
 Environment=LOUREX_AWS_ENROLLMENT_APPROVED=true

@@ -14,7 +14,7 @@ Type=simple
 User=lourex-staging
 Group=lourex-staging
 WorkingDirectory=/opt/lourex-fiscal/current
-ExecStart=/usr/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-worker.mjs
+ExecStart=/opt/lourex-fiscal/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-worker.mjs
 Environment=NODE_ENV=production
 Environment=LOUREX_AWS_STAGING_ENABLED=true
 Environment=LOUREX_AWS_WORKER_ENABLED=true
