@@ -43,3 +43,16 @@ The current api/_accounting/vercel-federated-credential.js is strictly pinned to
 - `scripts/fiscal/probe-aws-qa-data-plane.mjs`: bound to exact WIF audience, QA project/service account and IMDSv2. Read-only SDK probe of a non-customer QA document, followed by a **denied-production-read requirement** on another deliberately absent non-customer document. An empty production document with a successful read is treated as a security failure. Network/404/unknown errors are **not** accepted as proof of denial. No credentials or raw errors are logged.
 - `scripts/fiscal/check-aws-qa-data-plane-on-ec2.sh`: single EC2 preflight for the existing instance/role/Node24/user/deps. Downloads the git-blob-pinned probe, creates only the public keyless QA ADC configuration under `/etc/lourex-staging/aws-adc.json` if absent (never overwrites mismatched config), and executes the nonmutating data-plane probe as `lourex-staging`. No SDK/tool reinstallation, service startup, real taxpayer data, ZATCA call, inbound port change, infrastructure creation or billing changes.
 - Until the owner executes this exact preflight on the existing EC2, **QA-to-AWS access and production denial remain unverified**. Workloads, enrollment and dispatch must remain disabled.
+
+
+## 2026-11-21 — Confirmed restricted-user home-directory denial and isolated fix
+
+The owner executed the exact pinned EC2 smoke check. Actual EC2 marker:
+`LOUREX AWS QA PROBE FAILED: NODE_PACKAGE_ACCESS_FILESYSTEM_PERMISSION_DENIED`.
+This confirms the **lourex-staging service user cannot read the package.json via the Ubuntu-owned checkout path**. No Google/Firebase data-plane request was made during that failing cycle. Do not infer Firestore permission defects or repeat Cloud Shell provisioning.
+
+The old preflight checked dependencies with the Ubuntu shell and the smoke probe then tried to access `/home/ubuntu/lourex/package.json` as `lourex-staging`. The repair makes the probe resolve its package relative to its own isolated runtime directory. `scripts/fiscal/run-isolated-aws-qa-check.sh` copies the **existing** Node dependencies into a freshly created temporary restricted directory, checks the pinned Git blob, provides a root-owned group-readable copy, executes the probe as `lourex-staging` and removes all temporary files. It never recursively chmods or chowns `/home/ubuntu`, grants new IAM privileges, alters the existing SoftHSM tokens, calls ZATCA, installs Node or enables any service. The temporary-copy probe is for read-only QA data-plane and production-denial acceptance **only**, not the production worker.
+
+For eventual persistence, `deploy/fiscal/lourex-aws-staging.service` now targets an **unprovisioned, candidate, immutable root-owned** application release at `/opt/lourex-fiscal/current`. Do not install/start that unit until the release directory actually exists, has reviewed contents/dependencies, real trusted adapter and secrets, and all stated authorization/restore gates pass. Never make `/home/ubuntu` world-traversable merely to run a service.
+
+Local syntax validation of the new isolated QA launcher succeeded and its bytes matched the created Git blob. This does **not** establish runtime success on EC2 or Firebase; a single authorized isolated EC2 read/denial check is still needed before the QA data-plane can be marked ready.

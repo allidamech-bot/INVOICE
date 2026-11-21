@@ -9,8 +9,8 @@ StartLimitBurst=3
 Type=simple
 User=lourex-staging
 Group=lourex-staging
-WorkingDirectory=/home/ubuntu/lourex
-ExecStart=/usr/bin/node /home/ubuntu/lourex/scripts/fiscal/run-aws-staging-worker.mjs
+WorkingDirectory=/opt/lourex-fiscal/current
+ExecStart=/usr/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-worker.mjs
 Environment=NODE_ENV=production
 Environment=LOUREX_AWS_STAGING_ENABLED=true
 Environment=LOUREX_AWS_WORKER_ENABLED=true
@@ -25,7 +25,10 @@ AmbientCapabilities=
 PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
-ProtectHome=read-only
+ProtectHome=true
+# The code must be provisioned as an immutable root-owned release under /opt.
+# This candidate service is NOT installed or enabled by this commit.
+ReadOnlyPaths=/opt/lourex-fiscal/current
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
