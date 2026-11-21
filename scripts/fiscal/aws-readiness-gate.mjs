@@ -21,11 +21,13 @@ function stopped(unit){
   const r=spawnSync('/usr/bin/systemctl',['is-active',unit],{timeout:3000,encoding:'utf8'});
   return !r.error&&r.stdout.trim()==='inactive';
 }
-export function fiscalAudit({base=cfg,releaseRoot=release,serviceStopped=stopped,read=safeFile,readJson=parse}={}){
+export function fiscalAudit({base=cfg,releaseRoot=release,expectedReleaseSha='',serviceStopped=stopped,read=safeFile,readJson=parse}={}){
   const checks={};
   const mark=(name,ok)=>{checks[name]=ok?'PASS':'BLOCKED';};
   const rel=read(releaseRoot+'/.lourex-fiscal-commit',100);
-  mark('reviewedReleaseInstalled',rel?.toString('utf8').trim()==='de7947a5ffa9c3a56cbaf95835533d75b1cd4786');
+  // The installed fiscal source may be upgraded to an explicitly reviewed main
+  // commit. A missing/invalid operator pin NEVER passes the release check.
+  mark('reviewedReleaseInstalled',/^[a-f0-9]{40}$/.test(expectedReleaseSha)&&rel?.toString('utf8').trim()===expectedReleaseSha);
   const sdk='/opt/lourex-fiscal/sdk4-R4.0.0';
   mark('sdkStaged',!!stat(sdk+'/Apps/fatoora')&&!!stat(sdk+'/Apps/zatca-einvoicing-sdk-238-R4.0.0.jar')&&!!stat(sdk+'/Configuration/config.json'));
   const py=spawnSync('/opt/lourex-fiscal/python-qa/bin/python3',['-I','-c','import PyKCS11, cryptography, defusedxml'],{timeout:5000,env:{PATH:'/usr/bin:/bin'}});
@@ -56,7 +58,7 @@ export function fiscalAudit({base=cfg,releaseRoot=release,serviceStopped=stopped
   return {format:'LOUREX_FISCAL_AWS_READINESS_V1',scope:'SIMULATION_ONLY',decision:'HOLD',checks};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
-  try{process.stdout.write(JSON.stringify(fiscalAudit(),null,2)+'\n');}
+  try{process.stdout.write(JSON.stringify(fiscalAudit({expectedReleaseSha:process.argv[2]??''}),null,2)+'\n');}
   catch{process.stdout.write('LOUREX_FISCAL_READINESS_AUDIT_FAILED_CLOSED\n');}
   process.exitCode=2;
 }

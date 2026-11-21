@@ -4,8 +4,16 @@
 set -Eeuo pipefail
 export LC_ALL=C
 fail(){ printf 'LOUREX FISCAL INSTALL STOPPED: %s\n' "$1" >&2; exit 2; }
-[[ $# == 1 && "$1" =~ ^[a-f0-9]{40}$ ]] || fail 'EXACT_COMMIT_REQUIRED'
+[[ ( $# == 1 || $# == 2 ) && "$1" =~ ^[a-f0-9]{40}$ ]] || fail 'EXACT_MAIN_COMMIT_REQUIRED'
 PIN="$1"
+# Upgrades are exceptional: the operator must separately name the EXACT
+# previously installed release and confirm both units remain stopped/disabled.
+UPGRADE_FROM=''
+if [[ $# == 2 ]]; then
+ [[ "$2" =~ ^--replace-inactive=[a-f0-9]{40}$ ]] || fail 'EXPLICIT_PREVIOUS_COMMIT_REQUIRED'
+ UPGRADE_FROM="${2#--replace-inactive=}"
+ [[ "$UPGRADE_FROM" != "$PIN" ]] || fail 'SAME_RELEASE_NOT_AN_UPGRADE'
+fi
 [[ "$(id -un)" == ubuntu ]] || fail 'RUN_AS_UBUNTU_ON_EXISTING_EC2'
 [[ "$(uname -m)" == aarch64 ]] || fail 'EXPECTED_ARM64_INSTANCE'
 for tool in sudo curl git mktemp install cp find mv;do command -v "$tool" >/dev/null || fail 'REQUIRED_SYSTEM_TOOL_MISSING';done
@@ -32,7 +40,9 @@ git init -q "$GIT_REPO"
 git -C "$GIT_REPO" remote add origin https://github.com/allidamech-bot/INVOICE.git
 git -C "$GIT_REPO" sparse-checkout init --cone
 git -C "$GIT_REPO" sparse-checkout set api/_fiscal api/_accounting scripts/fiscal deploy/fiscal src
-git -C "$GIT_REPO" -c advice.detachedHead=false fetch --quiet --depth 1 --filter=blob:none origin refs/heads/feat/fiscal-batch2-remaining-settlements || fail 'REVIEWED_SOURCE_FETCH_FAILED'
+# Never fetch the superseded feature branch. The operator approves an EXACT
+# main commit; moving main between review and fetch fails the SHA gate.
+git -C "$GIT_REPO" -c advice.detachedHead=false fetch --quiet --depth 1 --filter=blob:none origin refs/heads/main || fail 'REVIEWED_MAIN_SOURCE_FETCH_FAILED'
 [[ "$(git -C "$GIT_REPO" rev-parse FETCH_HEAD)" == "$PIN" ]] || fail 'BRANCH_CHANGED_ABORT'
 git -C "$GIT_REPO" checkout -q --detach FETCH_HEAD || fail 'SOURCE_CHECKOUT_FAILED'
 [[ -r "$GIT_REPO/api/_fiscal/staging-runtime.js" && -r "$GIT_REPO/api/_fiscal/aws-enrollment-operator.js" && -r "$GIT_REPO/scripts/fiscal/run-aws-staging-enrollment.mjs" ]] || fail 'FISCAL_SOURCE_NOT_FOUND'
@@ -44,6 +54,7 @@ for name in lourex-aws-enrollment lourex-aws-staging;do
   sudo cmp -s "$GIT_REPO/deploy/fiscal/$name.service" "$UNIT" || fail 'EXISTING_SYSTEMD_UNIT_DIFFERS'
  fi
  sudo systemctl is-active --quiet "$name.service" && fail 'FISCAL_SERVICE_ALREADY_RUNNING'
+ sudo systemctl is-enabled --quiet "$name.service" && fail 'FISCAL_SERVICE_ENABLED'
 done
 
 # Transpile the fiscal dependency graph without editing source or unrelated app.
@@ -91,11 +102,20 @@ else
  sudo install -o root -g root -m 0755 "$NODE" "$NODE_TARGET" || fail 'FISCAL_NODE_COPY_FAILED'
 fi
 [[ "$(sudo "$NODE_TARGET" --version)" == v24.* ]] || fail 'FISCAL_NODE_VERIFICATION_FAILED'
-if sudo test -e "$CURRENT";then
+EXISTING=''
+if sudo test -e "$CURRENT" || sudo test -L "$CURRENT";then
+ sudo test -d "$CURRENT" && ! sudo test -L "$CURRENT" || fail 'UNSAFE_EXISTING_FISCAL_RELEASE'
+ [[ "$(sudo stat -c %u "$CURRENT")" == 0 ]] || fail 'UNTRUSTED_EXISTING_FISCAL_RELEASE'
  sudo test -f "$CURRENT/.lourex-fiscal-commit" || fail 'UNRECOGNIZED_EXISTING_FISCAL_RELEASE'
  EXISTING="$(sudo cat "$CURRENT/.lourex-fiscal-commit")"
- [[ "$EXISTING" == "$PIN" ]] || fail 'EXISTING_FISCAL_RELEASE_DIFFERS'
+ [[ "$EXISTING" =~ ^[a-f0-9]{40}$ ]] || fail 'INVALID_EXISTING_FISCAL_COMMIT'
+ if [[ "$EXISTING" != "$PIN" ]];then
+  [[ -n "$UPGRADE_FROM" && "$UPGRADE_FROM" == "$EXISTING" ]] || fail 'EXPLICIT_REVIEWED_INACTIVE_UPGRADE_REQUIRED'
+ fi
 else
+ [[ -z "$UPGRADE_FROM" ]] || fail 'EXPECTED_EXISTING_RELEASE_NOT_FOUND'
+fi
+if [[ "$EXISTING" != "$PIN" ]];then
  STAGE="$(sudo mktemp -d "$ROOT/.install.XXXXXXXX")" || fail 'FISCAL_STAGE_FAILED'
  sudo cp -a -- "$GIT_REPO/api" "$STAGE/api" || fail 'FISCAL_API_COPY_FAILED'
  sudo install -d -m 0755 "$STAGE/scripts" || fail 'FISCAL_SCRIPT_DIR_FAILED'
@@ -112,7 +132,24 @@ else
  sudo -u lourex-staging "$NODE_TARGET" --check "$STAGE/scripts/fiscal/run-aws-staging-enrollment.mjs" || fail 'ENROLLMENT_SYNTAX_FAILED'
  sudo -u lourex-staging "$NODE_TARGET" --check "$STAGE/scripts/fiscal/run-aws-staging-worker.mjs" || fail 'WORKER_SYNTAX_FAILED'
  sudo -u lourex-staging env LOUREX_FISCAL_STAGE="$STAGE" LOUREX_FISCAL_NODE="$NODE_TARGET" bash -c 'cd "$LOUREX_FISCAL_STAGE" && exec "$LOUREX_FISCAL_NODE" --input-type=module -e "await import(process.argv[1])" "$LOUREX_FISCAL_STAGE/api/_fiscal/staging-runtime.js"' || fail 'FISCAL_RUNTIME_IMPORT_FAILED'
- sudo mv -T -- "$STAGE" "$CURRENT" || fail 'FISCAL_RELEASE_PROMOTION_FAILED'
+ if [[ -n "$EXISTING" ]];then
+  ARCHIVE="$ROOT/inactive-release-$EXISTING"
+  sudo test ! -e "$ARCHIVE" && sudo test ! -L "$ARCHIVE" || fail 'PREVIOUS_RELEASE_ARCHIVE_ALREADY_EXISTS'
+  # Repeat service and exact old-commit checks after staging to avoid
+  # replacing code if a service or operator changed the installed release.
+  for name in lourex-aws-enrollment lourex-aws-staging;do
+   sudo systemctl is-active --quiet "$name.service" && fail 'FISCAL_SERVICE_BECAME_ACTIVE'
+   sudo systemctl is-enabled --quiet "$name.service" && fail 'FISCAL_SERVICE_BECAME_ENABLED'
+  done
+  [[ "$(sudo cat "$CURRENT/.lourex-fiscal-commit")" == "$EXISTING" ]] || fail 'FISCAL_RELEASE_CHANGED_DURING_STAGING'
+  sudo mv -T -- "$CURRENT" "$ARCHIVE" || fail 'FISCAL_OLD_RELEASE_ARCHIVE_FAILED'
+  if ! sudo mv -T -- "$STAGE" "$CURRENT";then
+   sudo mv -T -- "$ARCHIVE" "$CURRENT" || fail 'FISCAL_RELEASE_RECOVERY_REQUIRED'
+   fail 'FISCAL_RELEASE_PROMOTION_FAILED_PREVIOUS_RESTORED'
+  fi
+ else
+  sudo mv -T -- "$STAGE" "$CURRENT" || fail 'FISCAL_RELEASE_PROMOTION_FAILED'
+ fi
  STAGE=''
 fi
 sudo -u lourex-staging env LOUREX_FISCAL_STAGE="$CURRENT" LOUREX_FISCAL_NODE="$NODE_TARGET" bash -c 'cd "$LOUREX_FISCAL_STAGE" && exec "$LOUREX_FISCAL_NODE" --input-type=module -e "await import(process.argv[1])" "$LOUREX_FISCAL_STAGE/api/_fiscal/staging-runtime.js"' || fail 'INSTALLED_RUNTIME_IMPORT_FAILED'

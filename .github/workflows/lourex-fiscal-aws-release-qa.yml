@@ -1,0 +1,35 @@
+name: LOUREX Fiscal AWS Release QA
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/fiscal/install-aws-fiscal-units.sh'
+      - 'scripts/fiscal/aws-readiness-gate.mjs'
+      - 'tests/fiscal-aws-readiness-gate.test.mjs'
+      - 'tests/fiscal-aws-immutable-release-upgrade.test.mjs'
+      - '.github/workflows/lourex-fiscal-aws-release-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fiscal/install-aws-fiscal-units.sh'
+      - 'scripts/fiscal/aws-readiness-gate.mjs'
+      - 'tests/fiscal-aws-readiness-gate.test.mjs'
+      - 'tests/fiscal-aws-immutable-release-upgrade.test.mjs'
+      - '.github/workflows/lourex-fiscal-aws-release-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-fiscal-aws:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify fiscal installer shell syntax
+        run: bash -n scripts/fiscal/install-aws-fiscal-units.sh
+      - name: Test immutable release and read-only fiscal readiness
+        run: node --test tests/fiscal-aws-readiness-gate.test.mjs tests/fiscal-aws-immutable-release-upgrade.test.mjs
