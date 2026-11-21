@@ -26,7 +26,7 @@ function cleanStatus(v,scope,branchId){
   need(v?.environment==='production'&&v.workspaceId===scope.workspaceId&&v.egsId===scope.egsId&&v.branchId===branchId&&states.includes(v.state)&&typeof v.unitActive==='boolean'&&typeof v.enrollmentHeld==='boolean'&&Number.isSafeInteger(v.version)&&v.version>=0&&Number.isInteger(v.passed)&&[3,6].includes(v.required)&&v.passed>=0&&v.passed<=v.required,'FISCAL_ENROLLMENT_UNAVAILABLE');
   return {egsId:v.egsId,branchId:v.branchId,state:v.state,unitActive:v.unitActive,enrollmentHeld:v.enrollmentHeld,version:v.version,passed:v.passed,required:v.required};
 }
-export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured=false,verifyIssuanceReady,clock=()=>new Date().toISOString()}){
+export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,issuanceConfigured=false,verifyIssuanceReady,provisioningConfigured=false,clock=()=>new Date().toISOString()}){
   need(typeof db?.collection==='function'&&typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&typeof loadWorkspace==='function','FISCAL_ENROLLMENT_UNAVAILABLE');
   const configured=Boolean(enrollment&&['inspect',...Object.values(methods)].every(k=>typeof enrollment[k]==='function'));
   const root=(uid,w)=>'fiscalProductionV1/'+uid+'/workspaces/'+w;
@@ -65,7 +65,10 @@ export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,i
       // Never persist an apparently successful registration request when the
       // independently provisioned ZATCA runtime is not available. A pending
       // local document does not mean an authority registration has started.
-      need(configured,'FISCAL_ENROLLMENT_UNAVAILABLE');
+      // A working enrollment adapter alone does not mean any independently
+      // authorized operator can provision the customer's EGS/key.
+      // Do not accept an unserviceable request as a successful intake.
+      need(configured&&provisioningConfigured===true,'FISCAL_ENROLLMENT_UNAVAILABLE');
       const w=cmd.workspaceId,base=root(identity.uid,w);
       await db.runTransaction(async tx=>{
         const workspace=await loadWorkspace(tx,{accountUid:identity.uid,workspaceId:w});
@@ -103,7 +106,7 @@ export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,i
         }
       }
       const issuanceEnabled=ready.some(u=>u.issuanceReady);
-      return {environment:'production',workspaceId:cmd.workspaceId,available:configured,registeredUnits:units.length,units:ready,branches,profileVersion,issuanceEnabled};
+      return {environment:'production',workspaceId:cmd.workspaceId,available:configured,registrationIntakeEnabled:configured&&provisioningConfigured===true,registeredUnits:units.length,units:ready,branches,profileVersion,issuanceEnabled};
     }
     need(configured,'FISCAL_ENROLLMENT_UNAVAILABLE');
     need(units.some(u=>u.egsId===cmd.egsId));
