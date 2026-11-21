@@ -1,0 +1,38 @@
+name: LOUREX Fiscal SaaS UBL Isolation QA
+
+on:
+  pull_request:
+    paths:
+      - 'tests/fiscal-saas-ubl-isolation.test.mjs'
+      - '.github/workflows/lourex-fiscal-saas-ubl-qa.yml'
+      - 'api/_fiscal/production-profile-runtime.js'
+      - 'api/_fiscal/production-compliance-input.js'
+      - 'api/_fiscal/ubl-draft.js'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/fiscal-saas-ubl-isolation.test.mjs'
+      - '.github/workflows/lourex-fiscal-saas-ubl-qa.yml'
+      - 'api/_fiscal/production-profile-runtime.js'
+      - 'api/_fiscal/production-compliance-input.js'
+      - 'api/_fiscal/ubl-draft.js'
+
+permissions:
+  contents: read
+
+jobs:
+  fiscal-ubl-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Verify two-company UBL identity isolation and all domestic document types
+        run: node --test tests/fiscal-saas-ubl-isolation.test.mjs tests/fiscal-ubl-draft.test.mjs
