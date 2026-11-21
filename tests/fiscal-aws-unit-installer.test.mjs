@@ -27,6 +27,9 @@ test('root release is independent of website Node, does not enable or start serv
  }
  assert.match(audit,/execFileSync\('\/opt\/lourex-fiscal\/bin\/node'/);
  assert.match(code,/FISCAL_TRANSPILE_FAILED/);
+ assert.match(code,/FISCAL_CRYPTO_TRANSPILE_FAILED/);
+ assert.match(code,/FISCAL_CRYPTO_MODULE_MISSING/);
+ assert.match(code,/src\/crypto/);
  assert.match(code,/transpileModule/);
  assert.match(code,/TRANSPILE_DIAGNOSTICS/);
  for(const name of ['fiscal-issuer','fiscal-routing','fiscal-tax','money','fiscal-issuance'])

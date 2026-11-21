@@ -73,6 +73,9 @@ function walk(dir){
 walk(src);
 NODE
 "$NODE" "$WORK/transpile-fiscal.cjs" "$GIT_REPO/src/lib" "$WORK/compiled/dist/src/lib" || fail 'FISCAL_TRANSPILE_FAILED'
+"$NODE" "$WORK/transpile-fiscal.cjs" "$GIT_REPO/src/crypto" "$WORK/compiled/dist/src/crypto" || fail 'FISCAL_CRYPTO_TRANSPILE_FAILED'
+[[ -s "$WORK/compiled/dist/src/crypto/crypto.js" ]] || fail 'FISCAL_CRYPTO_MODULE_MISSING'
+"$NODE" --check "$WORK/compiled/dist/src/crypto/crypto.js" || fail 'FISCAL_CRYPTO_MODULE_SYNTAX_FAILED'
 for financial in fiscal-issuance fiscal-issuer fiscal-routing fiscal-tax money defaults backup id period-close operations invoice-stock governance commercial-controls document-lifecycle payments sales-returns inventory-evidence fiscal-advance-commercial inventory-cost-cutover-audit inventory-valuation-evidence finance-source-bound-stock-gl-preview;do
  [[ -s "$WORK/compiled/dist/src/lib/$financial.js" ]] || fail 'FISCAL_FINANCIAL_MODULE_MISSING'
  "$NODE" --check "$WORK/compiled/dist/src/lib/$financial.js" || fail 'FISCAL_FINANCIAL_MODULE_SYNTAX_FAILED'
