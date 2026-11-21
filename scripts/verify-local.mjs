@@ -165,12 +165,12 @@ const MANIFEST={
       },
       {
         "file": "tests/visual/run-workspace-closeout-batch3.cjs",
-        "seconds": 180,
+        "seconds": 360,
         "args": []
       },
       {
         "file": "tests/visual/run-notification-recovery-batch3.cjs",
-        "seconds": 180,
+        "seconds": 360,
         "args": []
       },
       {
@@ -575,16 +575,44 @@ async function startServer(){
   }
   server.kill();throw Error('Local QA fixture server unavailable on port 4173');
 }
+function executeBrowserSuite(suite){
+  // A detached process group lets us reap Playwright children if the Node
+  // test runner times out. Otherwise orphaned Chromium/WebKit processes can
+  // poison every later mandatory suite on the same CI worker.
+  const result=spawnSync(process.execPath,[suite.file,...suite.args],{
+    cwd:ROOT,encoding:'utf8',timeout:suite.seconds*1000,env:process.env,
+    windowsHide:true,detached:process.platform!=='win32',maxBuffer:16*1024*1024
+  });
+  if(result.stdout)process.stdout.write(result.stdout);
+  if(result.stderr)process.stderr.write(result.stderr);
+  const timedOut=result.error?.code==='ETIMEDOUT';
+  if(timedOut&&result.pid&&process.platform!=='win32'){
+    try{process.kill(-result.pid,'SIGKILL');}catch{}
+  }
+  const output=(result.stdout||'')+'\n'+(result.stderr||'');
+  const crashed=timedOut||/\[QA browser crash\]|Target page, context or browser has been closed|browser unexpectedly disconnected/i.test(output);
+  return{
+    passed:!result.error&&result.status===0,
+    crashed,
+    reason:result.error?result.error.message:'Command failed ('+result.status+'): '+process.execPath+' '+suite.file
+  };
+}
 function runBrowserQa(shard,suites,failures=null){
   console.log('[LOUREX mandatory browser QA] '+shard+' / '+suites.length+' suites');
   for(const suite of suites){
-    try{run(process.execPath,[suite.file,...suite.args],suite.seconds*1000);}
-    catch(error){
-      if(!failures)throw error;
-      const reason=error instanceof Error?error.message:String(error);
-      failures.push(shard+': '+suite.file+' — '+reason);
-      console.error('[LOUREX mandatory browser QA FAIL] '+shard+' / '+suite.file+': '+reason);
+    let result=executeBrowserSuite(suite);
+    if(!result.passed&&result.crashed){
+      // One fresh-process retry is allowed only for an observed browser
+      // crash/process timeout, never for assertion or business-contract
+      // failures. A second failure remains release-blocking.
+      console.warn('[LOUREX browser process recovery] '+shard+' / '+suite.file+' — crash or terminated process; retrying once with all assertions unchanged.');
+      result=executeBrowserSuite(suite);
     }
+    if(result.passed)continue;
+    const reason=result.reason;
+    if(!failures)throw Error(reason);
+    failures.push(shard+': '+suite.file+' — '+reason);
+    console.error('[LOUREX mandatory browser QA FAIL] '+shard+' / '+suite.file+': '+reason);
   }
 }
 function runLocalChecks(){

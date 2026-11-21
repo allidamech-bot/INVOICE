@@ -154,7 +154,11 @@
 /* 05 Obsidian: cyan diagonal cuts through graphite, with light identity cards. */
 .invoice-page.template-obsidian{--paper:#15191c;--rule:#485158;--table-head:#18232f}
 .invoice-page.template-obsidian .document-masthead{padding-top:10mm;padding-bottom:10mm}
-.invoice-page.template-obsidian .party-block{padding:0 0 3mm;background:transparent;color:var(--ink);border-bottom:1px solid var(--rule)}
+.invoice-page.template-obsidian .party-block{padding:0 0 3mm;background:#fff!important;color:#17212b!important;border-bottom:1px solid var(--rule)}
+/* Obsidian has a dark sheet and deliberately light identity cards.
+   Never inherit the white sheet ink inside those light cards. */
+.invoice-page.template-obsidian .party-block :is(.party-name,.party-address,.party-contact,.party-identifiers span){color:#17212b!important}
+.invoice-page.template-obsidian .party-block :is(.section-kicker,.party-identifiers b){color:#4d5b68!important}
 .document-tone-dark .party-name{padding-bottom:1.5mm;border-bottom:1px solid var(--accent)}
 .document-tone-dark .section-kicker{color:var(--lrx-heading)}
 

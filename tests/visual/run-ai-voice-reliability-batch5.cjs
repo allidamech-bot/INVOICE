@@ -63,10 +63,18 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
    await page.waitForFunction(()=>window.speechInstances[15].abortCalled===true);
    assert.equal(await input.inputValue(),retainedBefore,'pagehide keeps the existing editable voice transcript');
+   // A real Safari background return emits pageshow before further editing.
+   // Keep the fail-closed account gate; wait for verified workspace hydration.
+   await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===17);
    await page.evaluate(()=>{window.speechInstances[16].result('voice after background');window.speechInstances[16].end();});
    assert.match(await input.inputValue(),/voice after background$/,'recording restarts after Safari background suspension');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'background transition may not overlap native sessions');
+   await page.waitForFunction(()=>{
+     const panel=document.querySelector('#lourex-ai-panel');
+     const composer=panel?.querySelector('.lourex-ai-premium-textarea');
+     return panel?.dataset?.workspaceReady==='true'&&composer&&!composer.disabled;
+   },null,{timeout:30000});
 
    await textarea.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await textarea.press('Enter');
    await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
