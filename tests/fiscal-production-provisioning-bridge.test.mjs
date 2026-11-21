@@ -59,6 +59,13 @@ function fixture(overrides={}){
    const egsId='egs-'+sha([scope.accountUid,scope.workspaceId,scope.branchId]).slice(0,40);
    rows.set(base+'/provisioningRequests/'+scope.branchId,
      {...rows.get(base+'/provisioningRequests/'+scope.branchId),state:'registered',egsId});
+   rows.set(base+'/egs/'+egsId,{
+     environment:'production',...scope,egsId,unit:{egsId},
+     state:'enrolling',profileVersion:1,
+     issuer:{accountUid:scope.accountUid,workspaceId:scope.workspaceId,
+       vatNumber:company.vatNumber,legalName:company.nameAr},
+     registrationDigest:'d'.repeat(64),eligibilityEvidenceDigest:'a'.repeat(64)
+   });
    return {state:'enrolling',egsId};
  };
  const opts={db,loadWorkspace,authorizeOperator,verifyTaxpayerEligibility,
@@ -138,4 +145,32 @@ test('missing trusted operator, eligibility or key capability cannot construct a
    assert.throws(()=>createProductionProvisioningBridge({...f.opts,[missing]:undefined}),
      /PRODUCTION_PROVISIONING_UNAVAILABLE/);
  }
+});
+
+test('registered request marker without the matching EGS cannot claim prior success',async()=>{
+ for(const tamper of [
+   (f,id)=>f.rows.delete(f.base+'/egs/'+id),
+   (f,id)=>{f.rows.get(f.base+'/egs/'+id).accountUid='foreign-tenant';},
+   (f,id)=>{f.rows.get(f.base+'/egs/'+id).issuer.vatNumber='399999999999993';},
+   (f,id)=>{f.rows.get(f.base+'/egs/'+id).issuer.legalName='Another company';},
+   (f,id)=>{f.rows.get(f.base+'/egs/'+id).state='revoked';},
+   (f,id)=>{f.rows.get(f.base+'/egs/'+id).registrationDigest='invalid';},
+ ]){
+  const f=fixture(),result=await f.run(scope,'trusted-operator');
+  tamper(f,result.egsId);
+  await assert.rejects(f.run(scope,'trusted-operator'),
+    /PRODUCTION_PROVISIONING_SOURCE_CHANGED/);
+  assert.equal(f.counts.key,1);
+  assert.equal(f.counts.registered,1);
+ }
+});
+test('an immutable security hold prevents a registered EGS from looking provisionable',async()=>{
+ const f=fixture(),result=await f.run(scope,'trusted-operator');
+ f.rows.set(f.base+'/egs/'+result.egsId+'/security/hold',{
+   environment:'production',...scope,egsId:result.egsId,
+   state:'held',reason:'certificate-revoked',evidenceDigest:'e'.repeat(64)
+ });
+ await assert.rejects(f.run(scope,'trusted-operator'),/PRODUCTION_SECURITY_HOLD/);
+ assert.equal(f.counts.key,1);
+ assert.equal(f.counts.registered,1);
 });
