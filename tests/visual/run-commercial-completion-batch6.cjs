@@ -19,6 +19,27 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  // The actual App queue persists into encrypted account IndexedDB. Reopening the
  // source uses its existing linked delivery and never creates a second draft.
  await page.evaluate(()=>window.fixture.setState({screen:'documents',editorDoc:null}));await page.locator('.ta-doc-row-open').filter({hasText:'QUO-QA-6'}).click();await page.getByRole('button',{name:new RegExp(lang==='ar'?'فتح التسليم':'Open delivery')}).click();await page.locator('.ta-editor-workspace').waitFor();
- const second=await page.evaluate(async()=>({stored:await window.readStored(),id:window.fixture.state.editorDoc.id}));assert.equal(second.id,first.editor.id);assert.equal(second.stored.documents.length,2);assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`${output}/${width}-${lang}.png`,animations:'disabled'});report.push({width,lang,create:'PASS',encryptedStorage:'PASS',duplicateGuard:'PASS'});await context.close();
+ const second=await page.evaluate(async()=>({stored:await window.readStored(),id:window.fixture.state.editorDoc.id}));assert.equal(second.id,first.editor.id);assert.equal(second.stored.documents.length,2);assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`${output}/${width}-${lang}.png`,animations:'disabled'});report.push({width,lang,create:'PASS',encryptedStorage:'PASS',duplicateGuard:'PASS'});
+ // Exercise the actual Documents page creation entry, new type dialog,
+ // editor VAT controls and persisted account workspace, for both modes.
+ for(const mode of ['ordinary','tax']){
+   await page.evaluate(()=>window.fixture.setState({screen:'documents',editorDoc:null}));
+   await page.locator('.ta-documents-create-entry').click();
+   await page.locator('.ta-documents-create-choices button').filter({has:page.locator('strong',{hasText:lang==='ar'?/^فاتورة$/:/^Invoice$/})}).click();
+   const picker=page.locator('[data-invoice-type-picker]');
+   await picker.waitFor({state:'visible'});
+   assert.equal(await picker.locator('button').count(),2);
+   await picker.locator('.invoice-choice-'+mode).click();
+   await page.locator('.ta-editor-workspace').waitFor({state:'visible'});
+   const actual=await page.evaluate(async()=>({doc:window.fixture.state.editorDoc,stored:await window.readStored()}));
+   assert.equal(actual.doc.invoiceMode,mode);
+   assert.equal(actual.doc.adjustments.taxEnabled,mode==='tax');
+   assert.equal(actual.stored.documents.find(x=>x.id===actual.doc.id).invoiceMode,mode);
+   const taxInput=page.getByRole('textbox',{name:lang==='ar'?'نسبة الضريبة / القيمة المضافة':'Tax / VAT percentage',exact:true});
+   assert.equal(await taxInput.count(),mode==='tax'?1:0);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   await page.screenshot({path:`${output}/invoice-${mode}-${width}-${lang}.png`,animations:'disabled'});
+ }
+ assert.deepEqual(errors,[]);await context.close();
  }
  }finally{await browser.close();}writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Commercial completion: actual App delivery + encrypted IndexedDB + duplicate reopen PASS at 320 AR, 390 EN, 1440 EN.');})().catch(e=>{console.error(e);process.exitCode=1;});
