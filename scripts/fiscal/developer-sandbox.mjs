@@ -97,11 +97,11 @@ try{
     const original=sent.toString('utf8'),signed=returned.toString('utf8');
     const rootNames=v=>{
       const m=v.match(/^<[^>]+>/);
-      return m?[...m[0].matchAll(/\\s(xmlns(?::[A-Za-z0-9_.:-]+)?)=/g)].map(x=>x[1]).sort():[];
+      return m?[...m[0].matchAll(/\s(xmlns(?::[A-Za-z0-9_.:-]+)?)=/g)].map(x=>x[1]).sort():[];
     };
     let offset=0;
     while(offset<Math.min(sent.length,returned.length)&&sent[offset]===returned[offset])offset++;
-    const seq=v=>[...v.matchAll(/<\\/?([A-Za-z_][A-Za-z0-9_.:-]*)(?=[\\s>])/g)].map(x=>x[1]);
+    const seq=v=>[...v.matchAll(/<\/?([A-Za-z_][A-Za-z0-9_.:-]*)(?=[\s>])/g)].map(x=>x[1]);
     const firstTags=seq(original),secondTags=seq(signed);
     console.log(JSON.stringify({stage:'canonical-difference-shape',
       sentLength:sent.length,returnedLength:returned.length,firstDifferentByte:offset,
