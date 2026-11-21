@@ -142,6 +142,9 @@ function createClient({environment,authorizedScope,fetchImpl=fetch,timeoutMs=150
 
 export function createZatcaSimulationClient(options){
   if(options?.environment!=='simulation')throw Error('PRODUCTION_DISABLED');
+  // A production-scoped EGS can never be silently re-labelled as a QA unit.
+  // The data-plane authority must still validate account/workspace/EGS.
+  if(options?.authorizedScope?.environment!==undefined&&options.authorizedScope.environment!=='simulation')throw Error('SIMULATION_SCOPE_REQUIRED');
   return createClient(options,'simulation');
 }
 // Private composition only. The authorizer must atomically claim the exact
