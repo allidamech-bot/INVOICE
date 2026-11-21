@@ -65,6 +65,7 @@ export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId
     .every(f=>typeof f==='function');
   const provisionRequestedUnit=provisioningReady?createProductionProvisioningBridge({
     db,loadWorkspace,registerVerifiedUnit,
+    readRegisteredUnit:authority.readUnit,
     authorizeOperator,verifyTaxpayerEligibility,resolveApprovedHsmKey,
   }):undefined;
   return Object.freeze({authority,enrollment,vault,registerVerifiedUnit,
