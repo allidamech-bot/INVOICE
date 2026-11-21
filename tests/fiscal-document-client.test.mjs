@@ -41,9 +41,9 @@ test('production status must be explicitly selected and cannot borrow simulation
  assert.throws(()=>validateFiscalDocumentState({...live,commercialPosted:undefined},doc,'production'));
 });
 
-test('ordinary invoices cannot enter the isolated ZATCA tax-issuance UI',async()=>{
+test('explicit ordinary invoices cannot enter isolated ZATCA QA issuance UI',async()=>{
  const source=await readFile('src/lib/fiscal-document-client.ts','utf8');
- assert.match(source,/doc\.invoiceMode!=='tax'/);
+ assert.match(source,/doc\.invoiceMode==='ordinary'/);
  assert.match(source,/fiscalQaProjectActive\(\)/);
  assert.match(source,/if\(fiscalQaInvoice\(doc\)\)return 'simulation'/);
 });
