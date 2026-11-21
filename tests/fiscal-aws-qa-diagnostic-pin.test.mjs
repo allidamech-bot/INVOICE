@@ -8,9 +8,11 @@ const probePath=new URL('../scripts/fiscal/probe-aws-qa-data-plane.mjs',import.m
 const scriptPath=new URL('../scripts/fiscal/run-isolated-aws-qa-check.sh',import.meta.url);
 const probe=readFileSync(probePath);
 const runner=readFileSync(scriptPath,'utf8');
-// Git object header is 'blob <byteCount>\\0': NO space before the NUL.\nconst blobHash=createHash('sha1').update(Buffer.concat([Buffer.from('blob '+probe.length),Buffer.from([0]),probe])).digest('hex');
+// Git object header is 'blob <byteCount>\\0': NO space before the NUL.
+const blobHash=createHash('sha1').update(Buffer.concat([Buffer.from('blob '+probe.length),Buffer.from([0]),probe])).digest('hex');
 
 test('isolated EC2 runner pins the exact verified probe',()=>{
+ assert.equal(execFileSync('git',['hash-object',probePath.pathname],{encoding:'utf8'}).trim(),blobHash,'Git blob header calculation must match git hash-object');
  assert(runner.includes("REF='37660c9d1fde80a6f21e74a6325301d674c520d7'"));
  assert(runner.includes("BLOB='"+blobHash+"'"));
  assert.match(runner,/git hash-object/);
