@@ -11,6 +11,19 @@ function strict64(v){
  const b=Buffer.from(v,'base64');need(b.length>0&&b.length<=MAX&&b.toString('base64')===v);return b;
 }
 function digest(bytes){return createHash('sha256').update(bytes).digest();}
+// Developer Portal has been observed moving this exact *excluded* UBLExtensions
+// namespace declaration from the signature subtree onto the Invoice root.
+// For this synthetic-only test, prove literal canonical equality AFTER removing
+// exactly that additional root attribute. No arbitrary namespace or business
+// content normalization is permitted, and this is NOT a production signature
+// or official SDK validation.
+const EXT_ROOT=Buffer.from(' xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"');
+function onlyPortalExtensionNamespaceAdded(sent,cleared){
+ if(sent.includes(EXT_ROOT))return false;
+ const start=cleared.indexOf(EXT_ROOT),rootEnd=cleared.indexOf(Buffer.from('>'));
+ if(start<0||rootEnd<0||start>=rootEnd||cleared.indexOf(EXT_ROOT,start+EXT_ROOT.length)!==-1)return false;
+ return Buffer.concat([cleared.subarray(0,start),cleared.subarray(start+EXT_ROOT.length)]).equals(sent);
+}
 const code=v=>typeof v==='string'&&/^[A-Za-z0-9_.:-]{1,120}$/.test(v)?v:null;
 export function verifyDeveloperSandboxClearance({httpStatus,body,request,canonicalize}){
  need([200,202].includes(httpStatus)&&body?.clearanceStatus==='CLEARED'&&
@@ -32,8 +45,13 @@ export function verifyDeveloperSandboxClearance({httpStatus,body,request,canonic
  // same ZATCA-style signature/QR exclusions, must canonically match the input.
  const sentHash=digest(canonicalSent),receivedHash=digest(canonicalCleared);
  need(timingSafeEqual(sentHash,expectedHash),'SENT_HASH_MISMATCH');
- need(timingSafeEqual(receivedHash,expectedHash),'RETURNED_HASH_MISMATCH');
- need(canonicalSent.equals(canonicalCleared),'RETURNED_CANONICAL_BYTES_CHANGED');
+ const byteExact=timingSafeEqual(receivedHash,expectedHash)&&canonicalSent.equals(canonicalCleared);
+ const portalRootExtOnly=!byteExact&&onlyPortalExtensionNamespaceAdded(canonicalSent,canonicalCleared);
+ need(byteExact||portalRootExtOnly,'RETURNED_HASH_MISMATCH');
  const codes=body.validationResults.warningMessages.map(x=>code(x?.code??x?.errorCode)).filter(Boolean);
- return Object.freeze({status:'DEVELOPER_CLEARED_ARTIFACT_MATCHED',warningCount:body.validationResults.warningMessages.length,warningCodes:Object.freeze(codes)});
+ return Object.freeze({
+   status:byteExact?'DEVELOPER_CLEARED_ARTIFACT_MATCHED':'DEVELOPER_CLEARED_ONLY_EXCLUDED_ROOT_NS_DIFFERS',
+   canonicalHashIdentical:byteExact,warningCount:body.validationResults.warningMessages.length,
+   warningCodes:Object.freeze(codes)
+ });
 }

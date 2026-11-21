@@ -16,9 +16,22 @@ function verify(patch={}){
 test('synthetic test clearance binds returned bytes to exact submitted canonical UBL and reports only warning codes',()=>{
  const result=verify();
  assert.equal(result.status,'DEVELOPER_CLEARED_ARTIFACT_MATCHED');
+ assert.equal(result.canonicalHashIdentical,true);
  assert.equal(result.warningCount,1);
  assert.deepEqual(result.warningCodes,['BR-KSA-TEST-1']);
  assert(!JSON.stringify(result).includes('do not leak'));
+});
+test('Developer Portal signed XML may ONLY add the exact excluded UBLExtensions root namespace',()=>{
+ const ext=' xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"';
+ const allowed=Buffer.from('<Invoice'+ext+'><ID>synthetic</ID><Signature>fake</Signature></Invoice>');
+ const proof=verify({body:{...body,clearedInvoice:allowed.toString('base64')}});
+ assert.equal(proof.status,'DEVELOPER_CLEARED_ONLY_EXCLUDED_ROOT_NS_DIFFERS');
+ assert.equal(proof.canonicalHashIdentical,false);
+ const wrong=Buffer.from('<Invoice xmlns:ext="http://evil.invalid/namespace"><ID>synthetic</ID></Invoice>');
+ const extra=Buffer.from('<Invoice'+ext+'><ID>different</ID></Invoice>');
+ const second=Buffer.from('<Invoice'+ext+' xmlns:fake="http://example.com"><ID>synthetic</ID></Invoice>');
+ for(const bytes of [wrong,extra,second])
+   assert.throws(()=>verify({body:{...body,clearedInvoice:bytes.toString('base64')}}),/RETURNED_HASH_MISMATCH/);
 });
 test('HTTP CLEARED flag never approves a changed or malformed invoice',()=>{
  for(const patch of [
