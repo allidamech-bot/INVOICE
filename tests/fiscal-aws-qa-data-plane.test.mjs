@@ -52,3 +52,10 @@ test('safe staged diagnostics classify without leaking provider errors or creden
  assert.equal(safeProbeFailure('ADC',{message:'LOUREX_QA_ADC_UNTRUSTED'}),'ADC_INVALID');
  assert.equal(safeProbeFailure('OTHER',{message:'secret/private_key/headers'}),'UNKNOWN_UNCLASSIFIED');
 });
+
+test('probe requires the isolated staging package rather than any owner home directory',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const source=readFileSync(new URL('../scripts/fiscal/probe-aws-qa-data-plane.mjs',import.meta.url),'utf8');
+ assert.match(source,/new URL\('\.\/package\.json',import\.meta\.url\)/);
+ assert.doesNotMatch(source,/\/home\/ubuntu\//);
+});

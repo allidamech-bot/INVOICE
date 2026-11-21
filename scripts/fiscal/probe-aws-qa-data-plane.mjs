@@ -73,10 +73,10 @@ async function main(){
  stage='ENVIRONMENT';environmentIsSafe();
  stage='ADC';readRootOwnedAdc();
  process.env.GOOGLE_APPLICATION_CREDENTIALS=ADC_PATH;
- // Earlier preflight checked Node dependency files as ubuntu, not as the
- // restricted lourex-staging user. Confirm this user can traverse/read them.
+ // Runtime dependencies are copied into this isolated temporary directory,
+ // with read-only access for lourex-staging. Never traverse the owner's home.
  stage='NODE_PACKAGE_ACCESS';
- const checkout='/home/ubuntu/lourex/package.json';
+ const checkout=fileURLToPath(new URL('./package.json',import.meta.url));
  const packageFd=openSync(checkout,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
  try{
   const st=fstatSync(packageFd);
