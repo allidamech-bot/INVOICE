@@ -14,7 +14,8 @@ const validPath=p=>typeof p==='string'&&PREFIXES.some(prefix=>p.startsWith(prefi
 const fileRef=r=>exact(r,['path','sha256'])&&validPath(r.path)&&HEX.test(r.sha256);
 const nonemptyList=(rows,limit,check)=>Array.isArray(rows)&&rows.length>0&&rows.length<=limit&&rows.every(check);
 const validateKeyStore=p=>exact(p,['stateDir','configPath','pythonExecutable'])&&
- p.stateDir==='/var/lib/lourex-staging/keys'&&p.configPath==='/etc/lourex-staging/softhsm2.conf'&&
+ typeof p.stateDir==='string'&&p.stateDir.startsWith('/var/lib/lourex-staging/')&&resolve(p.stateDir)===p.stateDir&&
+ !p.stateDir.startsWith('/var/lib/lourex-staging/tokens')&&p.configPath==='/etc/lourex-staging/softhsm2.conf'&&
  typeof p.pythonExecutable==='string'&&p.pythonExecutable.startsWith('/opt/lourex-fiscal/')&&resolve(p.pythonExecutable)===p.pythonExecutable;
 const validateSdk=s=>exact(s,['pythonExecutable','installationRoot','manifestPath','manifestSha256','javaHome'])&&
  validPath(s.pythonExecutable)&&validPath(s.installationRoot)&&validPath(s.manifestPath)&&HEX.test(s.manifestSha256)&&
