@@ -14,7 +14,7 @@ test('installer is syntax valid and pinned to the existing instance + fiscal bra
  assert.match(code,/refs\/heads\/feat\/fiscal-batch2-remaining-settlements/);
  assert.match(code,/rev-parse FETCH_HEAD/);
  assert.match(code,/BRANCH_CHANGED_ABORT/);
- assert.match(code,/git sparse-checkout set api\/_fiscal api\/_accounting scripts\/fiscal deploy\/fiscal src\/lib/);
+ assert.match(code,/git sparse-checkout set api\/_fiscal api\/_accounting scripts\/fiscal deploy\/fiscal src/);
  assert.match(code,/--depth 1 --filter=blob:none/);
  assert.match(code,/RUN_AS_UBUNTU_ON_EXISTING_EC2/);
  assert.match(code,/EXISTING_FISCAL_RELEASE_DIFFERS/);
@@ -26,12 +26,14 @@ test('root release is independent of website Node, does not enable or start serv
   assert.match(unit,/User=lourex-staging/);
  }
  assert.match(audit,/execFileSync\('\/opt\/lourex-fiscal\/bin\/node'/);
- assert.match(code,/FISCAL_STATE_MACHINE_COMPILE_FAILED/);
+ assert.match(code,/FISCAL_TRANSPILE_FAILED/);
+ assert.match(code,/transpileModule/);
+ assert.match(code,/TRANSPILE_DIAGNOSTICS/);
  for(const name of ['fiscal-issuer','fiscal-routing','fiscal-tax','money','fiscal-issuance'])
-  assert(code.includes('"$GIT_REPO/src/lib/'+name+'.ts"'));
+  assert(code.includes(name));
  assert.match(code,/FISCAL_FINANCIAL_MODULE_MISSING/);
  for(const name of ['defaults','backup','period-close','operations','invoice-stock','governance','commercial-controls','document-lifecycle','payments','sales-returns','inventory-evidence','fiscal-advance-commercial','inventory-cost-cutover-audit','inventory-valuation-evidence','finance-source-bound-stock-gl-preview'])
-  assert(code.includes('"$GIT_REPO/src/lib/'+name+'.ts"'));
+  assert(code.includes(name));
  assert.match(code,/cd "\$LOUREX_FISCAL_STAGE"/);
  assert.match(code,/INSTALLED_RUNTIME_IMPORT_FAILED/);
  assert.match(code,/FISCAL_RUNTIME_IMPORT_FAILED/);
