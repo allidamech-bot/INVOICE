@@ -31,7 +31,7 @@ GIT_REPO="$WORK/repo"
 git init -q "$GIT_REPO"
 git -C "$GIT_REPO" remote add origin https://github.com/allidamech-bot/INVOICE.git
 git -C "$GIT_REPO" sparse-checkout init --cone
-git -C "$GIT_REPO" sparse-checkout set api/_fiscal api/_accounting scripts/fiscal deploy/fiscal src/lib
+git -C "$GIT_REPO" sparse-checkout set api/_fiscal api/_accounting scripts/fiscal deploy/fiscal src
 git -C "$GIT_REPO" -c advice.detachedHead=false fetch --quiet --depth 1 --filter=blob:none origin refs/heads/feat/fiscal-batch2-remaining-settlements || fail 'REVIEWED_SOURCE_FETCH_FAILED'
 [[ "$(git -C "$GIT_REPO" rev-parse FETCH_HEAD)" == "$PIN" ]] || fail 'BRANCH_CHANGED_ABORT'
 git -C "$GIT_REPO" checkout -q --detach FETCH_HEAD || fail 'SOURCE_CHECKOUT_FAILED'
@@ -54,8 +54,24 @@ done
  "$GIT_REPO/src/lib/fiscal-issuer.ts" \
  "$GIT_REPO/src/lib/fiscal-routing.ts" \
  "$GIT_REPO/src/lib/fiscal-tax.ts" \
- "$GIT_REPO/src/lib/money.ts" || fail 'FISCAL_STATE_MACHINE_COMPILE_FAILED'
-for financial in fiscal-issuance fiscal-issuer fiscal-routing fiscal-tax money;do
+ "$GIT_REPO/src/lib/money.ts" \
+ "$GIT_REPO/src/lib/defaults.ts" \
+ "$GIT_REPO/src/lib/backup.ts" \
+ "$GIT_REPO/src/lib/id.ts" \
+ "$GIT_REPO/src/lib/period-close.ts" \
+ "$GIT_REPO/src/lib/operations.ts" \
+ "$GIT_REPO/src/lib/invoice-stock.ts" \
+ "$GIT_REPO/src/lib/governance.ts" \
+ "$GIT_REPO/src/lib/commercial-controls.ts" \
+ "$GIT_REPO/src/lib/document-lifecycle.ts" \
+ "$GIT_REPO/src/lib/payments.ts" \
+ "$GIT_REPO/src/lib/sales-returns.ts" \
+ "$GIT_REPO/src/lib/inventory-evidence.ts" \
+ "$GIT_REPO/src/lib/fiscal-advance-commercial.ts" \
+ "$GIT_REPO/src/lib/inventory-cost-cutover-audit.ts" \
+ "$GIT_REPO/src/lib/inventory-valuation-evidence.ts" \
+ "$GIT_REPO/src/lib/finance-source-bound-stock-gl-preview.ts" || fail 'FISCAL_STATE_MACHINE_COMPILE_FAILED'
+for financial in fiscal-issuance fiscal-issuer fiscal-routing fiscal-tax money defaults backup id period-close operations invoice-stock governance commercial-controls document-lifecycle payments sales-returns inventory-evidence fiscal-advance-commercial inventory-cost-cutover-audit inventory-valuation-evidence finance-source-bound-stock-gl-preview;do
  [[ -s "$WORK/compiled/dist/src/lib/$financial.js" ]] || fail 'FISCAL_FINANCIAL_MODULE_MISSING'
  "$NODE" --check "$WORK/compiled/dist/src/lib/$financial.js" || fail 'FISCAL_FINANCIAL_MODULE_SYNTAX_FAILED'
 done
@@ -92,11 +108,11 @@ else
  # Do not promote a release that a restricted service identity cannot import.
  sudo -u lourex-staging "$NODE_TARGET" --check "$STAGE/scripts/fiscal/run-aws-staging-enrollment.mjs" || fail 'ENROLLMENT_SYNTAX_FAILED'
  sudo -u lourex-staging "$NODE_TARGET" --check "$STAGE/scripts/fiscal/run-aws-staging-worker.mjs" || fail 'WORKER_SYNTAX_FAILED'
- sudo -u lourex-staging "$NODE_TARGET" --input-type=module -e "await import(process.argv[1])" "$STAGE/api/_fiscal/staging-runtime.js" || fail 'FISCAL_RUNTIME_IMPORT_FAILED'
+ sudo -u lourex-staging env LOUREX_FISCAL_STAGE="$STAGE" LOUREX_FISCAL_NODE="$NODE_TARGET" bash -c 'cd "$LOUREX_FISCAL_STAGE" && exec "$LOUREX_FISCAL_NODE" --input-type=module -e "await import(process.argv[1])" "$LOUREX_FISCAL_STAGE/api/_fiscal/staging-runtime.js"' || fail 'FISCAL_RUNTIME_IMPORT_FAILED'
  sudo mv -T -- "$STAGE" "$CURRENT" || fail 'FISCAL_RELEASE_PROMOTION_FAILED'
  STAGE=''
 fi
-sudo -u lourex-staging "$NODE_TARGET" --input-type=module -e "await import(process.argv[1])" "$CURRENT/api/_fiscal/staging-runtime.js" || fail 'INSTALLED_RUNTIME_IMPORT_FAILED'
+sudo -u lourex-staging env LOUREX_FISCAL_STAGE="$CURRENT" LOUREX_FISCAL_NODE="$NODE_TARGET" bash -c 'cd "$LOUREX_FISCAL_STAGE" && exec "$LOUREX_FISCAL_NODE" --input-type=module -e "await import(process.argv[1])" "$LOUREX_FISCAL_STAGE/api/_fiscal/staging-runtime.js"' || fail 'INSTALLED_RUNTIME_IMPORT_FAILED'
 sudo -u lourex-staging test -r "$CURRENT/node_modules/firebase-admin/package.json" || fail 'INSTALLED_FIREBASE_DEPENDENCY_DENIED'
 
 # Install reviewed units, but NEVER enable/start, create secrets, edit Vercel,
