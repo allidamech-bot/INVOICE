@@ -27,8 +27,8 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
    await installPinlessWorkspace(page,{uid:'qa-voice-reliability',companyName:'LOUREX Voice QA',theme:'dark'});
    await page.locator('.lourex-ai-launcher').click();
-   const panel=page.locator('#lourex-ai-panel[data-lourex-workspace="2"]');
-   await panel.waitFor({state:'visible'});
+   const readyPanel=page.locator('#lourex-ai-panel[data-lourex-workspace="2"]');
+   await readyPanel.waitFor({state:'visible'});
    try{
     await page.waitForFunction(()=>{
      const panel=document.querySelector('#lourex-ai-panel');
@@ -36,7 +36,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
      return panel?.dataset?.workspaceReady==='true'&&composer&&!composer.disabled;
     },null,{timeout:30000});
    }catch(error){
-    const diagnostic=await panel.evaluate(node=>({ready:node.dataset.workspaceReady,mode:node.dataset.workspaceMode,
+    const diagnostic=await readyPanel.evaluate(node=>({ready:node.dataset.workspaceReady,mode:node.dataset.workspaceMode,
      accountError:node.querySelector('.lxw-load-error')?.textContent||null,
      status:node.querySelector('[role="status"]')?.textContent||null}));
     throw new Error('Voice QA account-scoped conversation did not hydrate: '+JSON.stringify(diagnostic),{cause:error});
