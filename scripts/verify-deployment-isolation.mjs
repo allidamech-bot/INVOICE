@@ -18,7 +18,7 @@ const vercelEnvironment=process.env.VERCEL_ENV||'local';
 // configured. It never changes the production build path or runs for local CI.
 const previewBranch=process.env.VERCEL_GIT_COMMIT_REF||'';
 const guardedAiPreview=previewBranch==='fix/ai-audit-root-causes-20261017'||
-  /^ai-legacy\\/groq-[a-z0-9-]+$/u.test(previewBranch)||
+  /^ai-legacy\/groq-[a-z0-9-]+$/u.test(previewBranch)||
   previewBranch==='release/lourex-final-integration';
 if(vercelEnvironment==='preview'&&guardedAiPreview){
   const qa=spawnSync(process.execPath,['scripts/verify-ai-staging-isolation.mjs'],{
