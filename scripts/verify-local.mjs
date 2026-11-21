@@ -586,7 +586,10 @@ function executeBrowserSuite(suite){
   if(result.stdout)process.stdout.write(result.stdout);
   if(result.stderr)process.stderr.write(result.stderr);
   const timedOut=result.error?.code==='ETIMEDOUT';
-  if(timedOut&&result.pid&&process.platform!=='win32'){
+  // The Node test may exit while a Playwright browser subprocess remains.
+  // Always reap the *dedicated* per-test process group, on pass AND failure;
+  // the parent QA server is in a different group and is never touched.
+  if(result.pid&&process.platform!=='win32'){
     try{process.kill(-result.pid,'SIGKILL');}catch{}
   }
   const output=(result.stdout||'')+'\n'+(result.stderr||'');

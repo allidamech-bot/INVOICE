@@ -123,7 +123,8 @@
     const origin=originPanel||panel;if(panel!==origin||!origin.isConnected)return;
     const ready=panel.querySelector('[data-lourex-daily-command-center-mount][data-lourex-daily-ready="true"]');
     if(ready?.isConnected){callback(panel);return;}
-    if(attempt<40){window.setTimeout(()=>withDailyReady(callback,attempt+1,origin),75);return;}
+    // Phone/network module loading can exceed 3 s; still fail closed after 9 s.
+    if(attempt<120){window.setTimeout(()=>withDailyReady(callback,attempt+1,origin),75);return;}
     composerStatus(panel,'error','loadingTools',3200);
   }
   function directEvent(name){
