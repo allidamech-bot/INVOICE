@@ -241,7 +241,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
           const diagnostic=await page.evaluate(()=>{
             const panel=document.getElementById('lourex-ai-panel');
             const mount=panel?.querySelector('[data-lourex-daily-command-center-mount]');
-            const short=node=>String(node?.textContent||'').replace(/\\s+/g,' ').trim().slice(0,260);
+            const short=node=>String(node?.textContent||'').replace(/\s+/g,' ').trim().slice(0,260);
             return{
               panelReady:panel?.dataset?.workspaceReady||null,
               dailyMount:Boolean(mount),dailyReady:mount?.getAttribute('data-lourex-daily-ready')||null,
