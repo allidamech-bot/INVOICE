@@ -26,3 +26,11 @@ Existing fiscal preview `command-runtime.js` and `status-runtime.js` required lo
 References: https://vercel.com/docs/oidc/reference ; https://vercel.com/docs/oidc/gcp ; https://docs.cloud.google.com/iam/docs/best-practices-for-using-workload-identity-federation
 
 Owner constraint: all changes are tax/ZATCA-specific. Do not fix, restart, redesign, deploy or troubleshoot unrelated LOUREX website services under this PR.
+
+
+## 2026-11-21 — Preview workload hardening and actual local token-file tests
+The preflight now requires **all documented Vercel function token claims** to be present and exact before attempting a Google STS exchange: `typ:JWT`, `alg:RS256`, nonempty `kid`, owner/team slug, project name `invoice`, Vercel project ID, `environment:preview`, exact issuer/audience/subject and bounded issue/not-before/expiration times. A missing project or environment claim is rejected; the previous optional comparison was unsafe. This check is only an early rejection filter; **Google STS still must verify the signature, provider and IAM policy**.
+
+Focused local Node22 suite was run in a temporary mirror with exact Git blob hashes: **4/4 passed**. The new fourth test actually calls `prepareFiscalQaPreviewCredential` with synthetic token fixtures in a disposable process environment and verifies: 0700 runtime directory, 0600 ADC/token files, no private key in ADC, atomic token rotation, rejection of an unexpected `GOOGLE_APPLICATION_CREDENTIALS` override and cleanup. These test credentials are deliberately fake and were **never sent to Google**, so they cannot establish real OIDC/STS integration. The existing production WIF provider and runtime were not modified. No Google bootstrap script or Vercel deployment was executed.
+
+Official Vercel claim specification (as checked 2026-11-21): https://vercel.com/docs/oidc/reference#example-function-token
