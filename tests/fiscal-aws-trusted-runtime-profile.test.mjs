@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {validateAwsTrustedRuntimeProfile,bindAwsTrustedRuntime} from '../api/_fiscal/aws-trusted-runtime-profile.js';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const files=new Map();
@@ -58,4 +59,42 @@ test('every selected EGS requires its own pinned certificate chain',()=>{
  assert.throws(()=>validateAwsTrustedRuntimeProfile(profile,[scope,second]),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
  const full={...profile,chains:[profile.chains[0],{...profile.chains[0],scope:second}]};
  assert.equal(validateAwsTrustedRuntimeProfile(full,[scope,second]),full);
+});
+
+test('first-time EGS enrollment uses pinned CA chain without a predicted ZATCA leaf',async()=>{
+ const unissued={...profile,chains:[{
+  scope,leafDigest:null,certificates:[root],crls:[crl]
+ }]};
+ assert.equal(validateAwsTrustedRuntimeProfile(unissued,[scope]),unissued);
+ const badNoIssuers={...unissued,chains:[{...unissued.chains[0],certificates:[]}]};
+ const badRoot={...unissued,chains:[{...unissued.chains[0],certificates:[leaf]}]};
+ const missingCrl={...unissued,chains:[{...unissued.chains[0],crls:[]}]};
+ const extraCrl={...unissued,chains:[{...unissued.chains[0],crls:[crl,crl]}]};
+ for(const p of [badNoIssuers,badRoot,missingCrl,extraCrl]){
+  assert.throws(()=>validateAwsTrustedRuntimeProfile(p,[scope]),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ }
+ const caArgs=['req','-x509','-newkey','ec','-pkeyopt','ec_paramgen_curve:secp256k1',
+  '-keyout','/dev/null','-out','-','-outform','DER','-nodes','-days','1',
+  '-subj','/CN=synthetic QA test only','-addext','basicConstraints=critical,CA:FALSE',
+  '-addext','keyUsage=critical,digitalSignature'];
+ const leafDer=execFileSync('openssl',caArgs,{stdio:['ignore','pipe','ignore'],timeout:15000});
+ let args;
+ bindAwsTrustedRuntime({profile:unissued,scopes:[scope],db:{},
+  credentialsDirectory:'/run/credentials/lourex-aws-staging.service',
+  readFile:ref=>Buffer.from(files.get(ref.path)),
+  createStagingFiscalRuntime:o=>{args=o;return {cycle(){}};}});
+ const chain=await args.loadCertificateChain({scope,leafDer});
+ assert.equal(chain.identityVerified,true); // Only pinned material lookup; PKIX is independent.
+ assert.deepEqual(chain.chainDer,[leafDer,files.get(root.path)]);
+ assert.deepEqual(chain.crlsDer,[files.get(crl.path)]);
+ await assert.rejects(args.loadCertificateChain({scope:{...scope,egsId:'foreign'},leafDer}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ await assert.rejects(args.loadCertificateChain({scope,leafDer:Buffer.from('not DER')}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ await assert.rejects(args.loadCertificateChain({scope,leafDer:Buffer.alloc(32769)}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ const caDer=execFileSync('openssl',caArgs.map(a=>a==='basicConstraints=critical,CA:FALSE'?'basicConstraints=critical,CA:TRUE':a),
+  {stdio:['ignore','pipe','ignore'],timeout:15000});
+ await assert.rejects(args.loadCertificateChain({scope,leafDer:caDer}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ const p256Der=execFileSync('openssl',caArgs.map(a=>a==='ec_paramgen_curve:secp256k1'?'ec_paramgen_curve:prime256v1':a),
+  {stdio:['ignore','pipe','ignore'],timeout:15000});
+ await assert.rejects(args.loadCertificateChain({scope,leafDer:p256Der}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
+ await assert.rejects(args.loadCertificateChain({scope,leafDer:files.get(root.path)}),/LOUREX_AWS_TRUST_PROFILE_DENIED/);
 });

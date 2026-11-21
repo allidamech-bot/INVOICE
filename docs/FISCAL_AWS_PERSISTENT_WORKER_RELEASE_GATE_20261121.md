@@ -28,3 +28,18 @@ The verified official ZATCA SDK4, synthetic SoftHSM signing, CSR and local LOURE
 
 ## Go/no-go
 KEEP PR #1287 DRAFT. No production deployment, merge, service activation, paid infrastructure, real taxpayer onboarding or OTP yet. The AWS–QA data-plane gate is DONE; the five release blocks above are NOT DONE. Avoid asking the owner to repeat AWS IAM, Google WIF, Cloud Shell project creation, SDK4/SoftHSM component tests or the passed AWS Firestore read/isolation check.
+
+
+## 2026-11-21 — First EGS registration trust-profile deadlock resolved in code
+
+Previous design required a pre-pinned ZATCA-issued EGS leaf certificate digest **before requesting the first Compliance CSID**, creating a circular dependency. The corrected, fail-closed staging trust profile supports two explicit shapes per allowlisted synthetic QA EGS:
+
+- **Unissued / pre-registration:** `leafDigest:null`, `certificates:[issuer CA DER reference(s) ... root CA DER reference]`, `crls:[matching CA revocation list reference(s)]`. Every CA/CRL artifact is independently root-managed and pinned by SHA-256; the final CA reference must match the approved `trust.rootDigest`. The leaf returned by Simulation later must be canonical DER, a non-CA EC secp256k1 certificate; no leaf from an HTTP/browser input is trusted as a CA.
+- **Already issued / pinned:** `leafDigest:<exact SHA-256>`, `certificates:[issued leaf DER, issuer(s), root DER]`, `crls:[issuer-to-root revocation lists]`. Exact leaf digest and bytes remain mandatory.
+- **In both cases:** one and only one row is required for each explicitly allowlisted QA EGS. Missing, duplicate or foreign scopes are denied.
+
+A `loadCertificateChain` response is **never final certificate approval**. The original `createStagingFiscalRuntime.certificate()` subsequently verifies that the returned leaf public key matches the established key binding, and calls `verifyAuthorityCertificate` for independent chain signatures, approved root and policy OID, CRL validity and non-revocation, issuer/leaf validity periods, algorithm and signature properties. The operation also binds the eventual production-kind credential certificate digest to the EGS state before issuing invoices. No static synthetic mock, guessed ZATCA root, arbitrary signature or self-issued leaf may be used for authority acceptance. The approved trust materials themselves are still unavailable and must be supplied/verified by the authorized operator.
+
+Targeted offline tests cover structural pre-registration chains, digest/root/CRL mismatches, empty/duplicate scopes, a generated synthetic non-CA secp256k1 leaf, and rejection of non-DER, CA-true, prime256v1 or oversized leaves. **Local offline test results do not establish official ZATCA Simulation success.**
+
+No AWS/Google/production changes, no actual CSID issuance, and no systemd activation were performed.

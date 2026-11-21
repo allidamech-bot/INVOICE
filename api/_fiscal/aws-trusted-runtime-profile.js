@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import {createHash,X509Certificate} from 'node:crypto';
 import {openSync,readFileSync,fstatSync,lstatSync,closeSync,constants} from 'node:fs';
 import {resolve} from 'node:path';
 import {validateStagingServiceScopes} from './staging-service-supervisor.js';
@@ -39,12 +39,22 @@ export function validateAwsTrustedRuntimeProfile(profile,scopes){
   const scopeKeys=new Set(allowed.map(s=>JSON.stringify([s.accountUid,s.workspaceId,s.egsId])));
   const seen=new Set();
   for(const row of profile.chains){
+   // A first-time EGS cannot pin a certificate ZATCA has not issued.
+   // Null leaf digest means the pinned certificates contain ONLY trusted
+   // issuer CA(s), ending in the independently approved root. The leaf is
+   // supplied later by the ZATCA credential, checked by the original runtime
+   // against the HSM public-key binding and independently verified by PKIX.
+   const preregistration=row.leafDigest===null;
    if(!exact(row,['scope','leafDigest','certificates','crls'])||
-    !HEX.test(row.leafDigest)||!nonemptyList(row.certificates,8,fileRef)||row.certificates.length<2||
-    !Array.isArray(row.crls)||row.crls.length!==row.certificates.length-1||!row.crls.every(fileRef))deny();
+    !(preregistration||HEX.test(row.leafDigest))||
+    !nonemptyList(row.certificates,8,fileRef)||
+    (!preregistration&&row.certificates.length<2)||
+    !Array.isArray(row.crls)||row.crls.length!==row.certificates.length-(preregistration?0:1)||
+    !row.crls.every(fileRef))deny();
    const s=validateStagingServiceScopes([row.scope])[0],k=JSON.stringify([s.accountUid,s.workspaceId,s.egsId]);
    if(!scopeKeys.has(k)||seen.has(k))deny();seen.add(k);
-   if(row.certificates[0].sha256!==row.leafDigest||row.certificates.at(-1).sha256!==profile.trust.rootDigest)deny();
+   if((!preregistration&&row.certificates[0].sha256!==row.leafDigest)||
+    row.certificates.at(-1).sha256!==profile.trust.rootDigest)deny();
   }
   // The service polls every selected EGS. A missing certificate chain must
   // fail startup rather than leave that unit in an untestable partial state.
@@ -96,10 +106,23 @@ export function bindAwsTrustedRuntime({profile,scopes,readFile=readVerifiedAwsTr
  }
  const digest=b=>createHash('sha256').update(b).digest('hex');
  const loadCertificateChain=async ({scope,leafDer})=>{
-  if(scope?.environment!=='simulation'||!Buffer.isBuffer(leafDer))deny();
+  if(scope?.environment!=='simulation'||!Buffer.isBuffer(leafDer)||
+   leafDer.length<1||leafDer.length>32768)deny();
   const key=JSON.stringify([scope.accountUid,scope.workspaceId,scope.egsId]);
   const chain=chains.get(key);
-  if(!chain||digest(leafDer)!==chain.leafDigest||!chain.chainDer[0].equals(leafDer))deny();
+  if(!chain)deny();
+  if(chain.leafDigest===null){
+   // A supplied leaf is never a trust anchor. The original certificate()
+   // call verifies its HSM public-key binding, validated PKIX root, CRLs,
+   // policy and dates before accepting an enrollment credential.
+   let leaf;
+   try{leaf=new X509Certificate(leafDer);}catch{deny();}
+   if(leaf.ca||!leaf.raw.equals(leafDer)||leaf.publicKey.asymmetricKeyType!=='ec'||
+    leaf.publicKey.asymmetricKeyDetails?.namedCurve!=='secp256k1')deny();
+   return {identityVerified:true,chainDer:[Buffer.from(leafDer),...chain.chainDer.map(b=>Buffer.from(b))],
+    crlsDer:chain.crlsDer.map(b=>Buffer.from(b))};
+  }
+  if(digest(leafDer)!==chain.leafDigest||!chain.chainDer[0].equals(leafDer))deny();
   return {identityVerified:true,chainDer:chain.chainDer.map(b=>Buffer.from(b)),crlsDer:chain.crlsDer.map(b=>Buffer.from(b))};
  };
  const policy={identifier:profile.policy.identifier,sha256:profile.policy.document.sha256,documentBytes:policyBytes};
