@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
 import {mkdtempSync,mkdirSync,writeFileSync,symlinkSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -13,8 +15,9 @@ function fixture(fn){
   writeFileSync(join(root,'Apps/fatoora'),'#!/bin/sh\nexit 0\n',{mode:0o755});
   writeFileSync(join(root,'Apps/zatca-einvoicing-sdk-238-R4.0.0.jar'),'synthetic fixture');
   writeFileSync(join(root,'Configuration/config.json'),'{}');
-  writeFileSync(archive,'synthetic ZIP for local test only');
-  const expectedArchiveSha256=createHash('sha256').update('synthetic ZIP for local test only').digest('hex');
+  const z=spawnSync('/usr/bin/python3',['-c',"import sys,zipfile,pathlib;z=zipfile.ZipFile(sys.argv[1],'w');r=pathlib.Path(sys.argv[2]);[z.write(p,'sdk/'+str(p.relative_to(r))) for p in r.rglob('*') if p.is_file()];z.close()",archive,root],{encoding:'utf8'});
+  assert.equal(z.status,0,z.stderr);
+  const expectedArchiveSha256=createHash('sha256').update(readFileSync(archive)).digest('hex');
   return fn({tmp,root,archive,expectedArchiveSha256});
  }finally{rmSync(tmp,{recursive:true,force:true});}
 }
@@ -40,4 +43,9 @@ test('refuses malformed SDK configuration',()=>fixture(f=>{
 }));
 test('refuses missing archive',()=>fixture(f=>{
  assert.throws(()=>buildSdk4Manifest({...f,archive:join(f.tmp,'absent.zip')}),/MISSING_ARCHIVE/);
+}));
+
+test('archive with altered installed bytes fails, even when ZIP hash is correct',()=>fixture(f=>{
+ writeFileSync(join(f.root,'Apps/zatca-einvoicing-sdk-238-R4.0.0.jar'),'tampered');
+ assert.throws(()=>buildSdk4Manifest(f),/ZIP_EXTRACTED_FILES_MISMATCH/);
 }));
