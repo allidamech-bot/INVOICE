@@ -47,14 +47,28 @@ git -C "$GIT_REPO" -c advice.detachedHead=false fetch --quiet --depth 1 --filter
 git -C "$GIT_REPO" checkout -q --detach FETCH_HEAD || fail 'SOURCE_CHECKOUT_FAILED'
 [[ -r "$GIT_REPO/api/_fiscal/staging-runtime.js" && -r "$GIT_REPO/api/_fiscal/aws-enrollment-operator.js" && -r "$GIT_REPO/scripts/fiscal/run-aws-staging-enrollment.mjs" ]] || fail 'FISCAL_SOURCE_NOT_FOUND'
 [[ -r "$GIT_REPO/src/lib/fiscal-issuance.ts" ]] || fail 'FISCAL_ISSUANCE_SOURCE_MISSING'
+# systemd reports 'static' as a successful is-enabled probe even though
+# the one-shot enrollment unit has no [Install] section and cannot autoboot.
+# Accept exactly static enrollment + disabled dispatch, and nothing else.
+check_fiscal_unit_mode(){
+  local name="$1" actual expected
+  case "$name" in
+    lourex-aws-enrollment) expected='static' ;;
+    lourex-aws-staging) expected='disabled' ;;
+    *) fail 'UNEXPECTED_FISCAL_UNIT' ;;
+  esac
+  actual="$(sudo systemctl is-enabled "$name.service" 2>/dev/null || true)"
+  [[ "$actual" == "$expected" ]] || fail 'FISCAL_SERVICE_ENABLEMENT_UNSAFE'
+}
+
 # Never overwrite an unrelated or already-running service unit.
 for name in lourex-aws-enrollment lourex-aws-staging;do
  UNIT="/etc/systemd/system/$name.service"
  if sudo test -e "$UNIT";then
   sudo cmp -s "$GIT_REPO/deploy/fiscal/$name.service" "$UNIT" || fail 'EXISTING_SYSTEMD_UNIT_DIFFERS'
+  check_fiscal_unit_mode "$name"
  fi
  sudo systemctl is-active --quiet "$name.service" && fail 'FISCAL_SERVICE_ALREADY_RUNNING'
- sudo systemctl is-enabled --quiet "$name.service" && fail 'FISCAL_SERVICE_ENABLED'
 done
 
 # Transpile the fiscal dependency graph without editing source or unrelated app.
@@ -139,7 +153,7 @@ if [[ "$EXISTING" != "$PIN" ]];then
   # replacing code if a service or operator changed the installed release.
   for name in lourex-aws-enrollment lourex-aws-staging;do
    sudo systemctl is-active --quiet "$name.service" && fail 'FISCAL_SERVICE_BECAME_ACTIVE'
-   sudo systemctl is-enabled --quiet "$name.service" && fail 'FISCAL_SERVICE_BECAME_ENABLED'
+   check_fiscal_unit_mode "$name"
   done
   [[ "$(sudo cat "$CURRENT/.lourex-fiscal-commit")" == "$EXISTING" ]] || fail 'FISCAL_RELEASE_CHANGED_DURING_STAGING'
   sudo mv -T -- "$CURRENT" "$ARCHIVE" || fail 'FISCAL_OLD_RELEASE_ARCHIVE_FAILED'
@@ -164,6 +178,7 @@ sudo systemctl daemon-reload || fail 'SYSTEMD_RELOAD_FAILED'
 for name in lourex-aws-enrollment lourex-aws-staging;do
  sudo systemctl is-active --quiet "$name.service" && fail 'UNEXPECTED_SERVICE_ACTIVE'
  [[ "$(sudo systemctl show -p LoadState --value "$name.service")" == loaded ]] || fail 'UNIT_NOT_LOADED'
+ check_fiscal_unit_mode "$name"
 done
 printf '%s\n' \
  'LOUREX FISCAL INSTALLATION VERIFIED' \
