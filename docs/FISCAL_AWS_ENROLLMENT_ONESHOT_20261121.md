@@ -2,11 +2,31 @@
 # 
 # This document describes only the fiscal subsystem. PR #1287 is Draft.
 #
-# Current AWS state:
-# - EC2-to-QA Firestore read and negative production isolation ACCEPTED.
-# - Immutable /opt release, officially pinned CA/CRLs, actual SDK4 path,
-#   protected secrets and operator-approved synthetic EGS remain NOT READY.
-# - This service has NOT been installed, enabled or run on EC2.
+# Verified AWS state as of 2026-11-21 (owner terminal evidence):
+# - Code and both systemd units installed on EC2 with exact immutable commit
+#   de7947a5ffa9c3a56cbaf95835533d75b1cd4786.
+# - Both services remain inactive; neither was enabled or started.
+# - /etc/lourex-staging/softhsm2.conf, two root-only 32-byte credentials,
+#   /opt/lourex-fiscal/sdk4-R4.0.0 and fiscal Python venv were verified.
+# - SDK root copy and Python imports passed; local encrypted backup decrypted.
+# - Backup remains on the SAME instance as its passphrase, not off-host verified.
+# - No official SDK archive ZIP was found at the inspected EC2 paths.
+# - No approved ZATCA trust CA/CRLs/policy, selected QA EGS, worker.json,
+#   trusted-runtime-profile.json or enrollment-command.json are verified.
+# - No ZATCA Simulation enrollment, clearance or reporting is confirmed.
+# - Earlier Developer Sandbox clearance was observed, but is not Simulation
+#   or production acceptance.
+#
+# Follow-on branch-only tooling (not installed on the current EC2 release):
+# - prepare-aws-sdk4-manifest.mjs + verify-sdk4-archive.py: require the
+#   exact expected vendor archive SHA-256 AND compare all extracted SDK files
+#   to its ZIP contents before writing an immutable pin.
+# - prepare-aws-fiscal-java.sh: compiles CanonicalInvoice, ClearanceContent
+#   and StampInspector into a source-hash-addressed /opt directory, tests
+#   canonicalization as restricted service user and reports JAVA_CLASS_PATH.
+# - aws-readiness-gate.mjs: read-only HOLD report, never authorizes activation.
+# These must be reviewed and included in a future isolated fiscal release;
+# absence of their execution cannot be marked as verified.
 #
 # Approved workflow (one at a time, no automatic retry):
 # 1. Provision synthetic EGS config in QA Firestore through the existing
@@ -53,6 +73,9 @@
 # - The two valid credentials directories are literally pinned, not user input.
 # - No change to site's general app, Vercel production, IAM or main branch.
 #
-# Acceptance STILL PENDING: package verification, Node version, two systemd
-# credentials, approved official CA+CRL+policy, actual QA command access and
-# successful ZATCA Simulation standard clearance and simplified reporting.
+# Acceptance STILL PENDING: authenticated official SDK archive provenance,
+# Java helper compilation on the EC2 host, independent CA/CRL/policy review,
+# real QA Firestore EGS configuration, protected operational enrollment, and
+# successful authorized ZATCA Simulation clearance and reporting.
+# Operator must never place an OTP, CSID or issuer secrets in repo, shell
+# history or chat. Production remains blocked; this PR must stay Draft.
