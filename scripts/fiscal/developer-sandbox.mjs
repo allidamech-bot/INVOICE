@@ -83,10 +83,33 @@ try{
     .map(v=>safeCode(v?.code??v?.errorCode)).filter(Boolean);
   // Only warning identifiers; never print raw validation messages or certificates.
   console.log(JSON.stringify({stage:'clearance-warning-identifiers',warningCodes}));
-  const clearedEvidence=verifyDeveloperSandboxClearance({
-    httpStatus:response.status,body:response.value,request:payload,
-    canonicalize:bytes=>run('java',['-cp',dir,'CanonicalInvoice','invoice'],bytes)
-  });
+  let clearedEvidence;
+  try{
+    clearedEvidence=verifyDeveloperSandboxClearance({
+      httpStatus:response.status,body:response.value,request:payload,
+      canonicalize:bytes=>run('java',['-cp',dir,'CanonicalInvoice','invoice'],bytes)
+    });
+  }catch(error){
+    // Diagnostics remain synthetic-only and avoid any XML, token, signature
+    // or taxpayer data. Report *shapes*, never canonical values or hashes.
+    const sent=run('java',['-cp',dir,'CanonicalInvoice','invoice'],Buffer.from(payload.invoice,'base64'));
+    const returned=run('java',['-cp',dir,'CanonicalInvoice','invoice'],Buffer.from(response.value.clearedInvoice,'base64'));
+    const original=sent.toString('utf8'),signed=returned.toString('utf8');
+    const rootNames=v=>{
+      const m=v.match(/^<[^>]+>/);
+      return m?[...m[0].matchAll(/\\s(xmlns(?::[A-Za-z0-9_.:-]+)?)=/g)].map(x=>x[1]).sort():[];
+    };
+    let offset=0;
+    while(offset<Math.min(sent.length,returned.length)&&sent[offset]===returned[offset])offset++;
+    const seq=v=>[...v.matchAll(/<\\/?([A-Za-z_][A-Za-z0-9_.:-]*)(?=[\\s>])/g)].map(x=>x[1]);
+    const firstTags=seq(original),secondTags=seq(signed);
+    console.log(JSON.stringify({stage:'canonical-difference-shape',
+      sentLength:sent.length,returnedLength:returned.length,firstDifferentByte:offset,
+      sentRootNamespaces:rootNames(original),returnedRootNamespaces:rootNames(signed),
+      elementNameSequenceEqual:JSON.stringify(firstTags)===JSON.stringify(secondTags),
+      sentElementCount:firstTags.length,returnedElementCount:secondTags.length}));
+    throw error;
+  }
   console.log(JSON.stringify({stage:'verify-cleared-artifact',status:clearedEvidence.status,
     warningCount:clearedEvidence.warningCount,warningCodes:clearedEvidence.warningCodes}));
   console.log('DEVELOPER SANDBOX TRANSPORT POSITIVE — test response only.');
