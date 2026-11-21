@@ -4,18 +4,23 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 
-const probe=readFileSync(new URL('../scripts/fiscal/probe-aws-qa-data-plane.mjs',import.meta.url));
-const wrapper=readFileSync(new URL('../scripts/fiscal/diagnose-aws-qa-on-ec2.sh',import.meta.url),'utf8');
-const sha=createHash('sha1').update(Buffer.concat([Buffer.from('blob '+probe.length+' '),Buffer.from([0]),probe])).digest('hex');
+const probePath=new URL('../scripts/fiscal/probe-aws-qa-data-plane.mjs',import.meta.url);
+const scriptPath=new URL('../scripts/fiscal/run-isolated-aws-qa-check.sh',import.meta.url);
+const probe=readFileSync(probePath);
+const runner=readFileSync(scriptPath,'utf8');
+const blobHash=createHash('sha1').update(Buffer.concat([Buffer.from('blob '+probe.length+' '),Buffer.from([0]),probe])).digest('hex');
 
-test('EC2 diagnostics pull the exact reviewed probe, not an obsolete revision',()=>{
- assert.match(wrapper,/readonly REF='73feef228578c5cdd062bd730592c73973914815'/);
- assert(wrapper.includes("readonly BLOB='"+sha+"'"));
- assert.match(wrapper,/git hash-object/);
- assert.match(wrapper,/sudo -u lourex-staging/);
- assert.doesNotMatch(wrapper,/(?:gcloud|systemctl|apt install|npm install|aws ec2|aws iam)/);
+test('isolated EC2 runner pins the exact verified probe',()=>{
+ assert(runner.includes("REF='37660c9d1fde80a6f21e74a6325301d674c520d7'"));
+ assert(runner.includes("BLOB='"+blobHash+"'"));
+ assert.match(runner,/git hash-object/);
+ assert.match(runner,/sudo cp -a --/);
+ assert.match(runner,/sudo -u lourex-staging/);
+ assert.match(runner,/sudo chown -R root:lourex-staging/);
+ assert.match(runner,/sudo chmod 0750/);
+ assert.doesNotMatch(runner,/chmod[^\n]*\/home\/ubuntu|chown[^\n]*\/home\/ubuntu/);
+ assert.doesNotMatch(runner,/\bgcloud\b|\bsystemctl\b|\bapt install\b|\bnpm install\b|\baws ec2\b|\baws iam\b/);
 });
-
-test('diagnostic shell has valid syntax',()=>{
- execFileSync('bash',['-n',new URL('../scripts/fiscal/diagnose-aws-qa-on-ec2.sh',import.meta.url).pathname]);
+test('isolated EC2 runner passes bash syntax check',()=>{
+ execFileSync('bash',['-n',scriptPath.pathname]);
 });
