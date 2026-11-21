@@ -22,8 +22,10 @@ function validateResponseStatus(r:any):FiscalResponseStatus|null{
   if(r.hasReceipt!==Boolean(e))throw Error('FISCAL_INVALID_RESPONSE_STATUS');
   return {mode:r.mode,updatedAt:r.updatedAt,reportingDeadline:r.reportingDeadline,overdue:r.overdue,hasReceipt:r.hasReceipt,recoveryAvailable:r.recoveryAvailable,acceptedWithWarnings:r.acceptedWithWarnings,response:e?{httpStatus:e.httpStatus,kind:e.kind,warningCount:e.warningCount,errorCount:e.errorCount,warningCodes:[...e.warningCodes],errorCodes:[...e.errorCodes]}:null};
 }
-export function fiscalQaInvoice(doc:Pick<LourexDocument,'kind'|'companySnapshot'>):boolean{
-  if(!fiscalQaProjectActive()||doc.kind!=='invoice')return false;
+export function fiscalQaInvoice(doc:Pick<LourexDocument,'kind'|'companySnapshot'|'invoiceMode'>):boolean{
+  // The isolated QA flow must never reclassify an explicitly ordinary invoice.
+  // Only the owner's selected TAX invoice can enter the fiscal issuance path.
+  if(!fiscalQaProjectActive()||doc.kind!=='invoice'||doc.invoiceMode!=='tax')return false;
   const c=String(doc.companySnapshot?.country||'').trim().toUpperCase();
   return ['SA','SAU','SAUDI ARABIA','KINGDOM OF SAUDI ARABIA','السعودية','المملكة العربية السعودية'].includes(c)||/^3\d{13}3$/.test(doc.companySnapshot?.vatNumber||'');
 }
