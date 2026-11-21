@@ -15,7 +15,7 @@ test('offline fiscal audit is read-only, does not use authority or cloud APIs',(
  assert.match(source,/UNEXPECTED_DISPATCH_AUTHORIZATION/);
  assert.match(source,/processUser===0/);
  assert.match(source,/node_modules\/firebase-admin\/package\.json/);
- assert.doesNotMatch(source,/fetch\(|https?:\/\/|initializeAwsStagingFirebase|createStagingFiscalRuntime|child_process.*spawn|execSync\(|writeFile|mkdirSync|chmodSync|chownSync|rmSync|\.set\(|\.update\(|\.create\(|LOUREX_AWS_DISPATCH_APPROVED=true/);
+ assert.doesNotMatch(source,/fetch\(|https?:\/\/|initializeAwsStagingFirebase|createStagingFiscalRuntime|child_process.*spawn|execSync\(|writeFile|mkdirSync|chmodSync|chownSync|rmSync|\.set\(|\b(?:db|batch|transaction|documentRef)\.update\(|\.create\(|LOUREX_AWS_DISPATCH_APPROVED=true/);
 });
 test('audit output never includes account or credential contents',()=>{
  assert.match(source,/LOUREX FISCAL OFFLINE PREFLIGHT NOT READY/);
