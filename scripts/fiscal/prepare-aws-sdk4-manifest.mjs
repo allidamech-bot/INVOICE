@@ -4,7 +4,8 @@
 import {createHash} from 'node:crypto';
 import {lstatSync,readdirSync,openSync,closeSync,readSync,writeFileSync,unlinkSync,fsyncSync,linkSync,constants} from 'node:fs';
 import {resolve,join,relative} from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {pathToFileURL,fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
 
 export const SDK4_ARCHIVE_SHA256='0e6f62f85c4f5d5da78dba7a9ec90566721e7efeef05dfb4514a159a8e66b1b9';
 export const SDK4_ROOT='/opt/lourex-fiscal/sdk4-R4.0.0';
@@ -55,6 +56,11 @@ export function buildSdk4Manifest({root,archive,expectedArchiveSha256=SDK4_ARCHI
   try{let s='';const b=Buffer.alloc(4096);let n;while((n=readSync(fd,b,0,b.length,null))>0){s+=b.subarray(0,n).toString('utf8');if(s.length>131072)fail('CONFIG_TOO_LARGE');}settings=JSON.parse(s);}finally{closeSync(fd);}
  }catch{fail('INVALID_CONFIG');}
  if(!settings||typeof settings!=='object'||Array.isArray(settings))fail('INVALID_CONFIG');
+ const helper=fileURLToPath(new URL('./verify-sdk4-archive.py',import.meta.url));
+ const check=spawnSync('/usr/bin/python3',['-I',helper,archive],{encoding:'utf8',timeout:120000,maxBuffer:2*1024*1024,env:{PATH:'/usr/bin:/bin',LANG:'C.UTF-8'}});
+ if(check.error||check.status!==0)fail('ZIP_CONTENT_NOT_VERIFIED');
+ let archived;try{archived=JSON.parse(check.stdout);}catch{fail('ZIP_CONTENT_NOT_VERIFIED');}
+ if(JSON.stringify(Object.keys(archived).sort())!==JSON.stringify(Object.keys(files).sort())||Object.keys(files).some(k=>archived[k]!==files[k]))fail('ZIP_EXTRACTED_FILES_MISMATCH');
  return {sdkVersion:'4.0.0',sdkArchiveSha256:expectedArchiveSha256,launcher,sdkConfig,files:Object.fromEntries(Object.entries(files).sort(([a],[b])=>a.localeCompare(b,'en')))};
 }
 export function encodeManifest(manifest){return Buffer.from(JSON.stringify(manifest,null,2)+'\n','utf8');}
