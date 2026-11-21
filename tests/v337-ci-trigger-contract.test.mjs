@@ -25,7 +25,7 @@ test('Local signoff blocks security, build and changed contract regressions',asy
   for(const needed of ['--audit-level=high','security-check.mjs','typecheck','build','gitFiles()','--test','b07-sales-delivery-confirmation.test.mjs'])
     assert.ok(local.includes(needed),'Missing mandatory QA: '+needed);
   assert.match(local,/process.exitCode=1/);
-  assert.match(local,/--quick skips mandatory browser QA/);
+  assert.match(local,/--quick skips mandatory (?:emulator and )?browser QA/);
 });
 test('Mobile, iPad, document and Chromium/WebKit checks remain available locally',async()=>{
   const local=await read('scripts/verify-local.mjs');

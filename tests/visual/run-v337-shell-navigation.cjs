@@ -23,7 +23,7 @@ async function runCase(name,browserType,viewport,lang){
     let mainFrameNavigations=0;
     page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
     page.on('framenavigated',frame=>{if(frame===page.mainFrame())mainFrameNavigations+=1;});
-    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
+    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}&shellOnly=1`,{waitUntil:'load'});
     await page.locator('.ta-mobile-nav').waitFor({state:'visible'});
     const initialMainFrameNavigations=mainFrameNavigations;
 

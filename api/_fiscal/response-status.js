@@ -1,6 +1,7 @@
 import {classifyStoredSubmissionResponse} from './zatca-simulation.js';
 import {readAuthorityEvidence} from './authority-evidence.js';
 import {createAttemptResponseStore} from './attempt-response.js';
+import {issuanceBoundary} from './issuance-boundary.js';
 const CODE=/^[A-Za-z][A-Za-z0-9_.:-]{0,79}$/;
 const sha=/^[a-f0-9]{64}$/;
 function need(ok){if(!ok)throw Error('FISCAL_RESPONSE_STATUS_INVALID');}
@@ -19,11 +20,11 @@ export function projectAuthorityResponse({httpStatus,bytes,mode}){
   const positive=outcome.status===(mode==='clearance'?'clearance-response':'reporting-response');
   return {httpStatus,kind:positive?'positive-response':rejected?'validation-errors':'unresolved-response',warningCount,errorCount,warningCodes:codes(results?.warningMessages),errorCodes:codes(results?.errorMessages)};
 }
-export function createFiscalResponseStatus(db){
-  const receipts=createAttemptResponseStore(db);
+export function createFiscalResponseStatus(db,options={}){
+  const boundary=issuanceBoundary(db,options),receipts=createAttemptResponseStore(db,options);
   return async function inspect(tx,scope,record,now){
     if(!record)return null;
-    const at=date(now),base='fiscalPrivateV1/'+scope.accountUid+'/workspaces/'+scope.workspaceId;
+    const at=date(now),base=boundary.base(scope);
     need(record.accountUid===scope.accountUid&&record.workspaceId===scope.workspaceId&&record.egsId===scope.egsId&&typeof record.documentId==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(record.documentId)&&['clearance','reporting'].includes(record.mode)&&Number.isSafeInteger(record.version)&&record.version>=1);
     const path=base+'/issues/'+record.documentId;
     const q=data(await tx.get(db.doc(base+'/outbox/'+record.documentId)));

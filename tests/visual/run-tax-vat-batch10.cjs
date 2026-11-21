@@ -42,9 +42,9 @@ const scenarios=[
         const scope=document.querySelector('.lx-tax-scope');
         if(!visible(scope))failures.push('Output VAT scope warning missing');
         const scopeText=(scope?.textContent||'').replace(/\s+/g,' ').trim();
-        if(lang==='en'&&!scopeText.includes('Output VAT only'))failures.push('English Output VAT scope label missing');
+        if(lang==='en'&&!scopeText.includes('Commercial VAT register'))failures.push('English Output VAT scope label missing');
         if(lang==='en'&&!scopeText.includes('Input VAT'))failures.push('English Input VAT limitation missing');
-        if(lang==='ar'&&!scopeText.includes('ضريبة المخرجات فقط'))failures.push('Arabic Output VAT scope label missing');
+        if(lang==='ar'&&!scopeText.includes('سجل الضريبة التجاري'))failures.push('Arabic Output VAT scope label missing');
         if(lang==='ar'&&!scopeText.includes('ضريبة المدخلات'))failures.push('Arabic Input VAT limitation missing');
         const main=document.querySelector('.ta-main');
         if(main){const max=Math.max(0,main.scrollHeight-main.clientHeight);main.scrollTop=max;if(max>2&&main.scrollTop<max-2)failures.push(`main cannot reach scroll end ${main.scrollTop}/${max}`);}

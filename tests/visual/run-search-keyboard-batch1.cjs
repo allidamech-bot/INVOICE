@@ -17,7 +17,7 @@ const {mkdirSync}=require('node:fs');
         for(const key of ['height','offsetTop'])Object.defineProperty(viewport,key,{get:()=>window.keyboardViewport[key]});
         Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
       });
-      await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${language}`,{waitUntil:'networkidle'});
+      await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${language}&shellOnly=1`,{waitUntil:'networkidle'});
       await page.evaluate(language=>{document.documentElement.dataset.uiTheme=language==='ar'?'dark':'light';},language);
       await page.locator('.ta-mobile-create').click();
       const panel=page.locator('.global-search-panel');await panel.waitFor({state:'visible'});

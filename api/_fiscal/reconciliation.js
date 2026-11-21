@@ -3,10 +3,10 @@ import {hashArtifact} from './fiscal-artifacts.js';
 
 // Explicit server-only positive reconciliation of an already journaled response.
 // No submission client, retry, fabricated evidence or negative decision path.
-export function createFiscalReconciler({ledger,resolveCredential,verifyPrepared,verifyAuthorityResult,clock=()=>new Date().toISOString()}){
+export function createFiscalReconciler({productionAuthority,ledger,resolveCredential,verifyPrepared,verifyAuthorityResult,clock=()=>new Date().toISOString()}){
   if(!ledger||typeof ledger.readHeldForReconciliation!=='function'||typeof ledger.transition!=='function'||[resolveCredential,verifyPrepared,verifyAuthorityResult,clock].some(f=>typeof f!=='function'))throw Error('FISCAL_RECONCILER_NOT_CONFIGURED');
   return async function reconcile(scope,documentId,expectedVersion){
-    if(scope?.environment!=='simulation')throw Error('PRODUCTION_DISABLED');
+    if(scope?.environment!==(productionAuthority?'production':'simulation'))throw Error('PRODUCTION_DISABLED');
     scope=Object.freeze({...scope});
     const saved=await ledger.readHeldForReconciliation(scope,documentId,expectedVersion);
     const record=Object.freeze({...saved.record,usedAttemptIds:Object.freeze([...saved.record.usedAttemptIds])});
@@ -19,6 +19,7 @@ export function createFiscalReconciler({ledger,resolveCredential,verifyPrepared,
       const credential=await resolveCredential(scope);
       if(await verifyPrepared({scope,record,xml:Buffer.from(xml),snapshot:Buffer.from(snapshot),credential})!==true)return held();
       if(await verifyAuthorityResult({scope,record,xml:Buffer.from(xml),result:{...result,evidenceBytes:Buffer.from(evidence),...(cleared?{clearedBytes:Buffer.from(cleared)}:{})}})!==true)return held();
+      if(productionAuthority)await productionAuthority.recordResult(scope,'submit-'+record.uuid,{digest:result.evidenceDigest,outcome:'verified-pass'});
     }catch{return held();}
     const event={kind:record.mode==='clearance'?'cleared':'reported',attemptId:record.attemptId,at:clock(),resultDigest:result.evidenceDigest,warnings:result.warnings,...(cleared?{clearedArtifactDigest:hashArtifact(cleared)}:{})};
     const next=await ledger.transition(scope,documentId,expectedVersion,event,evidence,cleared);

@@ -169,6 +169,7 @@ const css=await read('src/styles/document-premium-redesign-v141.css');
 test('Obsidian protects light party cards, graphite body roles and signing artwork separately',async()=>{
 const [css,signing]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/lib/signing-artwork.ts')]);
  assert.match(css,/\.invoice-page\.template-obsidian\{--paper:#15191c/);
+ assert.match(css,/\.invoice-page\.template-obsidian \.party-block :is\([^)]*\.party-location[^)]*\),/);
  assert.match(css,/\.invoice-page\.template-obsidian \.party-block\{[^}]*background:transparent;color:var\(--ink\)/);
  assert.match(css,/\.document-tone-dark \.signature-media\{background:transparent/);
  assert.match(css,/\.invoice-page \.signature-image\{filter:none;mix-blend-mode:normal\}/);

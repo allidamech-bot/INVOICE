@@ -1,4 +1,4 @@
-import {fiscalAdvanceAppliedCents,fiscalReceivableCents,isFiscalAdvanceReceipt} from './fiscal-advance-commercial.js';
+import {fiscalAdvanceAppliedCents,fiscalReceivableCents,isFiscalAdvanceReceipt,isFiscalAdvanceRefund,fiscalRefundMatchesReceipt} from './fiscal-advance-commercial.js';
 import type { LourexDocument, PaymentMethod, PaymentRecord, PaymentStatus } from '../types.js';
 import { calculateTotals, decimalToScaled, isDecimalInput, isFinancialDecimalInput } from './money.js';
 import { isIsoDate, todayIso } from './id.js';
@@ -16,7 +16,7 @@ function sameFinancialScope(invoice:{workspaceId?:string;branchId?:string},linke
     &&(invoice.branchId||'main')===(linked.branchId||'main');
 }
 function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return !isFiscalAdvanceReceipt(invoice)&&sameFinancialScope(invoice,payment)&&payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'')&&settlementDateIsValid(invoice,payment.date);}
-function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return sameFinancialScope(invoice,credit)&&credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&settlementDateIsValid(invoice,credit.issueDate);}
+function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return !isFiscalAdvanceReceipt(invoice)&&!isFiscalAdvanceRefund(credit)&&sameFinancialScope(invoice,credit)&&credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&settlementDateIsValid(invoice,credit.issueDate);}
 function assertInvoiceIssueDate(invoice:LourexDocument):void{if(!isIsoDate(invoice.issueDate))throw new Error('Invoice issue date is invalid. Correct the invoice before recording or changing settlements.');}
 function assertPaymentRecordIntegrity(invoice:LourexDocument,payment:PaymentRecord):bigint{
   const amount=paymentAmountCents(payment);
@@ -45,7 +45,7 @@ export function paidAmount(invoiceId:string,payments:PaymentRecord[],asOf=''):st
 export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[],asOf=''):string{
   let cents=0n;
   for(const document of documents){
-    if(document.role!=='credit-note'||document.creditForId!==invoiceId||document.status!=='final'||document.lifecycleStatus==='voided'||!isIsoDate(document.issueDate))continue;
+    if(document.role!=='credit-note'||isFiscalAdvanceRefund(document)||document.creditForId!==invoiceId||document.status!=='final'||document.lifecycleStatus==='voided'||!isIsoDate(document.issueDate))continue;
     if(asOf&&document.issueDate>asOf)continue;
     const amount=creditAmountCents(document);if(amount!==null)cents+=amount;
   }
@@ -86,7 +86,8 @@ export function assertInvoicePaymentInvariant(invoice:LourexDocument,payments:Pa
   const linked=payments.filter(payment=>payment.invoiceId===invoice.id);
   const credits=documents.filter(document=>document.role==='credit-note'&&document.creditForId===invoice.id&&document.status==='final'&&document.lifecycleStatus!=='voided');
   if(!linked.length&&!credits.length)return;
-  if(isFiscalAdvanceReceipt(invoice)||invoice.fiscalAdvance&&credits.length)throw new Error('Advance receipts and applications require their dedicated correction workflow.');
+  if(isFiscalAdvanceReceipt(invoice)){if(linked.length||credits.some(c=>!fiscalRefundMatchesReceipt(invoice,c)))throw new Error('Advance receipts require verified refunds, not receivable settlements.');return;}
+  if(invoice.fiscalAdvance&&credits.length)throw new Error('Advance receipts and applications require their dedicated correction workflow.');
   if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('An invoice with payments or issued credit notes must remain an active final invoice.');
   assertInvoiceIssueDate(invoice);
   const totalCents=fiscalReceivableCents(invoice,decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2));

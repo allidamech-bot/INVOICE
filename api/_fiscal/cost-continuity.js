@@ -4,15 +4,16 @@ const fields=['workspaceId','branchId','lastUnitCost','lastCostCurrency'];
 const same=(a,b)=>a&&b&&reviewDigest(a)===reviewDigest(b);
 // Guard previously reviewed cost attribution and prospective catalog basis.
 // Unrelated items and ordinary production workspaces are never restricted.
-export async function assertFiscalCostContinuity(db,tx,{accountUid,workspaceId},before,candidate){
+export async function assertFiscalCostContinuity(db,tx,{accountUid,workspaceId,environment='simulation'},before,candidate){
  const oldItems=new Map((before.savedItems??[]).filter(x=>x.workspaceId===workspaceId).map(x=>[x.id,x])),newItems=new Map((candidate.savedItems??[]).filter(x=>x.workspaceId===workspaceId).map(x=>[x.id,x]));
  const changedItems=new Set([...oldItems.keys()].filter(id=>!newItems.has(id)||fields.some(k=>oldItems.get(id)[k]!==newItems.get(id)[k])));
  const oldMoves=new Map((before.inventoryMovements??[]).filter(x=>x.workspaceId===workspaceId).map(x=>[x.id,x])),newMoves=new Map((candidate.inventoryMovements??[]).filter(x=>x.workspaceId===workspaceId).map(x=>[x.id,x]));
  const changedMoves=new Set([...new Set([...oldMoves.keys(),...newMoves.keys()])].filter(id=>!same(oldMoves.get(id),newMoves.get(id))));
  if(!changedItems.size&&!changedMoves.size)return;
- const snapshot=await tx.get(db.collection('fiscalPrivateV1/'+accountUid+'/workspaces/'+workspaceId+'/purchaseCostCorrections').limit(201));need(snapshot.docs.length<=200);
+ need(['simulation','production'].includes(environment));
+ const snapshot=await tx.get(db.collection((environment==='production'?'fiscalProductionV1':'fiscalPrivateV1')+'/'+accountUid+'/workspaces/'+workspaceId+'/purchaseCostCorrections').limit(201));need(snapshot.docs.length<=200);
  for(const x of snapshot.docs){
-   const r=x.data();need(r.accountUid===accountUid&&r.workspaceId===workspaceId&&r.environment==='simulation'&&r.purchaseId===x.id&&Array.isArray(r.plan?.updates));
+   const r=x.data();need(r.accountUid===accountUid&&r.workspaceId===workspaceId&&r.environment===environment&&r.purchaseId===x.id&&Array.isArray(r.plan?.updates));
    const history=r.plan.historyBindings??[],tracked=new Set(r.plan.lines.filter(l=>l.itemId).map(l=>l.itemId));
    for(const h of history){const m=newMoves.get(h.movementId);need(m&&reviewDigest(m)===h.digest);}
    // No new backdated stock changes can invalidate a reviewed historical lot.

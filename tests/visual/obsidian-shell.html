@@ -9,13 +9,21 @@
   <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true">
   <style>.shell-fixture{min-height:1100px;padding:28px}.shell-fixture-card{max-width:760px;min-height:220px;padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-surface)}.shell-create-button{transition:none!important}@media(max-width:960px){.shell-fixture{padding:18px 14px}.shell-fixture-card{min-height:700px}.lourex-ai-panel:not([data-v449-qa-ready="true"]){visibility:hidden!important}}</style>
 </head>
-<body><div id="root" class="app-ui"></div>
+<body><div id="root"><div id="shell-qa-root" class="app-ui"></div></div>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="lourex-ai-workflows.js?v=1"></script>
-<script src="ai-composer-v449.js?v=449-1"></script>
+<script>
+  // The shell-only QA validates actual React navigation and Global Search without
+  // concurrently mounting the unrelated legacy AI/voice DOM owners. Full AI QA
+  // remains enabled in the default fixture (including TailAdmin visual gate).
+  if (!new URLSearchParams(location.search).has('shellOnly')) {
+    document.write('<script src="lourex-ai-workflows.js?v=1"><\/script>');
+    document.write('<script src="ai-composer-v449.js?v=449-1"><\/script>');
+  }
+</script>
 <script>
   (()=>{
+    if(new URLSearchParams(location.search).has('shellOnly'))return;
     let checked=false;
     let checking=false;
     const frames=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -137,5 +145,5 @@
       h(GlobalSearch,{documents:[],customers:[],items:[],suppliers:[],purchases:[],language:ar?'ar':'en',onNavigate:screen=>{window.shellQa.navigations.push(screen);this.setState({screen});},onOpenDocument:()=>{},onNewDocument:kind=>{window.shellQa.newKind=kind;}})
     );}
   }
-  ReactDOM.render(h(Fixture),document.getElementById('root'));
+  ReactDOM.render(h(Fixture),document.getElementById('shell-qa-root'));
 </script></body></html>

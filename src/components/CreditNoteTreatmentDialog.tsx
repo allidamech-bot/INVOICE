@@ -1,5 +1,5 @@
 import type {LourexDocument} from '../types.js';
-import {createCreditNoteDraft,type CreditNoteTreatment} from '../lib/document-lifecycle.js';
+import {createCreditNoteDraft,createAdvanceRefundDraft,type CreditNoteTreatment} from '../lib/document-lifecycle.js';
 import {calculateTotals,decimalToScaled,formatMoney} from '../lib/money.js';
 import {t} from '../lib/i18n.js';
 import {Button,Input,Modal,Select,Textarea} from './UI.js';
@@ -7,17 +7,19 @@ import {Button,Input,Modal,Select,Textarea} from './UI.js';
 interface Props {
   source:LourexDocument;
   available:string;
+  refundDocuments?:LourexDocument[];
   onClose:()=>void;
   onCreate:(amount:string,treatment:CreditNoteTreatment)=>Promise<void>;
 }
 interface State {mode:''|CreditNoteTreatment['mode'];reason:string;amount:string;busy:boolean;error:string;}
 export class CreditNoteTreatmentDialog extends React.Component<Props,State>{
-  state:State={mode:'',reason:'',amount:this.props.available,busy:false,error:''};
+  state:State={mode:this.props.refundDocuments?'invoice-tax':'',reason:'',amount:this.props.available,busy:false,error:''};
   private preview=():LourexDocument=>{
     if(!this.state.mode)throw new Error(t('Select the VAT treatment.','اختر المعالجة الضريبية.'));
     if(decimalToScaled(this.state.amount,2)>decimalToScaled(this.props.available,2))
       throw new Error(t('Credit exceeds the remaining invoice balance.','الإشعار يتجاوز الرصيد المتبقي للفاتورة.'));
-    return createCreditNoteDraft(this.props.source,'PREVIEW',this.state.amount,{mode:this.state.mode,reason:this.state.reason});
+    const treatment:CreditNoteTreatment={mode:this.state.mode,reason:this.state.reason};
+    return this.props.refundDocuments?createAdvanceRefundDraft(this.props.source,'PREVIEW',this.state.amount,treatment,this.props.refundDocuments):createCreditNoteDraft(this.props.source,'PREVIEW',this.state.amount,treatment);
   };
   private submit=async()=>{
     if(this.state.busy)return;
@@ -38,7 +40,7 @@ export class CreditNoteTreatmentDialog extends React.Component<Props,State>{
     const error=this.state.error||previewError;
     const net=totals?decimalToScaled(totals.grandTotal,2)-decimalToScaled(totals.tax,2):0n;
     const netAmount=`${net/100n}.${(net%100n).toString().padStart(2,'0')}`;
-    return <Modal open title={t('Credit note VAT treatment','المعالجة الضريبية للإشعار الدائن')}
+    return <Modal open title={this.props.refundDocuments?t('Advance refund — draft','استرداد دفعة مقدمة — مسودة'):t('Credit note VAT treatment','المعالجة الضريبية للإشعار الدائن')}
       onClose={()=>{if(!this.state.busy)this.props.onClose();}}
       footer={<div className="modal-footer-actions">
         <Button disabled={this.state.busy} onClick={this.props.onClose}>{t('Cancel','إلغاء')}</Button>
@@ -50,7 +52,7 @@ export class CreditNoteTreatmentDialog extends React.Component<Props,State>{
           <Input inputMode="decimal" value={this.state.amount} disabled={this.state.busy}
             onChange={(event:any)=>this.setState({amount:event.target.value,error:''})}/></label>
         <label><span>{t('VAT treatment','المعالجة الضريبية')}</span>
-          <Select value={this.state.mode} disabled={this.state.busy} onChange={(event:any)=>this.setState({mode:event.target.value,error:''})}>
+          <Select value={this.state.mode} disabled={this.state.busy||!!this.props.refundDocuments} onChange={(event:any)=>this.setState({mode:event.target.value,error:''})}>
             <option value="">{t('Select treatment…','اختر المعالجة…')}</option>
             <option value="invoice-tax">{t('Sales reduction — use invoice tax','تخفيض بيع — تطبيق ضريبة الفاتورة')}</option>
             <option value="keep-vat">{t('Keep VAT unchanged — accounting review required','دون تعديل الضريبة — يتطلب مراجعة محاسبية')}</option>
@@ -64,10 +66,10 @@ export class CreditNoteTreatmentDialog extends React.Component<Props,State>{
         {totals?<output data-credit-preview="true" aria-live="polite">
           {t('Net','القيمة قبل الضريبة')}: {formatMoney(netAmount,this.props.source.currency)}<br/>
           {t('VAT reduction','تخفيض الضريبة')}: {formatMoney(totals.tax,this.props.source.currency)}<br/>
-          {t('Receivable reduction','تخفيض الذمم')}: {formatMoney(totals.grandTotal,this.props.source.currency)}
+          {this.props.refundDocuments?t('Advance refund','استرداد الدفعة'):t('Receivable reduction','تخفيض الذمم')}: {formatMoney(totals.grandTotal,this.props.source.currency)}
         </output>:null}
         {error?<p role="alert">{error}</p>:null}
-        <p className="field-hint">{t('Creates a draft for review. Balances and VAT change only after issue.','تنشأ مسودة للمراجعة. لا تتغير الأرصدة والضريبة إلا بعد الإصدار.')}</p>
+        <p className="field-hint">{this.props.refundDocuments?t('Isolated fiscal draft only. An approved withdrawal and fiscal acceptance are required before posting.','مسودة ضريبية تجريبية فقط. يلزم سحب معتمد وقبول ضريبي قبل الترحيل.'):t('Creates a draft for review. Balances and VAT change only after issue.','تنشأ مسودة للمراجعة. لا تتغير الأرصدة والضريبة إلا بعد الإصدار.')}</p>
       </div>
     </Modal>;
   }

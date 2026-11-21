@@ -6,7 +6,7 @@ import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {createSupplier,createPurchase,createPurchaseItem} from '../dist/src/lib/operations.js';
 import {normalizeSupplierPayment,purchasePayableSummary} from '../dist/src/lib/payables.js';
 import {invoicePaymentSummary} from '../dist/src/lib/payments.js';
-import {customerPaymentVoucher,supplierPaymentVoucher} from '../dist/src/lib/payment-voucher.js';
+import {customerPaymentVoucher,supplierPaymentVoucher,adjustedSupplierPaymentVoucher} from '../dist/src/lib/payment-voucher.js';
 
 const at='2026-10-10T10:00:00.000Z',date='2026-10-10';
 function customer(){
@@ -102,4 +102,16 @@ test('voucher scope uses canonical legacy default/main, never a missing-field wi
   for(const p of [payment,f.payment]){delete p.workspaceId;delete p.branchId;}
   assert.equal(customerPaymentVoucher(invoice,payment.id,[payment]).amount,'25.00');
   assert.equal(supplierPaymentVoucher(f.purchase,f.payment.id,[f.payment],f.company).amount,'20.00');
+});
+
+test('adjusted supplier voucher is read-only, bound to verified AP debit, and closed on reversal or scope change',()=>{
+ const f=supplier();f.purchase.currency='SAR';
+ const total=purchasePayableSummary(f.purchase,[],date).total;
+ const row={id:'adj-pay',purchaseId:f.purchase.id,workspaceId:f.purchase.workspaceId,branchId:f.purchase.branchId,supplierId:f.s.id,currency:'SAR',date,amount:'20.00',treasuryEntryId:'cash-movement',accountKind:'bank',reversalId:null,reversalDate:null};
+ const original=total,adjusted=(Number(total)+20).toFixed(2);
+ const journal={purchaseId:f.purchase.id,number:f.purchase.number,workspaceId:row.workspaceId,branchId:row.branchId,supplierId:row.supplierId,currency:'SAR',through:date,originalPayable:original,adjustedPayable:adjusted,paid:'0.00',settlementDelta:'-20.00',outstanding:original,supplierCredit:'0.00',entries:[{id:'original',date:'2026-10-01',type:'purchase',reference:f.purchase.number,debit:'0.00',credit:original},{id:'debit',date:'2026-10-02',type:'supplier-debit',reference:'debit-note',debit:'0.00',credit:'20.00'},{id:'settlement:adj-pay',date,type:'adjusted-payment',reference:'adj-pay',debit:'20.00',credit:'0.00'}]};
+ const before=JSON.stringify({row,journal,purchase:f.purchase});const v=adjustedSupplierPaymentVoucher(f.purchase,row,journal,[],f.company,date);
+ assert.equal(v.recordId,'settlement:adj-pay');assert.equal(v.paymentReference,'cash-movement');assert.equal(v.method,'other');assert.deepEqual(v.simulationSettlement,{treasuryEntryId:'cash-movement',accountKind:'bank'});assert.equal(JSON.stringify({row,journal,purchase:f.purchase}),before);
+ for(const patch of [{reversalId:'r',reversalDate:date},{branchId:'other'},{amount:'21.00'},{supplierId:'other'},{workspaceId:'other'},{date:'2026-10-11'}])assert.throws(()=>adjustedSupplierPaymentVoucher(f.purchase,{...row,...patch},journal,[],f.company,date));
+ assert.throws(()=>adjustedSupplierPaymentVoucher(f.purchase,row,{...journal,entries:journal.entries.slice(0,2)},[],f.company,date));
 });

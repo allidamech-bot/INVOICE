@@ -11,10 +11,12 @@ const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].ever
 export function parseFiscalCommand(v){
   need(v&&typeof v==='object'&&!Array.isArray(v),'INVALID_COMMAND');
   const op=v.operation,keys=['operation','workspaceId'];
-  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale','post-purchase','post-purchase-cost','post-purchase-adjustment','post-purchase-return','vat-report'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
+  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale','post-purchase','post-purchase-cost','post-purchase-adjustment','post-purchase-return','post-supplier-settlement','vat-report','inspect-stock-gl'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
   if(['document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale'].includes(op)){keys.push('documentId','documentRevision');need(id(v.documentId)&&version(v.documentRevision),'INVALID_COMMAND');}
   if(op==='post-purchase-adjustment'||op==='post-purchase-return'){keys.push('adjustmentId');need(id(v.adjustmentId),'INVALID_COMMAND');}
   if(op==='post-purchase'||op==='post-purchase-cost'){keys.push('purchaseId');need(id(v.purchaseId),'INVALID_COMMAND');}
+  if(op==='post-supplier-settlement'){keys.push('settlementId');need(id(v.settlementId),'INVALID_COMMAND');}
+  if(op==='inspect-stock-gl'){keys.push('branchId','itemId');need(id(v.branchId)&&id(v.itemId),'INVALID_COMMAND');}
   if(op==='vat-report'){keys.push('from','to');need(typeof v.from==='string'&&typeof v.to==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.from)&&/^\d{4}-\d{2}-\d{2}$/.test(v.to),'INVALID_COMMAND');}
   if(op==='download'){keys.push('format');need(['xml','pdf'].includes(v.format),'INVALID_COMMAND');}
   if(op==='review'){keys.push('invoiceType','supplyDate','paymentMeans');need(['standard','simplified'].includes(v.invoiceType)&&typeof v.supplyDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.supplyDate)&&['10','30','42','48','1'].includes(v.paymentMeans),'INVALID_COMMAND');}
@@ -65,9 +67,11 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
       const r=await enrollment[method](identity,{workspaceId:s.workspaceId,egsId:s.egsId,...(op==='enroll'?{otp:cmd.otp}:{expectedVersion:cmd.expectedVersion})});
       return {environment:'simulation',state:r.state,version:r.version};
     }
-    if(op==='vat-report'||op==='post-purchase'||op==='post-purchase-cost'||op==='post-purchase-adjustment'||op==='post-purchase-return'||op==='post-sale'){
+    if(op==='inspect-stock-gl'){need(typeof accounting?.inspectStockGl==='function','FISCAL_ACCOUNTING_UNAVAILABLE');return accounting.inspectStockGl(s,cmd.branchId,cmd.itemId);}
+    if(op==='vat-report'||op==='post-purchase'||op==='post-purchase-cost'||op==='post-purchase-adjustment'||op==='post-purchase-return'||op==='post-supplier-settlement'||op==='post-sale'){
       need(accounting,'FISCAL_ACCOUNTING_UNAVAILABLE');
       if(op==='vat-report')return accounting.report(s,cmd.from,cmd.to);
+      if(op==='post-supplier-settlement')return {environment:'simulation',...await accounting.postSupplierSettlement(s,cmd.settlementId)};
       if(op==='post-purchase-return')return {environment:'simulation',...await accounting.postPurchaseReturn(s,cmd.adjustmentId)};
       if(op==='post-purchase-adjustment')return {environment:'simulation',...await accounting.postPurchaseAdjustment(s,cmd.adjustmentId)};
       if(op==='post-purchase-cost')return {environment:'simulation',...await accounting.postPurchaseCost(s,cmd.purchaseId)};
@@ -98,11 +102,15 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
       const r=await reviewDocument(identity,{workspaceId:s.workspaceId,egsId:s.egsId,documentId:cmd.documentId,documentRevision:cmd.documentRevision,invoiceType:cmd.invoiceType,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans});
       return {environment:'simulation',...r};
     }
-    need(unit.active&&c.reviewed&&(!c.intent||c.intent.documentRevision===cmd.documentRevision),'FISCAL_REVIEW_REQUIRED');
     if(op==='submit'){
-      need(typeof submit==='function','FISCAL_VERIFICATION_UNAVAILABLE');need(c.issue?.status==='queued'&&c.issue.version===cmd.expectedVersion,'FISCAL_STALE_ISSUE');
+      // The queue already owns an immutable approved snapshot. An unrelated
+      // workspace sync must not strand it; neither may it substitute a new
+      // revision, issuer or approval. The worker re-verifies actual bytes.
+      need(unit.active&&c.intent&&c.issue&&c.intent.documentRevision===cmd.documentRevision&&c.intent.sha256===c.issue.snapshotDigest&&c.issue.status==='queued'&&c.issue.version===cmd.expectedVersion,'FISCAL_STALE_ISSUE');
+      need(typeof submit==='function','FISCAL_VERIFICATION_UNAVAILABLE');
       const r=await submit(s,cmd.documentId,cmd.expectedVersion);return {environment:'simulation',documentId:cmd.documentId,status:r.status,version:r.version};
     }
+    need(unit.active&&c.reviewed&&(!c.intent||c.intent.documentRevision===cmd.documentRevision),'FISCAL_REVIEW_REQUIRED');
     if(op==='prepare')need(typeof prepare==='function','FISCAL_VERIFICATION_UNAVAILABLE');
     const a=await approve(identity,{workspaceId:s.workspaceId,egsId:s.egsId,documentId:cmd.documentId},{expectedDocumentRevision:cmd.documentRevision,requireCommandEnabled:true});
     need(a.documentRevision===cmd.documentRevision,'FISCAL_REVIEW_REQUIRED');

@@ -8,9 +8,10 @@ import {createCommercialFiscalPreparation} from '../api/_fiscal/commercial-prepa
 import {createCommercialIssueApproval} from '../api/_fiscal/commercial-approval.js';
 import {createCommercialReview} from '../api/_fiscal/commercial-review.js';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
-import {advanceCashFacts,reserveAdvanceCash} from '../api/_fiscal/advance-commercial.js';
+import {advanceCashFacts,reserveAdvanceCash,planAdvanceRefundCommercial} from '../api/_fiscal/advance-commercial.js';
 import {resolveFiscalCreditOriginal,planFiscalCreditReservation} from '../api/_fiscal/commercial-credit.js';
 import {resolveCommercialScenario,planCommercialScenario} from '../api/_fiscal/commercial-scenarios.js';
+import {createAcceptedFiscalReader} from '../api/_fiscal/accepted-issue.js';
 import {createFiscalSimulationWorker} from '../api/_fiscal/simulation-worker.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {encodeWorkspace} from '../api/_accounting/period-format.js';
@@ -32,16 +33,16 @@ function fixture({publish=true,treasuryEntries=[],treasuryAccounts=[]}={}){
  put(base,{...scope,syntheticOnly:true});put(base+'/egs/egs',{...scope,active:true,nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
  const root='users/owner',manifest=root+'/workspace/meta',control=root+'/accounting/control',reviewPath=base+'/issueReviews/doc',intentPath=base+'/issueIntents/doc';
  const revision='a'.repeat(32);
- function source(p=payload){
-   const v=emptyVault();v.documents=[p.document];v.treasuryEntries=structuredClone(treasuryEntries);v.treasuryAccounts=structuredClone(treasuryAccounts);v.workspaces[0].id=scope.workspaceId;v.branches[0].workspaceId=scope.workspaceId;
+ function source(p=payload,extraDocuments=[]){
+   const v=emptyVault();v.documents=[p.document,...extraDocuments];v.treasuryEntries=structuredClone(treasuryEntries);v.treasuryAccounts=structuredClone(treasuryAccounts);v.workspaces[0].id=scope.workspaceId;v.branches[0].workspaceId=scope.workspaceId;
    const encoded=encodeWorkspace(v,revision);const meta={...encoded.meta,chunkStorage:'period-generations-v1'};
    put(manifest,meta);put(control,{format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:scope.accountUid,generation:1,boundaries:[]});
    for(const chunk of encoded.chunks)put(root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0'),chunk);
-   const verified={...scope,documentId:id,state:'approved',sourceRevision:revision,sourceSha256:meta.sha256,periodGeneration:1,documentRevision:p.document.revision,issuer:p.issuer,review:p.review};
-   put(reviewPath,verified);
+   const verified={...scope,documentId:p.document.id,state:'approved',sourceRevision:revision,sourceSha256:meta.sha256,periodGeneration:1,documentRevision:p.document.revision,issuer:p.issuer,review:p.review};
+   put(base+'/issueReviews/'+p.document.id,verified);
    return {revision,sha256:meta.sha256,generation:1,reviewDigest:reviewDigest(verified)};
  }
- function intent(p=payload){const binding=source(p);const bytes=Buffer.from(JSON.stringify({...p,source:binding}));put(intentPath,{...scope,documentId:id,state:'approved',generatedAt:p.generatedAt,documentRevision:p.document.revision,sha256:digest(bytes),bytes:bytes.toString('base64')});}
+ function intent(p=payload,extraDocuments=[]){const binding=source(p,extraDocuments);const bytes=Buffer.from(JSON.stringify({...p,source:binding}));put(base+'/issueIntents/'+p.document.id,{...scope,documentId:p.document.id,state:'approved',generatedAt:p.generatedAt,documentRevision:p.document.revision,sha256:digest(bytes),bytes:bytes.toString('base64')});}
  if(publish)intent();else source();
  const ledger=createFiscalLedger(db);
  const make=(patch={})=>createCommercialFiscalPreparation({db,ledger,canonicalize:b=>b,validateOfficial:async()=>true,clock:()=>at,uuid:()=>identity.uuid,...patch});
@@ -229,4 +230,55 @@ test('debit note references a real accepted original, exact approved adjustment 
  const run=()=>f.db.runTransaction(async tx=>{const plan=await planCommercialScenario(f.db,tx,scope,{document:d,issuer,review:r},next);plan.write(tx);});
  await run();await assert.rejects(run(),/EVIDENCE_ALREADY_RESERVED/);
  assert.equal(f.read('fiscalPrivateV1/owner/scenarioClaims/'+hash).documentId,d.id);
+});
+
+test('isolated refund uses private withdrawal proof, shared reservation, accepted credit and one cash claim',async()=>{
+ const draft=specialDraft(id,'ADV-1'),receipt={...draft,items:draft.items.map(l=>({...l,stockTreatment:'non-stock'}))},hash='e'.repeat(64);
+ const cash={workspaceId:scope.workspaceId,branchId:'main',id:'cash-advance',date:receipt.issueDate,type:'deposit',sourceType:'manual',sourceId:'',currency:'SAR',amount:'115.00',fromAccountId:'',toAccountId:'bank',reference:'ADV-1',notes:'Synthetic deposit',createdAt:at,voidedAt:''};
+ const out={...cash,id:'cash-refund',type:'withdrawal',amount:'46.00',fromAccountId:'bank',toAccountId:'',reference:'REFUND-1'};
+ const bank={workspaceId:scope.workspaceId,branchId:'main',id:'bank',currency:'SAR',active:true};
+ const f=fixture({publish:false,treasuryEntries:[cash,out],treasuryAccounts:[bank]});
+ const treasuryEntryDigest=reviewDigest(advanceCashFacts(cash));
+ evidence(f,receipt,'advance-receipt',hash,'115.00',{receivedAt:receipt.issueDate,treasuryEntryId:cash.id,treasuryEntryDigest});
+ const rr={...specialReview(receipt),...await f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,receipt,specialReview(receipt),{kind:'advance-receipt',evidenceDigest:hash}))};
+ f.intent({...payload,document:receipt,review:rr});await acceptOriginal(f);
+ const accepted=await createAcceptedFiscalReader(f.db)(scope,id),binding={kind:'receipt',net:'100.00',vat:'15.00',gross:'115.00',evidenceDigest:hash,treasuryEntryId:cash.id};
+ const final={...receipt,status:'final',fiscalAdvance:binding};
+ const originalPosting={...scope,key:'sale-'+id,source:'sale',sourceId:id,commercialPosted:true,finalFingerprint:reviewDigest(final),advanceBinding:binding,amount:{kind:'prepayment',net:'100.00',vat:'15.00',gross:'115.00'},uuid:accepted.record.uuid,snapshotDigest:accepted.record.snapshotDigest,evidenceDigest:accepted.record.resultDigest,category:'S',rate:'15'};
+ f.put(base+'/accountingEntries/sale-'+id,originalPosting);
+ f.put('fiscalPrivateV1/owner/advanceTreasuryIndex/'+reviewDigest(cash.id),{...scope,documentId:id,uuid:accepted.record.uuid,evidenceDigest:hash,treasuryEntryId:cash.id,cashDigest:treasuryEntryDigest});
+ const raw=specialDraft('refund','CN-1','40'),credit={...raw,role:'credit-note',creditForId:id,creditForNumber:receipt.number,items:raw.items.map(l=>({...l,stockTreatment:'non-stock'}))};
+ f.source({...payload,document:credit,review:specialReview(credit)},[final]);
+ const bytes=Buffer.from('synthetic refund cash proof'),proofHash=digest(bytes),cashDigest=reviewDigest(advanceCashFacts(out)),instruction={kind:'advance-refund',evidenceDigest:proofHash};
+ const facts={receiptId:id,net:'40.00',vat:'6.00',creditFingerprint:reviewDigest(credit),receiptFingerprint:reviewDigest(final),treasuryEntryId:out.id,cashDigest,bytes:bytes.toString('base64')};
+ evidence(f,credit,'advance-refund',proofHash,'46.00',{...facts,bytes:Buffer.from('forged').toString('base64')});
+ await assert.rejects(f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,credit,specialReview(credit),instruction)));
+ evidence(f,credit,'advance-refund',proofHash,'46.00',facts);
+ await assert.rejects(f.db.runTransaction(tx=>resolveFiscalCreditOriginal(f.db,tx,scope,credit)));
+ const reviewRefund={...specialReview(credit),...await f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,credit,specialReview(credit),instruction)),correctionReason:'Refund of unused prepayment'};
+ const uuid='44444444-4444-4444-8444-444444444444',next=scenarioIssue(f,credit,uuid),mapped=mapCommercialFiscalInvoice({scope,document:credit,issuer,review:reviewRefund,identity:next});
+ assert.equal(mapped.invoice.kind,'credit-note');assert.match(mapped.candidate.bytes.toString(),/381<\/cbc:InvoiceTypeCode>/);
+ const p={...payload,document:credit,review:reviewRefund};
+ f.intent(p,[final]);
+ await f.make({uuid:()=>uuid})(scope,credit.id);
+ const row=f.read(base+'/advanceBalances/'+id);
+ assert.deepEqual(row.reserved,{net:'40.00',vat:'6.00'});
+ assert.equal(f.read(base+'/advanceBalances/'+id+'/reservations/'+credit.id).kind,'advance-refund');
+ assert.equal(f.read(base+'/creditBalances/'+id),undefined);
+ const worker=createFiscalSimulationWorker({ledger:f.ledger,resolveCredential:async()=>({...scope,kind:'production',binarySecurityToken:Buffer.from('synthetic').toString('base64'),secret:'synthetic'}),verifyPrepared:async()=>true,verifyAuthorityResult:async()=>true,clock:()=>at,attemptId:()=> 'refund-attempt',fetchImpl:async()=>new Response(JSON.stringify({clearanceStatus:'CLEARED',clearedInvoice:Buffer.from('<cleared-credit/>').toString('base64'),validationResults:{status:'PASS',errorMessages:[],warningMessages:[]}}),{status:200})});
+ assert.equal((await worker(scope,credit.id,1)).status,'cleared');
+ const acceptedCredit=await createAcceptedFiscalReader(f.db)(scope,credit.id),source={payload:{documents:[final,credit],treasuryAccounts:[bank],treasuryEntries:[cash,out]},closedThrough:null},model={kind:'credit-note',net:'40.00',vat:'6.00',gross:'46.00'};
+ const run=(historical=false)=>f.db.runTransaction(async tx=>{const plan=await planAdvanceRefundCommercial(f.db,tx,scope,source,p,acceptedCredit,mapped,model,{historical});if(!historical)plan.write(tx);return plan;});
+ const plan=await run();
+ assert.deepEqual(plan.lines,[{account:'customer-advances',side:'debit',amount:'40.00'},{account:'output-vat',side:'debit',amount:'6.00'},{account:'cash-bank',side:'credit',amount:'46.00'}]);
+ assert.equal(plan.binding.kind,'refund');assert.equal(plan.binding.resultDigest,acceptedCredit.record.resultDigest);
+ await assert.rejects(run(),/FISCAL_ADVANCE_CASH_ALREADY_CLAIMED/);
+ assert.deepEqual((await run(true)).binding,plan.binding);
+ assert.deepEqual(f.read(base+'/advanceBalances/'+id).reserved,{net:'40.00',vat:'6.00'});
+});
+
+test('explicit ordinary invoices cannot be reclassified by an approved fiscal tax review; legacy tax drafts still map',()=>{
+ assert.throws(()=>map({...document,invoiceMode:'ordinary'}),/FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE/);
+ assert.throws(()=>map({...document,invoiceMode:'ordinary',adjustments:{...document.adjustments,taxEnabled:false,taxPercent:'0'}},{...review,taxCategory:'Z',taxRate:'0',classificationDigest:'a'.repeat(64)}),/FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE/);
+ assert.equal(map({...document,invoiceMode:'tax'}).candidate.totals.taxInclusiveTotal,map().candidate.totals.taxInclusiveTotal);
 });

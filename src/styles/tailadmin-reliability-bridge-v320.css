@@ -191,3 +191,26 @@
   .lourex-ios-output-card{max-width:calc(100vw - 24px)!important}
   html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{bottom:calc(94px + env(safe-area-inset-bottom,0px))!important}
 }
+
+/* iPhone Home Screen PWA — notch-safe TailAdmin shell geometry (2026-11-10).
+   The normal mobile shell reserves a fixed 60–70px top grid row, while later
+   visual layers add the hardware safe-area inset to the topbar's padding.
+   In standalone WebKit this can leave less than the 52px required by the
+   existing brand/search controls and can overlap the first workspace row.
+   Add only the actual inset to BOTH the row and its header, retaining the
+   exact original 70px browser-mode appearance, colors and controls.
+   Do not reactivate the iOS service worker or adjust any business logic. */
+@supports (-webkit-touch-callout: none) {
+  @media screen and (display-mode: standalone) and (max-width: 900px) {
+    html body #root .app-ui .ta-shell,
+    html[dir="rtl"] body #root .app-ui .ta-shell {
+      grid-template-rows: calc(70px + env(safe-area-inset-top, 0px)) minmax(0, 1fr) !important;
+    }
+    html body #root .app-ui .ta-topbar,
+    html[dir="rtl"] body #root .app-ui .ta-topbar {
+      box-sizing: border-box !important;
+      height: calc(70px + env(safe-area-inset-top, 0px)) !important;
+      min-height: calc(70px + env(safe-area-inset-top, 0px)) !important;
+    }
+  }
+}

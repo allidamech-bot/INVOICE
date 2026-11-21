@@ -1,17 +1,17 @@
 import {createHash,createPublicKey,verify} from 'node:crypto';
 import {crc32c} from './managed-kms.js';
 
-// Private simulation-only HSM adapter. No key creation, export, billing or route.
+// Private HSM adapters with separate environments. No provisioning or export.
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const QA=/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/;
 const KEY=/^projects\/([a-z][a-z0-9-]+)\/locations\/[a-z0-9-]+\/keyRings\/[A-Za-z0-9_-]+\/cryptoKeys\/[A-Za-z0-9_-]+\/cryptoKeyVersions\/[1-9][0-9]*$/;
 const HEX=/^[a-f0-9]{64}$/;
-const PURPOSES=new Set(['csr','xades-signed-info','simplified-qr','pades-signed-attributes']);
+const PURPOSES=new Set(['csr','xades-signed-info','simplified-qr','pades-signed-attributes','sdk4-invoice-hash']);
 const HSM=new Set(['HSM','HSM_SINGLE_TENANT']);
 const sha=b=>createHash('sha256').update(b).digest();
 const checksum=b=>String(crc32c(b));
-function scope(s){
-  if(s?.environment!=='simulation'||['accountUid','workspaceId','egsId'].some(k=>typeof s[k]!=='string'||!ID.test(s[k])))throw Error('SIGNING_SCOPE_INVALID');
+function scope(s,environment){
+  if(s?.environment!==environment||['accountUid','workspaceId','egsId'].some(k=>typeof s[k]!=='string'||!ID.test(s[k])))throw Error('SIGNING_SCOPE_INVALID');
   return {environment:s.environment,accountUid:s.accountUid,workspaceId:s.workspaceId,egsId:s.egsId};
 }
 function decode(value,max){
@@ -37,11 +37,13 @@ async function readJson(response){
   const reader=response.body.getReader();let size=0;const chunks=[];
   try{while(true){const r=await reader.read();if(r.done)break;size+=r.value.byteLength;if(size>16384){await reader.cancel();throw Error('SIGNING_RESPONSE_TOO_LARGE');}chunks.push(Buffer.from(r.value));}return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)));}finally{reader.releaseLock();}
 }
-export function createQaManagedSigner({projectId,binding,getAccessToken,fetchImpl=fetch,timeoutMs=10000}){
-  const bound=scope(binding);
+function createManagedSigner({projectId,binding,getAccessToken,fetchImpl=fetch,timeoutMs=10000,authorizeBinding},environment){
+  const bound=scope(binding,environment);
+  if(environment==='production'&&typeof authorizeBinding!=='function')throw Error('SIGNING_NOT_CONFIGURED');
   const keyVersion=binding.keyVersion,publicKeyDigest=binding.publicKeyDigest,protectionLevel=binding.protectionLevel;
-  if(typeof projectId!=='string'||!QA.test(projectId)||typeof keyVersion!=='string'||keyVersion.length>768||KEY.exec(keyVersion)?.[1]!==projectId||typeof publicKeyDigest!=='string'||!HEX.test(publicKeyDigest)||!HSM.has(protectionLevel)||typeof getAccessToken!=='function'||typeof fetchImpl!=='function'||!Number.isInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000)throw Error('SIGNING_NOT_CONFIGURED');
-  function authorized(c){const v=scope(c);if(Object.keys(bound).some(k=>bound[k]!==v[k]))throw Error('SIGNING_SCOPE_MISMATCH');}
+  const validProject=typeof projectId==='string'&&(environment==='simulation'?QA.test(projectId):/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)&&!projectId.endsWith('-fiscal-qa'));
+  if(!validProject||typeof keyVersion!=='string'||keyVersion.length>768||KEY.exec(keyVersion)?.[1]!==projectId||typeof publicKeyDigest!=='string'||!HEX.test(publicKeyDigest)||!HSM.has(protectionLevel)||typeof getAccessToken!=='function'||typeof fetchImpl!=='function'||!Number.isInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000)throw Error('SIGNING_NOT_CONFIGURED');
+  async function authorized(c){const v=scope(c,environment);if(Object.keys(bound).some(k=>bound[k]!==v[k]))throw Error('SIGNING_SCOPE_MISMATCH');if(environment==='production'&&await authorizeBinding(Object.freeze({...bound,keyVersion,publicKeyDigest,protectionLevel}))!==true)throw Error('SIGNING_SCOPE_MISMATCH');}
   async function request(suffix,body){
     const controller=new AbortController();let timer;
     try{return await Promise.race([(async()=>{
@@ -58,9 +60,9 @@ export function createQaManagedSigner({projectId,binding,getAccessToken,fetchImp
     return {key,spki};
   }
   return Object.freeze({
-    async getPublicKey(c){authorized(c);return Buffer.from((await publicKey()).spki);},
+    async getPublicKey(c){await authorized(c);return Buffer.from((await publicKey()).spki);},
     async sign(c,{purpose,bytes,encoding}){
-      authorized(c);if(!PURPOSES.has(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024||!['der','ieee-p1363'].includes(encoding))throw Error('SIGNING_INPUT_INVALID');
+      await authorized(c);if(!PURPOSES.has(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024||!['der','ieee-p1363'].includes(encoding)||(purpose==='sdk4-invoice-hash'&&(bytes.length!==32||encoding!=='der')))throw Error('SIGNING_INPUT_INVALID');
       const original=Buffer.from(bytes),key=await publicKey(),digest=sha(original);
       const r=await request(':asymmetricSign',{digest:{sha256:digest.toString('base64')},digestCrc32c:checksum(digest)});
       if(r?.name!==keyVersion||r.protectionLevel!==protectionLevel||r.verifiedDigestCrc32c!==true)throw Error('SIGNING_RESULT_INVALID');
@@ -71,3 +73,6 @@ export function createQaManagedSigner({projectId,binding,getAccessToken,fetchImp
     }
   });
 }
+
+export function createQaManagedSigner(options){return createManagedSigner(options,'simulation');}
+export function createProductionManagedSigner(options){return createManagedSigner(options,'production');}

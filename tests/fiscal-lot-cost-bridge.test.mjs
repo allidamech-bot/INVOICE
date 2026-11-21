@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {planReviewedLotCostBridge} from '../api/_fiscal/lot-cost-bridge.mjs';
+import {planReviewedLotCostBridge,replayPostedCostAllocation} from '../api/_fiscal/lot-cost-bridge.mjs';
 const scope={workspaceId:'w',branchId:'b',currency:'SAR'},purchase={...scope,id:'p',status:'posted',date:'2026-11-01',items:[{id:'l',savedItemId:'i',sku:'SKU',unit:'PCS',quantity:'4',unitCost:'28.75',landedUnitCost:'28.75'}]},amount={kind:'invoice',treatment:'domestic',net:'100.00',vat:'15.00',gross:'115.00',deductibleVat:'15.00'};
 const movement=(id,type,quantity,date,sourceId='p',unitCost='28.75')=>({...scope,id,type,quantity,date,createdAt:date+'T10:00:00Z',sourceId,itemId:'i',sku:'SKU',unitCost});
 const receipt=movement('receipt','purchase','4','2026-11-01'),other=movement('other','purchase','3','2026-11-02','q','28.75'),issue=movement('sales-invoice-stock:inv:l','issue','-3','2026-11-03','inv');
@@ -12,3 +12,33 @@ test('requires complete lot attribution, not FIFO assumptions or partial claims'
 test('rejects cross-scope, wrong original cost, missing receipt and unsupported return evidence',()=>{for(const movements of [[receipt,other,{...issue,branchId:'other'}],[receipt,other,{...issue,unitCost:'20.00'}],[other,issue],[receipt,other,{...issue,salesReturn:{}}]])assert.throws(()=>planReviewedLotCostBridge({...base,movements}));});
 test('non-sales disposition receives other expense allocation, not COGS',()=>{const adj={...issue,id:'damage',type:'adjustment'};const r=planReviewedLotCostBridge({...base,movements:[receipt,other,adj],assignments:[{movementId:'damage',lots:[{receiptId:'receipt',quantity:'2'},{receiptId:'other',quantity:'1'}]}]});assert.equal(r.valuationBridge.expenseRelief,'7.50');assert.equal(r.valuationBridge.cogsRelief,'0.00');});
 test('three partial issues allocate exact tax cents and never exceed total relief',()=>{const p={...purchase,items:[{...purchase.items[0],quantity:'3',unitCost:'0.333333333333',landedUnitCost:'0.333333333333'}]},m=movement('receipt','purchase','3','2026-11-01','p','0.333333333333'),issues=[1,2,3].map(n=>movement('sales-invoice-stock:'+n,'issue','-1','2026-11-0'+(n+1),'inv','0.333333333333'));const r=planReviewedLotCostBridge({...base,purchase:p,amount:{kind:'invoice',treatment:'domestic',net:'0.87',vat:'0.13',gross:'1.00',deductibleVat:'0.13'},allocations:[{lineId:'l',receiptMovementId:'receipt',deductibleVat:'0.13',adjustedUnitCost:'0.29'}],movements:[m,...issues],assignments:issues.map(x=>({movementId:x.id,lots:[{receiptId:'receipt',quantity:'1'}]})),savedItems:[{...item,lastUnitCost:'0.333333333333'}]});assert.deepEqual(r.claims.map(x=>x.relief),['0.04','0.05','0.04']);assert.equal(r.valuationBridge.cogsRelief,'0.13');});
+
+test('reviewed warehouse transfer preserves quantity and VAT relief and enables destination disposal only',()=>{
+ const inbound={...receipt,warehouseId:'A'},m={...movement('transfer','transfer','2','2026-11-02'),fromWarehouseId:'A',toWarehouseId:'B'},out={...issue,quantity:'-2',warehouseId:'B'};
+ const args={...base,movements:[inbound,m,out],assignments:[{movementId:m.id,lots:[{receiptId:inbound.id,quantity:'2'}]},{movementId:out.id,lots:[{receiptId:inbound.id,quantity:'2'}]}]};
+ const r=planReviewedLotCostBridge(args);assert.equal(r.valuationBridge.cogsRelief,'7.50');assert.equal(r.valuationBridge.inventoryRelief,'7.50');assert.equal(r.claims.length,1);
+ for(const invalid of [{...args,assignments:args.assignments.slice(1)},{...args,movements:[inbound,{...m,fromWarehouseId:'C'},out]},{...args,movements:[inbound,m,{...out,quantity:'-3'}],assignments:[args.assignments[0],{movementId:out.id,lots:[{receiptId:inbound.id,quantity:'3'}]}]}])assert.throws(()=>planReviewedLotCostBridge(invalid));
+});
+test('cannot attribute cross-warehouse issue without reviewed transfer',()=>assert.throws(()=>planReviewedLotCostBridge({...base,movements:[{...receipt,warehouseId:'A'},{...other,warehouseId:'A'},{...issue,warehouseId:'B'}]})));
+
+test('uses actual commercial inbound/outbound warehouse fields and branch default',()=>{
+ const inbound={...receipt,toWarehouseId:'warehouse-b'},out={...issue,quantity:'-2',fromWarehouseId:'secondary'},transfer={...movement('T','transfer','2','2026-11-02'),fromWarehouseId:'warehouse-b',toWarehouseId:'secondary'};
+ const args={...base,movements:[inbound,transfer,out],assignments:[{movementId:'T',lots:[{receiptId:'receipt',quantity:'2'}]},{movementId:out.id,lots:[{receiptId:'receipt',quantity:'2'}]}]};
+ assert.equal(planReviewedLotCostBridge(args).valuationBridge.inventoryRelief,'7.50');
+ assert.equal(planReviewedLotCostBridge({...args,movements:[receipt,transfer,out]}).valuationBridge.cogsRelief,'7.50');
+ assert.throws(()=>planReviewedLotCostBridge({...args,movements:[inbound,{...transfer,fromWarehouseId:'wrong'},out]}));
+ assert.throws(()=>planReviewedLotCostBridge({...args,movements:[inbound,transfer,{...out,warehouseId:'unrelated'}]}));
+});
+
+test('posted cost replay verifies each frozen location, claim and relief; later movements remain unallocated',()=>{
+ const digest=x=>JSON.stringify(x),history=[...base.movements].sort((a,b)=>a.id.localeCompare(b.id));
+ const review={state:'approved',purchaseId:purchase.id,effectiveDate:'2026-11-30',mode:'reviewed-lots',allocations:base.allocations,allocationDigest:digest(base.allocations),lotAssignments:base.assignments,lotAssignmentsDigest:digest(base.assignments),movementDigest:digest(history)};
+ const plan={...planReviewedLotCostBridge(base),lotBindings:base.assignments.map(a=>({movementId:a.movementId,digest:digest(a.lots.slice().sort((x,y)=>x.receiptId.localeCompare(y.receiptId)))})),historyBindings:history.map(m=>({movementId:m.id,digest:digest(m)}))};
+ const record={purchaseId:purchase.id,effectiveDate:review.effectiveDate,committedAt:'2026-11-30T12:00:00Z',reviewDigest:digest(review),plan};
+ const args={purchase,amount,record,review,movements:base.movements,savedItems:base.savedItems,digest};
+ assert.equal(replayPostedCostAllocation(args).historicalVerified,true);
+ assert.equal(replayPostedCostAllocation({...args,movements:[...base.movements,movement('later','purchase','1','2026-12-01','new')]}).subsequentMovementCount,1);
+ assert.throws(()=>replayPostedCostAllocation({...args,record:{...record,plan:{...plan,valuationBridge:{inventoryRelief:'15.00',cogsRelief:'0.00',expenseRelief:'0.00'}}}}));
+ assert.throws(()=>replayPostedCostAllocation({...args,movements:base.movements.map(m=>m.id===issue.id?{...m,unitCost:'1.00'}:m)}));
+ assert.throws(()=>replayPostedCostAllocation({...args,movements:[...base.movements,movement('backdated','purchase','1','2026-11-04','new')]}));
+});

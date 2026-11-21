@@ -1,5 +1,7 @@
-import {planAdvanceCommercial,verifyAdvanceReport} from './advance-commercial.js';
-import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
+import {projectSupplierAPJournal} from './supplier-ap-reconciliation.mjs';
+import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation,provisionVerifiedSupplierSettlement} from './supplier-settlement-posting.mjs';
+import {planAdvanceCommercial,planAdvanceRefundCommercial,verifyAdvanceReport} from './advance-commercial.js';
+import {planReviewedLotCostBridge,replayPostedCostAllocation} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
 import {supplierSettlementTimeline,commercialFiscalPostingPolicy} from './settlement-integrity.mjs';
 import {planPurchaseReturn,isFiscalPurchaseReturn} from './purchase-return.mjs';
@@ -7,15 +9,18 @@ import {inspectReturnPostings} from './return-postings.js';
 import {planPurchaseCostCorrection} from './purchase-cost-correction.mjs';
 import {fiscalSalesCoverage} from './fiscal-coverage.mjs';
 import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
-import {reconcileDomesticPurchase} from './purchase-reconciliation.mjs';
+import {reconcileDomesticPurchase,canReplayAdjustedSupplierPayable} from './purchase-reconciliation.mjs';
 import {createHash,randomBytes} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
+import {issuanceBoundary,fiscalBase,fiscalNamespace,assertProductionSale} from './issuance-boundary.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
 import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js';
 import {validateMeta,decodeWorkspace,encodeWorkspace} from '../_accounting/period-format.js';
 import {loadCompiledFinance} from '../_accounting/compiled-finance-loader.js';
+import {previewFiscalCostReclassification} from '../_accounting/finance-gl-atomic-contract.js';
+import {inspectPublishedStockGlReview,provisionIndependentStockGlReview} from './stock-gl-review.mjs';
 const ID=/^[A-Za-z0-9_-]{1,128}$/,HEX=/^[a-f0-9]{64}$/,VAT=/^3[0-9]{13}3$/;
 const data=s=>s.exists?s.data():null;
 const need=(ok,c='FISCAL_ACCOUNTING_INVALID')=>{if(!ok)throw Error(c);};
@@ -73,13 +78,13 @@ async function published(db,tx,s,id){
 }
 function validateScope(s){simulationBase(s);}
 function availablePeriod(source,date){need(day(date)&&(!source.closedThrough||date>source.closedThrough),'FISCAL_PERIOD_CLOSED');}
-function postingRef(db,s,key){return db.doc(simulationBase(s)+'/accountingEntries/'+key);}
+function postingRef(db,s,key){return db.doc(fiscalBase(s)+'/accountingEntries/'+key);}
 function signFor(kind){return kind==='credit-note'?-1n:1n;}
 async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,advance){
  const p=source.payload,final={...doc,status:'final',...(advance?{fiscalAdvance:advance.binding}:{})},before=p;
  const [{postIssuedInvoiceStock},{approvalGate},{assertCustomerCreditLimit},{assertDocumentLifecycleInvariant,createDocumentEvent},{assertInvoicePaymentInvariant},{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity},{isNonNegativeFinancialDecimalInput}]=await Promise.all(['stock','governance','commercial','lifecycle','payments','period','backup','money'].map(loadCompiledFinance));
  // Special fiscal subtypes must never be disguised as a commercial sale.
- need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock')||policyMode==='advance-receipt'&&advance?.binding.kind==='receipt'&&model.kind==='prepayment'||policyMode==='advance-settlement'&&advance?.binding.kind==='settlement'&&model.kind==='invoice','FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
+ need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock')||policyMode==='advance-receipt'&&advance?.binding.kind==='receipt'&&model.kind==='prepayment'||policyMode==='advance-settlement'&&advance?.binding.kind==='settlement'&&model.kind==='invoice'||policyMode==='advance-refund'&&advance?.binding.kind==='refund'&&model.kind==='credit-note','FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
  const policy=approvalGate(p,{action:'issue-document',entityType:'document',entityId:doc.id,entityLabel:doc.number,entityUpdatedAt:doc.updatedAt||''});
  need(policy.allowed,'FISCAL_COMMERCIAL_APPROVAL_REQUIRED');
  assertCustomerCreditLimit(final,p.customers,p.documents,p.payments);
@@ -98,7 +103,8 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
    cost+=stockCostCents(m.quantity.slice(1),m.unitCost);
  }
  if(advance){const [{assertFiscalAdvanceIntegrity},{calculateTotals}]=await Promise.all(['advance','money'].map(loadCompiledFinance));assertFiscalAdvanceIntegrity(candidate,d=>calculateTotals(d.items,d.adjustments));}
- const modelLines=policyMode==='advance-receipt'?model.lines.map(l=>l.account==='advance-receipt-clearing'?{...l,account:'cash-bank'}:l):model.lines;
+ const modelLines=policyMode==='advance-refund'?advance.lines:policyMode==='advance-receipt'?model.lines.map(l=>l.account==='advance-receipt-clearing'?{...l,account:'cash-bank'}:l):model.lines;
+ if(policyMode==='advance-refund')need(newMovements.length===0&&cost===0n,'FISCAL_ADVANCE_REFUND_STOCK_INVALID');
  const accounting={...model,lines:journal([...modelLines,entry('cost-of-sales','debit',cost),entry('inventory','credit',cost)])};
  assertPostedStockRestoreContinuity(before,candidate);assertClosedPeriodUnchanged(before,candidate,source.control.boundaries);
  // Check retained closed report digests as well as the before/after guard.
@@ -120,20 +126,21 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,ad
 // Private append-only VAT subledger. It is not a substitute for the existing
 // commercial accounting model; commercial stock/payables publication is a
 // separate verified operation, and reconciliation reports explicitly track it.
-export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
- const accepted=createAcceptedFiscalReader(db);
+export function createFiscalAccounting({db,clock=()=>new Date().toISOString(),verifySupplierSettlementEvidence,verifyStockGlEvidence,...boundaryOptions}){
+ const boundary=issuanceBoundary(db,boundaryOptions),accepted=createAcceptedFiscalReader(db,boundaryOptions);
  async function writePosting(tx,s,key,row,uniqueKey,publish){
-   const ref=postingRef(db,s,key),prior=data(await tx.get(ref)),uniqueRef=db.doc('fiscalPrivateV1/'+s.accountUid+'/accountingEvidence/'+uniqueKey),unique=data(await tx.get(uniqueRef));
+   const ref=postingRef(db,s,key),prior=data(await tx.get(ref)),uniqueRef=db.doc(fiscalNamespace(s)+'/'+s.accountUid+'/accountingEvidence/'+uniqueKey),unique=data(await tx.get(uniqueRef));
    if(prior){need(equal(prior,row)&&same(unique,s)&&unique.key===key&&unique.digest===row.evidenceDigest,'FISCAL_POSTING_CONFLICT');return {status:'posted',key};}
    need(!unique,'FISCAL_POSTING_EVIDENCE_DUPLICATE');
    if(publish)publish(tx);
    tx.create(ref,row);tx.create(uniqueRef,{...s,key,digest:row.evidenceDigest});return {status:'posted',key};
  }
  async function postSale(s,id,revision){
-   validateScope(s);need(typeof id==='string'&&ID.test(id)&&Number.isSafeInteger(revision)&&revision>0);
+   boundary.base(s);need(typeof id==='string'&&ID.test(id)&&Number.isSafeInteger(revision)&&revision>0);
    return db.runTransaction(async tx=>{
-     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
-     const a=await accepted(s,id,tx),intent=readApprovedIntent(await tx.get(db.doc(simulationBase(s)+'/issueIntents/'+id)),s,id),p=intent.payload;
+     const {workspace,unit}=await boundary.read(tx,s);need(workspace.commandsEnabled===true);
+     const a=await accepted(s,id,tx),intent=readApprovedIntent(await tx.get(db.doc(boundary.base(s)+'/issueIntents/'+id)),s,id),p=intent.payload;
+     assertProductionSale(s,p.document,p.review,unit);
      need(p.document.revision===revision&&a.snapshot.equals(intent.bytes)&&a.record.snapshotDigest===intent.digest);
      const m=mapCommercialFiscalInvoice({scope:s,document:p.document,issuer:p.issuer,review:p.review,identity:{documentId:id,uuid:a.record.uuid,icv:a.record.icv,previousInvoiceHash:a.record.previousInvoiceHash,generatedAt:a.record.generatedAt}});
      const amount=saleAccountingModel(m),source=await published(db,tx,s,id),d=source.payload.documents.find(x=>x.id===id);
@@ -156,10 +163,11 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
          need(same(original,s)&&original.amount?.kind==='prepayment'&&original.source==='sale','FISCAL_ADVANCE_POSTING_REQUIRED');
        }
      }
-     const scenario=p.review.scenario,advance=['advance-receipt','advance-settlement'].includes(scenario?.kind)?await planAdvanceCommercial(db,tx,s,source,p,a,m,amount):null;
+     const scenario=p.review.scenario,advance=scenario?.kind==='advance-refund'?await planAdvanceRefundCommercial(db,tx,s,source,p,a,m,amount):['advance-receipt','advance-settlement'].includes(scenario?.kind)?await planAdvanceCommercial(db,tx,s,source,p,a,m,amount):null;
      const policyMode=advance?scenario.kind:commercialFiscalPostingPolicy(d,amount,scenario);
      const compatibleCost=d.currency==='SAR'||d.items.every(line=>line.stockTreatment==='non-stock'||(line.stockTreatment==='tracked'&&source.payload.savedItems.some(item=>item.id===line.savedItemId&&item.lastCostCurrency===d.currency)));
      const plan=policyMode!=='private-only'&&compatibleCost?await planCommercialFinalization(db,tx,s,source,d,amount,policyMode,advance):null;
+     if(s.environment==='production')need(plan,'FISCAL_COMMERCIAL_POSTING_REQUIRED');
      const row={...s,key,source:'sale',sourceId:id,sourceRevision:revision,documentNumber:p.document.number,issueDate:p.document.issueDate,taxDate:p.document.issueDate,currency:p.document.currency,category:p.review.taxCategory,rate:p.review.taxRate,counterpartyVat:p.review.buyer?.vatNumber??null,issuerVat:p.issuer.vatNumber,originalId:p.review.originalDocumentId??null,uuid:a.record.uuid,evidenceDigest:a.record.resultDigest,snapshotDigest:a.record.snapshotDigest,amount:plan?.accounting??amount,sourceFingerprint:reviewDigest(p.document),finalFingerprint:plan?.finalFingerprint??null,stockIds:plan?.stockIds??[],commercialPosted:!!plan,...(advance?{advanceBinding:advance.binding}:{})};
      // Preserve the original immutable invoice even if the current draft is
      // missing or edited: posting is blocked, never silently reconstructed.
@@ -169,12 +177,12 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
  }
  async function postPurchase(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
-   const {purchaseTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
+   const {purchaseTotals,purchaseFinancialTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
    return db.runTransaction(async tx=>{
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,id),matches=source.payload.purchases.filter(p=>p.id===id);
      need(matches.length===1);const p=matches[0],approval=data(await tx.get(db.doc(base+'/purchaseVatReviews/'+id)));
-     need(p.workspaceId===s.workspaceId&&p.status==='posted'&&p.currency==='SAR'&&purchaseAccountingIsValid(p)&&VAT.test(p.supplierSnapshot?.vatTaxNumber??'')&&same(approval,s)&&approval.state==='approved'&&approval.purchaseId===id&&approval.sourceFingerprint===reviewDigest(p)&&approval.supplierVat===p.supplierSnapshot.vatTaxNumber&&VAT.test(approval.issuerVat)&&HEX.test(approval.evidenceDigest)&&approval.kind==='invoice'&&approval.documentNumber===p.number&&approval.issueDate===p.date&&day(approval.taxDate)&&p.date<=approval.taxDate,'FISCAL_PURCHASE_REVIEW_REQUIRED');
+     need(p.workspaceId===s.workspaceId&&p.status==='posted'&&p.currency==='SAR'&&purchaseAccountingIsValid(p)&&VAT.test(p.supplierSnapshot?.vatTaxNumber??'')&&same(approval,s)&&approval.state==='approved'&&approval.purchaseId===id&&approval.sourceFingerprint===reviewDigest(p)&&approval.supplierVat===p.supplierSnapshot.vatTaxNumber&&VAT.test(approval.issuerVat)&&HEX.test(approval.evidenceDigest)&&approval.kind==='invoice'&&p.purchaseTax?.mode!=='ordinary'&&approval.documentNumber===(p.purchaseTax?.mode==='tax'?p.purchaseTax.invoiceReference.trim():p.number)&&approval.issueDate===p.date&&day(approval.taxDate)&&p.date<=approval.taxDate,'FISCAL_PURCHASE_REVIEW_REQUIRED');
      const proof=data(await tx.get(db.doc(base+'/purchaseVatEvidence/'+approval.evidenceDigest)));
      need(same(proof,s)&&proof.state==='verified'&&proof.digest===approval.evidenceDigest&&typeof proof.bytes==='string'&&proof.bytes.length<=700000,'FISCAL_PURCHASE_EVIDENCE_REQUIRED');
      const bytes=Buffer.from(proof.bytes,'base64');need(bytes.length>0&&bytes.toString('base64')===proof.bytes&&sha(bytes)===proof.digest,'FISCAL_PURCHASE_EVIDENCE_INVALID');
@@ -185,7 +193,9 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      // Existing purchase totals are landed cost AND payable. Recognize only
      // when actual gross matches them, retaining a visible stock-basis mismatch
      // if deductible VAT is included in that legacy cost.
-     need(purchaseTotals(p).landedTotal===amount.gross,'FISCAL_PURCHASE_GROSS_MISMATCH');
+     const recorded=purchaseFinancialTotals(p);
+     need(recorded.payableTotal===amount.gross,'FISCAL_PURCHASE_GROSS_MISMATCH');
+     if(p.purchaseTax?.mode==='tax')need(recorded.net===amount.net&&recorded.vat===amount.vat&&recorded.deductibleVat===amount.deductibleVat&&recorded.landedTotal===money(cents(amount.gross)-cents(amount.deductibleVat)),'FISCAL_PURCHASE_RECORDED_TAX_MISMATCH');
      need(!(await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+id))).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
      const key='purchase-'+id,prior=data(await tx.get(postingRef(db,s,key)));if(!prior)availablePeriod(source,approval.taxDate);
      const row={...s,key,source:'purchase',sourceId:id,sourceRevision:p.updatedAt,documentNumber:p.number,issueDate:p.date,taxDate:approval.taxDate,currency:'SAR',category:approval.category,rate:approval.rate,counterpartyVat:approval.supplierVat,issuerVat:approval.issuerVat,originalId:null,uuid:null,evidenceDigest:approval.evidenceDigest,snapshotDigest:approval.sourceFingerprint,sourceFingerprint:approval.sourceFingerprint,amount};
@@ -207,9 +217,13 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const original=data(await tx.get(postingRef(db,s,'purchase-'+id))),review=data(await tx.get(db.doc(base+'/purchaseCostReviews/'+id)));
      need(p&&p.workspaceId===s.workspaceId&&p.status==='posted'&&same(original,s)&&original.source==='purchase'&&original.sourceId===id&&original.amount.kind==='invoice'&&original.amount.treatment==='domestic'&&original.sourceFingerprint===reviewDigest(p),'FISCAL_PURCHASE_SOURCE_MISMATCH');
      need(same(review,s)&&review.state==='approved'&&review.purchaseId===id&&review.originalEvidenceDigest===original.evidenceDigest&&review.sourceFingerprint===original.sourceFingerprint&&day(review.effectiveDate)&&review.effectiveDate>=original.taxDate&&Array.isArray(review.allocations)&&HEX.test(review.allocationDigest)&&review.allocationDigest===reviewDigest(review.allocations),'FISCAL_COST_REVIEW_REQUIRED');
+     need(p.purchaseTax===undefined,'FISCAL_PURCHASE_COST_ALREADY_TYPED');
      const ref=db.doc(base+'/purchaseCostCorrections/'+id),prior=data(await tx.get(ref));
      if(prior){
        need(same(prior,s)&&prior.purchaseId===id&&prior.originalEvidenceDigest===original.evidenceDigest&&prior.sourceFingerprint===original.sourceFingerprint&&prior.reviewDigest===reviewDigest(review),'FISCAL_PURCHASE_COST_CONFLICT');
+       const replay=replayPostedCostAllocation({purchase:p,amount:original.amount,record:prior,review,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems,digest:reviewDigest});
+       const bridge=previewFiscalCostReclassification({scope:s,purchase:p,original,plan:{...prior.plan,valuationBridge:replay.valuationBridge},effectiveDate:prior.effectiveDate});
+       if(prior.glBridge!==undefined)need(equal(prior.glBridge,bridge),'FISCAL_PURCHASE_COST_CONFLICT');
        return {status:'posted',key:'purchase-cost-'+id};
      }
      const correctionDate=clock().slice(0,10);need(review.effectiveDate===correctionDate,'FISCAL_COST_REVIEW_REQUIRED');availablePeriod(source,correctionDate);
@@ -245,7 +259,8 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        plan={...plan,valuationBridge:{inventoryRelief:money(inventory),cogsRelief:'0.00',expenseRelief:money(cents(plan.deductibleVat)-inventory)}};
      }
      plan={...plan,historyBindings:history.map(m=>({movementId:m.id,digest:reviewDigest(m)}))};
-     need(Buffer.byteLength(JSON.stringify(plan))<=300000,'FISCAL_REPORT_LIMIT');
+     const glBridge=previewFiscalCostReclassification({scope:s,purchase:p,original,plan,effectiveDate:correctionDate});
+     need(Buffer.byteLength(JSON.stringify({plan,glBridge}))<=300000,'FISCAL_REPORT_LIMIT');
      const updates=new Map(plan.updates.map(x=>[x.itemId,x]));
      const candidate={...source.payload,savedItems:source.payload.savedItems.map(x=>updates.has(x.id)?{...x,lastUnitCost:updates.get(x.id).correctedUnitCost,updatedAt:clock()}:x)};
      const [{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity}]=await Promise.all(['period','backup'].map(loadCompiledFinance));
@@ -257,7 +272,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const revision=randomBytes(16).toString('hex'),encoded=encodeWorkspace(candidate,revision);need(encoded.chunks.length<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
      const meta={...encoded.meta,parentRevision:source.meta.revision,chunkStorage:'period-generations-v1'};
      // Write-once allocation and catalog basis publication in the same CAS.
-     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,committedAt:clock(),sourceRevision:source.meta.revision,publishedRevision:revision,plan});
+     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,committedAt:clock(),sourceRevision:source.meta.revision,publishedRevision:revision,plan,glBridge});
      for(const chunk of encoded.chunks)tx.create(db.doc(source.root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0')),chunk);
      tx.create(db.doc(source.root+'/workspaceHistory/'+source.meta.revision),{...source.meta,archivedAt:encoded.meta.updatedAt});
      tx.update(db.doc(source.root+'/workspace/meta'),meta);
@@ -304,9 +319,31 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      return {status:'posted',key:'purchase-return-'+id};
    });
  }
+ // Trusted service only; not a browser command. External verification is
+ // performed outside transaction retries, then bound to publication CAS.
+ async function provisionSupplierSettlement(identity,s,id,evidence){
+   validateScope(s);need(identity?.role==='owner'&&identity.uid===s.accountUid&&typeof id==='string'&&ID.test(id)&&typeof verifySupplierSettlementEvidence==='function'&&Buffer.isBuffer(evidence)&&evidence.length>0&&evidence.length<=500000,'FISCAL_SUPPLIER_SETTLEMENT_REVIEW_REQUIRED');
+   const bytes=Buffer.from(evidence);
+   const read=async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true&&workspace.selectedEgsId===s.egsId);
+     return published(db,tx,s,id);
+   };
+   const first=await db.runTransaction(read),binding={sourceRevision:first.meta.revision,sourceSha256:first.meta.sha256,periodGeneration:first.control.generation};
+   const verified=await verifySupplierSettlementEvidence({scope:Object.freeze({...s}),settlementId:id,source:Object.freeze({...binding}),bytes:Buffer.from(bytes)});
+   need(verified&&Object.keys(binding).every(k=>verified[k]===binding[k]),'FISCAL_SUPPLIER_SETTLEMENT_REVIEW_REQUIRED');
+   return db.runTransaction(async tx=>provisionVerifiedSupplierSettlement(db,tx,s,await read(tx),id,clock().slice(0,10),bytes,verified));
+ }
+ async function postSupplierSettlement(s,id){
+   validateScope(s);need(typeof id==='string'&&ID.test(id));
+   return db.runTransaction(async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
+     const source=await published(db,tx,s,id);
+     return postSupplierSettlementJournal(db,tx,s,source,id,clock().slice(0,10));
+   });
+ }
  async function postPurchaseAdjustment(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
-   const {purchaseTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
+   const {purchaseTotals,purchaseFinancialTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
    return db.runTransaction(async tx=>{
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,id);
@@ -346,12 +383,13 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        // Only one reviewed tax treatment per underlying purchase is permitted
        // by this narrow model; invoices spanning multiple declarations require
        // explicit allocation before they are accepted.
-       need(approval.originalId===undefined&&approval.kind==='invoice'&&purchaseTotals(p).landedTotal===approval.net,'FISCAL_PURCHASE_TAX_BASE_MISMATCH');
+       need(p.purchaseTax===undefined&&approval.originalId===undefined&&approval.kind==='invoice'&&purchaseTotals(p).landedTotal===approval.net,'FISCAL_PURCHASE_TAX_BASE_MISMATCH');
        need(!(await tx.get(postingRef(db,s,'purchase-'+p.id))).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
        const ref=db.doc(base+'/purchaseTreatmentClaims/'+p.id);
        need(!(await tx.get(ref)).exists,'FISCAL_PURCHASE_TREATMENT_CONFLICT');
        reservation={ref,row:{...s,key,digest:approval.evidenceDigest},old:null};
      }
+     if(treatment==='domestic')await assertSupplierSettlementContinuity(db,tx,s,source.payload,row);
      const result=await writePosting(tx,s,key,row,unique);
      tx.create(numberRef,{...s,key,digest:row.evidenceDigest});
      if(reservation){if(reservation.old)tx.update(reservation.ref,reservation.row);else tx.create(reservation.ref,reservation.row);}
@@ -360,13 +398,13 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
  }
  async function reportInTransaction(tx,s,from,to,{strictClose=false}={}){
      validateScope(s);need(day(from)&&day(to)&&from<=to);
-     const {purchaseTotals}=await loadCompiledFinance('operations');
+     const {purchaseTotals,purchaseFinancialTotals}=await loadCompiledFinance('operations');
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,'report');
      const collection=db.collection(base+'/accountingEntries');
      const snapshot=await tx.get(collection.where('taxDate','>=',from).where('taxDate','<=',to).limit(1001));
      need(snapshot.docs.length<=1000,'FISCAL_REPORT_LIMIT');
-     const rows=[],salePostings=[],postedPurchases=new Set(),purchaseBalances=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
+     const rows=[],salePostings=[],postedPurchases=new Set(),purchaseBalances=new Map(),apSources=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
      for(const item of snapshot.docs){
        const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment===s.environment&&r.key===item.id&&['sale','purchase'].includes(r.source)&&day(r.taxDate)&&r.taxDate>=from&&r.taxDate<=to&&HEX.test(r.evidenceDigest));journal(r.amount.lines);
        const sign=signFor(r.amount.kind);let reconciliation=null;
@@ -387,23 +425,29 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              need(linked.docs.length<=200,'FISCAL_REPORT_LIMIT');
              const corrections=[];
              for(const item of linked.docs){const x=item.data();if(x.source!=='purchase')continue;need(day(x.taxDate)&&x.key===item.id,'FISCAL_PURCHASE_SOURCE_MISMATCH');if(x.taxDate<=to&&x.key!==original.key){journal(x.amount.lines);corrections.push(x);}}
-             const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
+             const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,payableTotal:purchaseFinancialTotals(p).payableTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
              const balance=supplierSettlementTimeline({purchase:p,original,adjustments:corrections,payments:source.payload.supplierPayments,through:to});
              need(balance.paid===baseRecon.paid,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+             if(canReplayAdjustedSupplierPayable(baseRecon,balance))apSources.set(p.id,{purchase:p,original,adjustments:corrections.filter(x=>x.amount.treatment==='domestic'),payments:source.payload.supplierPayments,through:to,legacyPayable:baseRecon.legacyPayable});
              const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));
-             let catalogCostCorrectionDate=null,valuationBridge=null;
+             let catalogCostCorrectionDate=null,valuationBridge=null,glBridge=null;
              if(cost){
                need(same(cost,original)&&cost.purchaseId===p.id&&cost.originalEvidenceDigest===original.evidenceDigest&&cost.sourceFingerprint===original.sourceFingerprint&&day(cost.effectiveDate)&&cost.plan?.grossPayable===original.amount.gross&&cost.plan?.deductibleVat===original.amount.deductibleVat&&cost.plan?.correctedCost===baseRecon.fiscalCost,'FISCAL_PURCHASE_COST_CONFLICT');
                if(cost.effectiveDate<=to){catalogCostCorrectionDate=cost.effectiveDate;
                  if(cost.plan.valuationBridge){
                    const v=cost.plan.valuationBridge;need(cents(v.inventoryRelief)+cents(v.cogsRelief)+cents(v.expenseRelief)===cents(original.amount.deductibleVat),'FISCAL_PURCHASE_COST_CONFLICT');
                    for(const b of cost.plan.historyBindings??[]){const m=source.payload.inventoryMovements.find(x=>x.id===b.movementId);need(m&&reviewDigest(m)===b.digest,'FISCAL_COST_HISTORY_LOCKED');}
-                   valuationBridge=v;
+                   const review=data(await tx.get(db.doc(base+'/purchaseCostReviews/'+p.id)));
+                   need(same(review,original)&&review.originalEvidenceDigest===original.evidenceDigest&&review.sourceFingerprint===original.sourceFingerprint,'FISCAL_PURCHASE_COST_CONFLICT');
+                   const replay=replayPostedCostAllocation({purchase:p,amount:original.amount,record:cost,review,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems,digest:reviewDigest});
+                   valuationBridge=replay.valuationBridge;
+                   glBridge=previewFiscalCostReclassification({scope:original,purchase:p,original,plan:{...cost.plan,valuationBridge},effectiveDate:cost.effectiveDate});
+                   if(cost.glBridge!==undefined)need(equal(cost.glBridge,glBridge),'FISCAL_PURCHASE_COST_CONFLICT');
                  }
                }
              }
              // The full legacy valuation/COGS bridge is not yet reconciled.
-             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,valuationBridge,paymentViolations:balance.violations,matched:baseRecon.matched&&corrections.length===0&&balance.violations.length===0});
+             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,valuationBridge,glBridge,paymentViolations:balance.violations,matched:baseRecon.matched&&corrections.length===0&&balance.violations.length===0});
            }
            reconciliation=purchaseBalances.get(p.id);
          }
@@ -456,19 +500,53 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      for(const m of source.payload.inventoryMovements.filter(x=>x.workspaceId===s.workspaceId&&isFiscalPurchaseReturn(x)))need(returnMovementIds.has(m.id),'FISCAL_PURCHASE_RETURN_CONFLICT');
      for(const item of dispatchReviews.docs){const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment==='simulation'&&r.adjustmentId===item.id&&day(r.date),'FISCAL_PURCHASE_RETURN_CONFLICT');if(r.state==='approved'&&r.date>=from&&r.date<=to&&!dispatches.docs.some(x=>x.id===item.id))pendingPurchaseReturns.push({adjustmentId:item.id,date:r.date});}
      unmatched+=pendingPurchaseReturns.length;
-     const advanceBalances=await verifyAdvanceReport(db,tx,s,source.payload,to);
+     const advanceBalances=await verifyAdvanceReport(db,tx,s,source.payload,to,{mapCommercialFiscalInvoice});
      const approvedAdjustments=await tx.get(db.collection(base+'/purchaseAdjustments').limit(201));
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
-     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
+     const supplierSettlementHistory=await readSupplierSettlements(db,tx,s,source.payload,'0001-01-01',to);
+     const supplierSettlements={...supplierSettlementHistory,journals:supplierSettlementHistory.journals.filter(j=>j.date>=from),vouchers:supplierSettlementHistory.vouchers.filter(v=>v.date>=from)};
+     const settledByPurchase=new Map(supplierSettlements.balances.map(b=>[b.purchaseId,b]));
+     need(settledByPurchase.size===supplierSettlements.balances.length,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+     const supplierPayableJournals=[...apSources.values()].map(a=>projectSupplierAPJournal({...a,settledBalance:settledByPurchase.get(a.purchase.id),settlementJournals:supplierSettlementHistory.journals}));
+     const settlementReconciliations=new Map();
+     for(const [purchaseId,reconciliation] of purchaseBalances){
+       const b=settledByPurchase.get(purchaseId);
+       if(b)settlementReconciliations.set(reconciliation,mergeSupplierSettlementReconciliation(reconciliation,b));
+     }
+     for(const r of rows){
+       const previous=r.reconciliation,next=settlementReconciliations.get(previous);
+       if(!next)continue;
+       r.reconciliation=next;
+       if(previous.matched&&!next.matched)unmatched++;
+     }
+     return {supplierPayableJournals,supplierSettlements,environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
+ }
+ async function provisionStockGlReview(identity,s,branchId,itemId,evidence){
+   validateScope(s);need(identity?.role==='owner'&&identity.uid===s.accountUid&&ID.test(branchId)&&ID.test(itemId)&&typeof verifyStockGlEvidence==='function'&&Buffer.isBuffer(evidence)&&evidence.length>0&&evidence.length<=500000,'FISCAL_STOCK_GL_REVIEW_INVALID');
+   const bytes=Buffer.from(evidence),today=clock().slice(0,10);
+   const read=async tx=>{const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true&&workspace.selectedEgsId===s.egsId);return published(db,tx,s,itemId);};
+   const source=await db.runTransaction(read),binding={sourceRevision:source.meta.revision,sourceSha256:source.meta.sha256,periodGeneration:source.control.generation};
+   const proof=await verifyStockGlEvidence({scope:Object.freeze({...s}),branchId,itemId,asOfDate:today,source:Object.freeze({...binding}),bytes:Buffer.from(bytes)});
+   need(proof&&Object.keys(binding).every(k=>proof[k]===binding[k])&&clock().slice(0,10)===today,'FISCAL_STOCK_GL_REVIEW_INVALID');
+   return db.runTransaction(async tx=>{const current=await read(tx);return provisionIndependentStockGlReview({db,tx,scope:s,source:current,branchId,itemId,loadCompiledFinance,today},bytes,proof);});
+ }
+ async function inspectStockGl(s,branchId,itemId){
+   validateScope(s);need(ID.test(branchId)&&ID.test(itemId));
+   return db.runTransaction(async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
+     const source=await published(db,tx,s,itemId);
+     return inspectPublishedStockGlReview({db,tx,scope:s,source,branchId,itemId,loadCompiledFinance,today:clock().slice(0,10)});
+   });
  }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
  async function closeProof(tx,s,through){
    const snapshot=await reportInTransaction(tx,s,'0001-01-01',through,{strictClose:true});
-   need(snapshot.unmatched===0&&snapshot.unpostedSales===0&&snapshot.pendingSales===0&&snapshot.unreviewedPurchases===0&&snapshot.pendingAdjustments.length===0&&snapshot.salesBlockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+   need(snapshot.unmatched===0&&snapshot.unpostedSales===0&&snapshot.pendingSales===0&&snapshot.unreviewedPurchases===0&&snapshot.pendingAdjustments.length===0&&snapshot.supplierSettlements.pending.length===0&&snapshot.salesBlockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,report,closeProof});
+ if(boundary.environment==='production')return Object.freeze({postSale});
+ return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,postPurchaseReturn,postSupplierSettlement,report,closeProof,inspectStockGl,...(typeof verifySupplierSettlementEvidence==='function'?{provisionSupplierSettlement}:{}),...(typeof verifyStockGlEvidence==='function'?{provisionStockGlReview}:{})});
 }

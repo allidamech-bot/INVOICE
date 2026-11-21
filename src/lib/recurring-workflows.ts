@@ -28,7 +28,7 @@ export function nextRecurringDate(value:string,cadence:RecurringCadence,interval
 export function recurringDocumentEligible(doc:LourexDocument):boolean{
   return doc.role==='standard'&&doc.lifecycleStatus!=='voided'&&DOCUMENT_KINDS.has(doc.kind);
 }
-export function recurringPurchaseEligible(purchase:PurchaseRecord):boolean{return purchase.status!=='reversed';}
+export function recurringPurchaseEligible(purchase:PurchaseRecord):boolean{return purchase.status!=='reversed'&&purchase.purchaseTax?.mode!=='tax';}
 
 function sanitizeDocumentTemplate(source:LourexDocument):LourexDocument{
   const template=structuredClone({...source,attachments:[]}) as LourexDocument;

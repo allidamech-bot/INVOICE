@@ -1,5 +1,5 @@
 import {hashAuthorityEvidence,writeAuthorityEvidence,readAuthorityEvidence} from './authority-evidence.js';
-import {readSimulationContext} from './simulation-scope.js';
+import {issuanceBoundary} from './issuance-boundary.js';
 
 // Private simulation-only receipt journal. Persist complete response bytes
 // before running any verifier; a receipt is never acceptance evidence by itself.
@@ -7,21 +7,22 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const HEX=/^[a-f0-9]{64}$/;
 function need(ok){if(!ok)throw Error('FISCAL_ATTEMPT_RESPONSE_INVALID');}
 function timestamp(s){need(typeof s==='string'&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString()===s);return Date.parse(s);}
-function path(scope,documentId,attemptId){
-  need(scope?.environment==='simulation'&&[scope.accountUid,scope.workspaceId,scope.egsId,documentId,attemptId].every(x=>typeof x==='string'&&ID.test(x)));
-  const base='fiscalPrivateV1/'+scope.accountUid+'/workspaces/'+scope.workspaceId;
+function path(boundary,scope,documentId,attemptId){
+  need(scope?.environment===boundary.environment&&[scope.accountUid,scope.workspaceId,scope.egsId,documentId,attemptId].every(x=>typeof x==='string'&&ID.test(x)));
+  const base=boundary.base(scope);
   const issue=base+'/issues/'+documentId;
   return {issue,queue:base+'/outbox/'+documentId,receipt:issue+'/attemptResponses/'+attemptId};
 }
 function data(s){need(s?.exists);return s.data();}
-export function createAttemptResponseStore(db){
+export function createAttemptResponseStore(db,options={}){
+  const boundary=issuanceBoundary(db,options);
   need(db&&typeof db.doc==='function'&&typeof db.runTransaction==='function');
   const get=(tx,p)=>tx.get(db.doc(p));
   async function binding(tx,scope,documentId,version,attemptId){
-    const p=path(scope,documentId,attemptId);need(Number.isSafeInteger(version)&&version>=2);
-    await readSimulationContext(db,tx,scope);
+    const p=path(boundary,scope,documentId,attemptId);need(Number.isSafeInteger(version)&&version>=2);
+    await boundary.read(tx,scope);
     const r=data(await get(tx,p.issue)),q=data(await get(tx,p.queue)),start=data(await get(tx,p.issue+'/events/'+String(version)));
-    need(r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId&&r.documentId===documentId&&r.attemptId===attemptId&&r.version>=version&&['submitting','uncertain'].includes(r.status)&&q.state==='hold'&&q.documentId===documentId&&q.uuid===r.uuid&&q.egsId===r.egsId&&q.version===r.version&&start.version===version&&start.kind==='start'&&start.status==='submitting'&&start.attemptId===attemptId);
+    need((scope.environment==='simulation'?(r.environment===undefined||r.environment==='simulation'):r.environment==='production')&&r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId&&r.documentId===documentId&&r.attemptId===attemptId&&r.version>=version&&['submitting','uncertain'].includes(r.status)&&q.state==='hold'&&q.documentId===documentId&&q.uuid===r.uuid&&q.egsId===r.egsId&&q.version===r.version&&start.version===version&&start.kind==='start'&&start.status==='submitting'&&start.attemptId===attemptId);
     timestamp(start.at);return {p,r,start};
   }
   async function inspect(tx,scope,documentId,version,attemptId){

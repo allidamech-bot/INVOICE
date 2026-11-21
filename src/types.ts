@@ -143,7 +143,11 @@ export interface PurchaseItem {
   previousCostCurrency: string;
 }
 
+export type PurchaseTaxDetails = {mode:'ordinary'|'tax';invoiceReference:string;vat:string;deductibleVat:string};
+
 export interface PurchaseRecord extends WorkspaceScopeFields {
+  /** Optional on legacy purchases. Item costs and landed charges are VAT-exclusive when present. */
+  purchaseTax?:PurchaseTaxDetails;
   id: string;
   number: string;
   date: string;
@@ -456,9 +460,14 @@ export interface DocumentAppearance {
 /** Immutable fiscal cash receipt or allocation; created by the trusted QA writer. */
 export type FiscalAdvanceBinding =
   | {kind:'receipt';net:string;vat:string;gross:string;evidenceDigest:string;treasuryEntryId:string}
-  | {kind:'settlement';net:string;vat:string;gross:string;evidenceDigest:string;allocations:{receiptId:string;net:string;vat:string;gross:string}[]};
+  | {kind:'settlement';net:string;vat:string;gross:string;evidenceDigest:string;allocations:{receiptId:string;net:string;vat:string;gross:string}[]}
+  | {kind:'refund';net:string;vat:string;gross:string;evidenceDigest:string;receiptId:string;treasuryEntryId:string;resultDigest:string;cashDigest:string};
+
+export type InvoiceMode = 'ordinary' | 'tax';
 
 export interface LourexDocument extends WorkspaceScopeFields {
+  /** Explicit choice for newly created invoices; absent on historical documents. */
+  invoiceMode?: InvoiceMode;
   fiscalAdvance?: FiscalAdvanceBinding;
   id: string;
   kind: DocumentKind;

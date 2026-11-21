@@ -8,7 +8,9 @@ from reportlab.lib.utils import ImageReader
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import NameObject
 
-from package_pdfa import check_attachment, embed_invoice, invoice_identity, package_candidate, page_digests, sha
+from package_pdfa import check_attachment, embed_invoice, invoice_identity, package_candidate, page_digests, sha, check_verapdf_report
+from pathlib import Path
+from xml.sax.saxutils import escape
 
 UUID = "11111111-1111-4111-8111-111111111111"
 QR = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo="
@@ -69,6 +71,45 @@ class PackagingTest(unittest.TestCase):
             package_candidate(before, XML, manifest={**manifest, "status": "uncertain"}, validator="/nonexistent/verapdf")
         with self.assertRaisesRegex(ValueError, "PACKAGING_ARTIFACT_MISMATCH"):
             package_candidate(before, XML, manifest={**manifest, "pdfDigest": "0" * 64}, validator="/nonexistent/verapdf")
+
+
+    def test_verapdf_report_parser_requires_exact_job_and_consistent_pass(self):
+        # Parser fixtures only. Never count mocked XML as PDF/A acceptance.
+        path = Path("/tmp/fiscal-test.pdf")
+        report = (f'<report><jobs><job><item size="123"><name>{escape(str(path.resolve()))}</name></item>'
+                  '<validationReport profileName="PDF/A-3B validation profile" isCompliant="true" jobEndStatus="normal">'
+                  '<details passedRules="100" failedRules="0" passedChecks="500" failedChecks="0"/>'
+                  '</validationReport></job></jobs>'
+                  '<batchSummary totalJobs="1" failedToParse="0" encrypted="0" outOfMemory="0" veraExceptions="0">'
+                  '<validationReports compliant="1" nonCompliant="0" failedJobs="0">1</validationReports>'
+                  '</batchSummary></report>').encode()
+        self.assertEqual(check_verapdf_report(report, path, 123), sha(report))
+        lower = report.replace(b"PDF/A-3B", b"PDF/A-3b")
+        self.assertEqual(check_verapdf_report(lower, path, 123), sha(lower))
+        for original, changed in [
+            (b'size="123"', b'size="124"'),
+            (b'fiscal-test.pdf', b'other.pdf'),
+            (b'totalJobs="1"', b'totalJobs="2"'),
+            (b'failedToParse="0"', b'failedToParse="1"'),
+            (b'outOfMemory="0"', b'outOfMemory="1"'),
+            (b'veraExceptions="0"', b'veraExceptions="1"'),
+            (b'encrypted="0"', b'encrypted="1"'),
+            (b'nonCompliant="0"', b'nonCompliant="1"'),
+            (b'failedJobs="0"', b'failedJobs="1"'),
+            (b'isCompliant="true"', b'isCompliant="false"'),
+            (b'PDF/A-3B', b'PDF/A-3A'),
+            (b'jobEndStatus="normal"', b'jobEndStatus="exception"'),
+            (b'failedRules="0"', b'failedRules="1"'),
+            (b'failedChecks="0"', b'failedChecks="1"'),
+            (b'passedChecks="500"', b'passedChecks="0"'),
+            (b'</validationReport>', b'</validationReport><validationReport/>'),
+        ]:
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                check_verapdf_report(report.replace(original, changed), path, 123)
+        with self.assertRaises(ValueError):
+            check_verapdf_report(b'<report><validationReport isCompliant="true"/></report>', path, 123)
+        with self.assertRaises(ValueError):
+            check_verapdf_report(report, path, 999)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import {createHash,X509Certificate,randomBytes,verify} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
-import {createManagedSimulationCsr,verifyManagedSimulationCsr} from './managed-csr.js';
+import {createManagedSimulationCsr,verifyManagedSimulationCsr,createSoftHsmStagingCsr,verifySoftHsmStagingCsr} from './managed-csr.js';
 import {requiredComplianceChecks} from './onboarding.js';
 import {requireProtectedSigningSession} from './protected-signing.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
@@ -17,13 +17,16 @@ function approvedConfig(v,s){
 function profile(s,c,result){
   return {...s,state:'approved',issuer:c.issuer,unit:c.unit,keyBinding:c.keyBinding,functionalityMap:c.unit.functionalityMap,configDigest:digest(c),...result};
 }
-function checkedProfile(p,c,s){
+function checkedProfile(p,c,s,verifyCsr=verifyManagedSimulationCsr){
   need(same(p,s)&&p.state==='approved'&&p.configDigest===digest(c)&&digest(p.issuer)===digest(c.issuer)&&digest(p.unit)===digest(c.unit)&&digest(p.keyBinding)===digest(c.keyBinding)&&p.functionalityMap===c.unit.functionalityMap&&typeof p.csr==='string'&&p.csr.length<=45000);
-  const bytes=Buffer.from(p.csr,'base64');need(bytes.toString('base64')===p.csr&&sha(bytes)===p.csrDigest&&verifyManagedSimulationCsr({scope:s,issuer:c.issuer,unit:c.unit,binding:c.keyBinding,csr:bytes,publicKey:p.publicKey}),'EGS_CSR_INVALID');return p;
+  const bytes=Buffer.from(p.csr,'base64');need(bytes.toString('base64')===p.csr&&sha(bytes)===p.csrDigest&&verifyCsr({scope:s,issuer:c.issuer,unit:c.unit,binding:c.keyBinding,csr:bytes,publicKey:p.publicKey}),'EGS_CSR_INVALID');return p;
 }
 // Admin-only commands. Configuration is provisioned and approved separately;
 // no user-supplied profile, key, VAT or trust pin is accepted here.
-export function createManagedEnrollmentLifecycle({db,resolveSigner,vault,resolveProtectedSession,clock=()=>new Date().toISOString()}){
+function createLifecycle({db,resolveSigner,vault,resolveProtectedSession,clock=()=>new Date().toISOString()},softwareStaging){
+  const createCsr=softwareStaging?createSoftHsmStagingCsr:createManagedSimulationCsr;
+  const verifyCsr=softwareStaging?verifySoftHsmStagingCsr:verifyManagedSimulationCsr;
+  const check=(p,c,s)=>checkedProfile(p,c,s,verifyCsr);
   need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&typeof resolveSigner==='function'&&typeof vault?.load==='function'&&typeof resolveProtectedSession==='function','EGS_RUNTIME_UNAVAILABLE');
   const refs=s=>{const base=simulationBase(s),unit=base+'/egs/'+s.egsId;return {unit:db.doc(unit),config:db.doc(unit+'/enrollment/config'),approved:db.doc(unit+'/enrollment/approved'),current:db.doc(unit+'/onboarding/current'),attempt:k=>db.doc(unit+'/enrollmentAttempts/'+k),credential:r=>db.doc(unit+'/simulationCredentials/'+r),activation:db.doc(unit+'/enrollment/activation')};};
   async function snapshot(tx,s,r){
@@ -35,24 +38,24 @@ export function createManagedEnrollmentLifecycle({db,resolveSigner,vault,resolve
   return Object.freeze({
     async prepareCsr(s){
       const r=refs(s),initial=await db.runTransaction(tx=>snapshot(tx,s,r));need(initial.unit.active===false);
-      if(initial.p){const p=checkedProfile(initial.p,initial.c,s);return {state:'csr-ready',csrDigest:p.csrDigest};}
+      if(initial.p){const p=check(initial.p,initial.c,s);return {state:'csr-ready',csrDigest:p.csrDigest};}
       const signer=await resolveSigner(s,structuredClone(initial.c.keyBinding));
-      const result=await createManagedSimulationCsr({scope:s,issuer:initial.c.issuer,unit:initial.c.unit,binding:initial.c.keyBinding,signer});
+      const result=await createCsr({scope:s,issuer:initial.c.issuer,unit:initial.c.unit,binding:initial.c.keyBinding,signer});
       return db.runTransaction(async tx=>{
         const {c,p,unit}=await snapshot(tx,s,r);need(unit.active===false&&digest(c)===digest(initial.c),'EGS_CONFIG_CHANGED');
-        if(p){const prior=checkedProfile(p,c,s);return {state:'csr-ready',csrDigest:prior.csrDigest};}
-        const next=profile(s,c,result);checkedProfile(next,c,s);tx.create(r.approved,next);return {state:'csr-ready',csrDigest:next.csrDigest};
+        if(p){const prior=check(p,c,s);return {state:'csr-ready',csrDigest:prior.csrDigest};}
+        const next=profile(s,c,result);check(next,c,s);tx.create(r.approved,next);return {state:'csr-ready',csrDigest:next.csrDigest};
       });
     },
     async verifyCsr({scope:s,issuer,keyBinding,csr,functionalityMap}){
       const r=refs(s),{unit,c,p}=await db.runTransaction(tx=>snapshot(tx,s,r));
-      need(unit.active===false);const a=checkedProfile(p,c,s);
+      need(unit.active===false);const a=check(p,c,s);
       return digest(issuer)===digest(a.issuer)&&digest(keyBinding)===digest(a.keyBinding)&&functionalityMap===a.functionalityMap&&Buffer.isBuffer(csr)&&csr.equals(Buffer.from(a.csr,'base64'));
     },
     async activate(s){
       const r=refs(s);
       async function read(tx){
-        const {unit,c,p}=await snapshot(tx,s,r),a=checkedProfile(p,c,s);
+        const {unit,c,p}=await snapshot(tx,s,r),a=check(p,c,s);
         const current=data(await tx.get(r.current)),prior=data(await tx.get(r.activation));
         need(current?.state==='operational-recorded'&&same(current.binding,s)&&current.csrDigest===a.csrDigest&&current.functionalityMap===a.functionalityMap&&Number.isSafeInteger(current.version)&&current.version>=1);
         const types=requiredComplianceChecks(a.functionalityMap);
@@ -91,3 +94,6 @@ export function createManagedEnrollmentLifecycle({db,resolveSigner,vault,resolve
     }
   });
 }
+
+export const createManagedEnrollmentLifecycle=options=>createLifecycle(options,false);
+export const createStagingEnrollmentLifecycle=options=>createLifecycle(options,true);

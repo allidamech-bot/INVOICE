@@ -1,0 +1,49 @@
+[Unit]
+Description=LOUREX restricted outbound fiscal simulation worker (QA only)
+After=network-online.target
+# Never start from an incomplete checkout or without protected configuration.
+ConditionPathIsDirectory=/opt/lourex-fiscal/current
+ConditionPathExists=/etc/lourex-staging/worker.json
+ConditionPathExists=/etc/lourex-staging/trusted-runtime-profile.json
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=lourex-staging
+Group=lourex-staging
+WorkingDirectory=/opt/lourex-fiscal/current
+ExecStart=/opt/lourex-fiscal/bin/node /opt/lourex-fiscal/current/scripts/fiscal/run-aws-staging-worker.mjs
+Environment=NODE_ENV=production
+Environment=LOUREX_AWS_STAGING_ENABLED=true
+Environment=LOUREX_AWS_WORKER_ENABLED=true
+UMask=0077
+# Existing root-owned secrets are copied into private per-service credentials.
+# The reviewed runtime binds only these systemd credentials; no env secrets.
+LoadCredential=wrapping-key:/etc/lourex-staging/secrets/wrapping-key
+LoadCredential=pin-derivation-key:/etc/lourex-staging/secrets/pin-derivation-key
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+# Immutable root-managed application, SDK and Python dependencies live under /opt.
+# This candidate is NOT installed, enabled, or approved for dispatch.
+ReadOnlyPaths=/opt/lourex-fiscal/current
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/lourex-staging
+Restart=on-failure
+RestartSec=20s
+TimeoutStopSec=90s
+
+[Install]
+WantedBy=multi-user.target

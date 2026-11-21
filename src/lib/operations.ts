@@ -1,3 +1,4 @@
+import {purchaseTaxAmounts,purchaseTaxValid} from './purchase-tax.js';
 import type { ExpenseRecord, InventoryMovementRecord, InventoryMovementType, PurchaseRecord, SavedItem, Supplier, SupplierSnapshot } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
 import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isNonNegativeDecimalInput } from './money.js';
@@ -79,13 +80,20 @@ export function createPurchaseItem(item?:SavedItem):PurchaseRecord['items'][numb
   return {id:makeId('purchase-item'),savedItemId:item?.id??'',sku:item?.sku??'',descriptionEn:item?.descriptionEn??'',descriptionAr:item?.descriptionAr??'',quantity:'1',unit:item?.unit||'PCS',unitCost:item?.lastUnitCost??'',landedUnitCost:'',previousUnitCost:item?.lastUnitCost??'',previousCostCurrency:item?.lastCostCurrency??''};
 }
 
-export function purchaseTotals(purchase:Pick<PurchaseRecord,'items'|'freight'|'duty'|'otherCosts'>):{subtotal:string;freight:string;duty:string;other:string;landedTotal:string}{
+export function purchaseTotals(purchase:Pick<PurchaseRecord,'items'|'freight'|'duty'|'otherCosts'|'purchaseTax'>):{subtotal:string;freight:string;duty:string;other:string;landedTotal:string}{
   let subtotal=0n;
   for(const item of purchase.items)subtotal+=lineCents(item.quantity,item.unitCost);
   const freight=cents(purchase.freight||'0');
   const duty=cents(purchase.duty||'0');
   const other=cents(purchase.otherCosts||'0');
-  return {subtotal:fixed(subtotal,2),freight:fixed(freight,2),duty:fixed(duty,2),other:fixed(other,2),landedTotal:fixed(subtotal+freight+duty+other,2)};
+  return {subtotal:fixed(subtotal,2),freight:fixed(freight,2),duty:fixed(duty,2),other:fixed(other,2),landedTotal:fixed(subtotal+freight+duty+other+purchaseTaxAmounts(purchase).nonDeductible,2)};
+}
+
+/** Supplier liability includes the entire recorded VAT; landed stock cost includes only the nonrecoverable portion. */
+export function purchaseFinancialTotals(purchase:Pick<PurchaseRecord,'items'|'freight'|'duty'|'otherCosts'|'purchaseTax'>){
+  const totals=purchaseTotals(purchase),tax=purchaseTaxAmounts(purchase);
+  const cost=cents(totals.landedTotal),net=cost-tax.nonDeductible;
+  return {...totals,net:fixed(net,2),vat:fixed(tax.vat,2),deductibleVat:fixed(tax.deductible,2),nonDeductibleVat:fixed(tax.nonDeductible,2),payableTotal:fixed(net+tax.vat,2)};
 }
 
 function smallestUnitAdjustment(quantity4:bigint,unit12:bigint,direction:1n|-1n):{delta:bigint;effect:bigint}|null{
@@ -135,7 +143,7 @@ function reconcileLandedUnitCosts(items:PurchaseRecord['items'],targetCents:bigi
 function absBigInt(value:bigint):bigint{return value<0n?-value:value;}
 
 export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
-  const extras4=decimalToScaled(purchase.freight||'0',4)+decimalToScaled(purchase.duty||'0',4)+decimalToScaled(purchase.otherCosts||'0',4);
+  const extras4=decimalToScaled(purchase.freight||'0',4)+decimalToScaled(purchase.duty||'0',4)+decimalToScaled(purchase.otherCosts||'0',4)+purchaseTaxAmounts(purchase).nonDeductible*100n;
   const bases=purchase.items.map(item=>decimalToScaled(item.quantity,QUANTITY_DECIMALS)*decimalToScaled(item.unitCost,COST_DECIMALS));
   const baseTotal=bases.reduce((sum,value)=>sum+value,0n);
   const quantities=purchase.items.map(item=>decimalToScaled(item.quantity,QUANTITY_DECIMALS));
@@ -155,6 +163,7 @@ export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
 
 export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=[]):string[]{
   const errors:string[]=[];
+  if(!purchaseTaxValid(purchase))errors.push('Invalid purchase VAT or missing supplier tax invoice reference.');
   if(!purchase.number.trim())errors.push('Purchase number is required.');
   if(!isIsoDate(purchase.date))errors.push('Purchase date is invalid.');
   if(!isIsoDate(purchase.dueDate))errors.push('Purchase due date is invalid.');
@@ -174,6 +183,7 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
 }
 
 export function purchaseAccountingIsValid(purchase:PurchaseRecord):boolean{
+  if(!purchaseTaxValid(purchase))return false;
   if(!purchase.number.trim()||!isIsoDate(purchase.date)||!isIsoDate(purchase.dueDate)||purchase.dueDate<purchase.date||!purchase.currency.trim()||!purchase.items.length)return false;
   for(const item of purchase.items){
     if(!positive(item.quantity)||!nonNegativeCost(item.unitCost))return false;

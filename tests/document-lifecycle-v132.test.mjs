@@ -49,7 +49,7 @@ test('v132 credit notes are linked capped and cannot accept payments',async()=>{
   assert.ok(lifecycle.includes('Credit note cannot exceed the remaining invoice balance after payments and prior credits'));
   assert.ok(lifecycle.includes('creditForId:source.id'));
   assert.ok(payments.includes("invoice.role==='credit-note'"));
-  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role\)/);
+  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role,doc\.invoiceMode\)/);
   assert.ok(catalog.includes("kind:'credit-note'"));
   assert.ok(catalog.includes("titleEn:'CREDIT NOTE'"));
   assert.ok(renderer.includes('Source Invoice'));

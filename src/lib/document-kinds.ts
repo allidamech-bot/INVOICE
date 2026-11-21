@@ -1,4 +1,4 @@
-import type { DocumentKind, DocumentRole } from '../types.js';
+import type { DocumentKind, DocumentRole, InvoiceMode } from '../types.js';
 
 export interface BusinessDocumentDefinition {
   kind: DocumentKind | 'credit-note' | 'statement-account';
@@ -35,12 +35,16 @@ export function businessDocumentDefinition(kind:DocumentKind,role:DocumentRole='
     ?? BUSINESS_DOCUMENT_CATALOG.find(item=>item.kind==='invoice')!;
 }
 
-export function documentKindLabel(kind:DocumentKind,role:DocumentRole='standard'):{en:string;ar:string}{
+export function documentKindLabel(kind:DocumentKind,role:DocumentRole='standard',invoiceMode?:InvoiceMode):{en:string;ar:string}{
+  if(kind==='invoice'&&role==='standard'&&invoiceMode==='ordinary')return {en:'Ordinary Invoice',ar:'فاتورة عادية'};
+  if(kind==='invoice'&&role==='standard'&&invoiceMode==='tax')return {en:'Tax Invoice',ar:'فاتورة ضريبية'};
   const item=businessDocumentDefinition(kind,role);
   return {en:item.en,ar:item.ar};
 }
 
-export function documentKindTitle(kind:DocumentKind,role:DocumentRole='standard'):{en:string;ar:string}{
+export function documentKindTitle(kind:DocumentKind,role:DocumentRole='standard',invoiceMode?:InvoiceMode):{en:string;ar:string}{
+  if(kind==='invoice'&&role==='standard'&&invoiceMode==='ordinary')return {en:'INVOICE',ar:'فاتورة عادية'};
+  if(kind==='invoice'&&role==='standard'&&invoiceMode==='tax')return {en:'TAX INVOICE',ar:'فاتورة ضريبية'};
   const item=businessDocumentDefinition(kind,role);
   return {en:item.titleEn,ar:item.titleAr};
 }

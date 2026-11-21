@@ -136,3 +136,29 @@ test('QA-STAGING-14: a complete matching QA project requires plausible Firebase 
   assert.equal(x.ready,false);
   assert.ok(x.codes.includes('QA_FIREBASE_CLIENT_METADATA_INVALID'));
 });
+
+
+test('QA-STAGING-15: Groq and consolidated release Previews fail closed with production Firebase configuration',()=>{
+  for(const branchName of ['ai-legacy/groq-structured-tpm-preflight-20261101','release/lourex-final-integration']){
+    const result=spawnSync(process.execPath,['scripts/verify-deployment-isolation.mjs'],{
+      encoding:'utf8',env:{
+        ...process.env,VERCEL_ENV:'preview',
+        VERCEL_GIT_COMMIT_REF:branchName,
+        LOUREX_AI_QA_FIREBASE_PROJECT_ID:'lourex-qa-isolated',
+      }
+    });
+    assert.notEqual(result.status,0,'Unisolated Preview unexpectedly succeeded: '+branchName);
+    assert.match(result.stderr,/AI_PREVIEW_ISOLATION_BLOCKED/);
+    assert.doesNotMatch(result.stderr,/AIzaSy|@/);
+  }
+});
+test('QA-STAGING-16: protected release and Groq refs still allow offline local CI',()=>{
+  for(const branchName of ['ai-legacy/groq-structured-tpm-preflight-20261101','release/lourex-final-integration']){
+    const result=spawnSync(process.execPath,['scripts/verify-deployment-isolation.mjs'],{
+      encoding:'utf8',env:{
+        ...process.env,VERCEL_ENV:'local',VERCEL_GIT_COMMIT_REF:branchName,
+      }
+    });
+    assert.equal(result.status,0,result.stderr);
+  }
+});

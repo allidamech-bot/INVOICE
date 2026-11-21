@@ -1,3 +1,4 @@
+const {installPinlessWorkspace}=require('./pinless-workspace-fixture.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
@@ -19,7 +20,28 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     }
     window.SpeechRecognition=Recognition;window.webkitSpeechRecognition=Recognition;
    },{releaseDelay:engine.name()==='webkit'?1450:260});
-   await page.goto(`http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});await page.locator('.lourex-ai-launcher').click();const mic=page.locator('.lourex-ai-composer-mic'),input=page.locator('.lourex-ai-compose form>input'),textarea=page.locator('.lourex-ai-premium-textarea');await mic.waitFor();
+   // Use the same real AppShell + UID-scoped account reader as current AI QA.
+   // The retired standalone PIN fixture can operate the microphone while its
+   // protected conversation never hydrates, hiding the actual readiness defect.
+   await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${lang}&theme=dark`,{waitUntil:'networkidle'});
+   await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
+   await installPinlessWorkspace(page,{uid:'qa-voice-reliability',companyName:'LOUREX Voice QA',theme:'dark'});
+   await page.locator('.lourex-ai-launcher').click();
+   const readyPanel=page.locator('#lourex-ai-panel[data-lourex-workspace="2"]');
+   await readyPanel.waitFor({state:'visible'});
+   try{
+    await page.waitForFunction(()=>{
+     const panel=document.querySelector('#lourex-ai-panel');
+     const composer=panel?.querySelector('.lourex-ai-premium-textarea');
+     return panel?.dataset?.workspaceReady==='true'&&composer&&!composer.disabled;
+    },null,{timeout:30000});
+   }catch(error){
+    const diagnostic=await readyPanel.evaluate(node=>({ready:node.dataset.workspaceReady,mode:node.dataset.workspaceMode,
+     accountError:node.querySelector('.lxw-load-error')?.textContent||null,
+     status:node.querySelector('[role="status"]')?.textContent||null}));
+    throw new Error('Voice QA account-scoped conversation did not hydrate: '+JSON.stringify(diagnostic),{cause:error});
+   }
+   const mic=page.locator('.lourex-ai-composer-mic'),input=page.locator('.lourex-ai-compose form>input'),textarea=page.locator('.lourex-ai-premium-textarea');await mic.waitFor();
    const modes=page.locator('#lourex-ai-panel .lxw-mode-tabs [role="tab"]');
    await modes.first().waitFor({state:'visible'});
    assert.equal(await modes.count(),2,'assistant exposes Controller and Advisor modes only');
@@ -63,10 +85,20 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
    await page.waitForFunction(()=>window.speechInstances[15].abortCalled===true);
    assert.equal(await input.inputValue(),retainedBefore,'pagehide keeps the existing editable voice transcript');
+   // A real Safari background return emits pageshow before further editing.
+   // Keep the fail-closed account gate; wait for verified workspace hydration.
+   await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===17);
    await page.evaluate(()=>{window.speechInstances[16].result('voice after background');window.speechInstances[16].end();});
    assert.match(await input.inputValue(),/voice after background$/,'recording restarts after Safari background suspension');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'background transition may not overlap native sessions');
+   // A Safari background round-trip must keep the verified account thread
+   // writable; readiness was also checked before the first microphone session.
+   await page.waitForFunction(()=>{
+     const panel=document.querySelector('#lourex-ai-panel');
+     const composer=panel?.querySelector('.lourex-ai-premium-textarea');
+     return panel?.dataset?.workspaceReady==='true'&&composer&&!composer.disabled;
+   },null,{timeout:10000});
 
    await textarea.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await textarea.press('Enter');
    await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});

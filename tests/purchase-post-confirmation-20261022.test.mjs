@@ -1,3 +1,4 @@
+import {purchaseTaxDraft} from '../dist/src/lib/purchase-tax.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -47,7 +48,7 @@ async function fixture(){
   h.requireVault=()=>scopeVault(h.state.vault);h.vaultWriteTail=Promise.resolve(null);h.waitForProtectedDataOperation=async()=>{};
   h.setState=(patch,done)=>{Object.assign(h.state,patch);if(page)page.props.purchases=h.requireVault().purchases;done?.();};
   h.scheduleCloudSync=()=>syncs++;h.showToast=(message,tone)=>toasts.push({message,tone});
-  const pageContext={exports:{},Error,Promise,structuredClone,t:en=>en,validatePurchase,createPurchase,createPurchaseItem,supplierSnapshotFrom};
+  const pageContext={exports:{},purchaseTaxDraft,Error,Promise,structuredClone,t:en=>en,validatePurchase,createPurchase,createPurchaseItem,supplierSnapshotFrom};
   page=harness(await readFile('src/components/OperationsPage.tsx','utf8'),[
     'mutationInFlight','editorBaseline','purchasePostingBaseline','viewPurchase','newPurchase','newPurchaseForSupplier','postPurchase','confirmAction','runMutation','fail',
   ],pageContext);
@@ -97,7 +98,7 @@ test('reviewed unsaved editor changes post exactly once against the unchanged sa
 });
 
 test('new unsaved purchase can be posted from its confirmation',async()=>{
-  const p=await fixture();p.page.newPurchase(true);
+  const p=await fixture();p.page.newPurchase(true,'ordinary');
   const id=p.page.state.purchaseEdit.id;
   p.page.state.purchaseEdit.items=[{...createPurchaseItem(),descriptionEn:'New synthetic service',quantity:'2',unitCost:'50'}];
   p.page.postPurchase();await p.page.confirmAction();
@@ -106,7 +107,7 @@ test('new unsaved purchase can be posted from its confirmation',async()=>{
 });
 
 test('new purchase for supplier clears the previous saved editor baseline',async()=>{
-  const p=await fixture();p.page.newPurchaseForSupplier(p.page.props.suppliers[0]);
+  const p=await fixture();p.page.newPurchaseForSupplier(p.page.props.suppliers[0],'ordinary');
   const id=p.page.state.purchaseEdit.id;
   p.page.state.purchaseEdit.items=[{...createPurchaseItem(),descriptionEn:'Supplier synthetic service',quantity:'2',unitCost:'50'}];
   p.page.postPurchase();await p.page.confirmAction();
@@ -115,7 +116,7 @@ test('new purchase for supplier clears the previous saved editor baseline',async
 });
 
 test('new-purchase confirmation cannot overwrite a record created with that ID in the meantime',async()=>{
-  const p=await fixture();p.page.newPurchase(true);
+  const p=await fixture();p.page.newPurchase(true,'ordinary');
   p.page.state.purchaseEdit.items=[{...createPurchaseItem(),descriptionEn:'New synthetic service',quantity:'2',unitCost:'50'}];
   p.page.postPurchase();const concurrent=structuredClone(p.page.state.purchaseEdit);concurrent.notes='Accepted new draft';
   await p.h.persist({...p.h.requireVault(),purchases:[...p.h.requireVault().purchases,concurrent]});

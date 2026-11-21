@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/verify-local.mjs'
+      - 'tests/visual/**'
       - 'tests/local-verification-no-actions.test.mjs'
       - 'docs/LOCAL_VERIFICATION_NO_ACTIONS.md'
       - '.github/workflows/lourex-release-gates-qa.yml'

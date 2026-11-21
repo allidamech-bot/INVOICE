@@ -165,22 +165,53 @@ def page_digests(pdf, qr=None):
     return digests
 
 
+def check_verapdf_report(data, path, size):
+    """Check single-file veraPDF XML output; never treat a lone pass flag as evidence."""
+    root = ElementTree.fromstring(data, forbid_dtd=True, forbid_entities=True, forbid_external=True)
+    jobs = root.findall("./jobs/job")
+    summaries = root.findall("./batchSummary")
+    reports = root.findall(".//validationReport")
+    if root.tag != "report" or len(jobs) != 1 or len(summaries) != 1 or len(reports) != 1:
+        raise ValueError("VERAPDF_REPORT_MISMATCH")
+    job, summary, report = jobs[0], summaries[0], reports[0]
+    items = job.findall("./item")
+    if len(items) != 1 or job.find("./validationReport") is not report:
+        raise ValueError("VERAPDF_REPORT_MISMATCH")
+    names = items[0].findall("./name")
+    if len(names) != 1 or not names[0].text or Path(names[0].text).resolve() != path.resolve() or items[0].get("size") != str(size):
+        raise ValueError("VERAPDF_REPORT_MISMATCH")
+    if summary.get("totalJobs") != "1" or any(summary.get(k) != "0" for k in ("failedToParse", "encrypted", "outOfMemory", "veraExceptions")):
+        raise ValueError("VERAPDF_FAILED")
+    counts = summary.findall("./validationReports")
+    if len(counts) != 1 or (counts[0].text or "").strip() != "1" or any(counts[0].get(k) != v for k, v in (("compliant", "1"), ("nonCompliant", "0"), ("failedJobs", "0"))):
+        raise ValueError("PDFA3B_NOT_COMPLIANT")
+    details = report.findall("./details")
+    if report.get("isCompliant") != "true" or report.get("profileName", "").lower() != "pdf/a-3b validation profile" or report.get("jobEndStatus", "normal") != "normal" or len(details) != 1:
+        raise ValueError("PDFA3B_NOT_COMPLIANT")
+    if any(details[0].get(k) != "0" for k in ("failedRules", "failedChecks")) or any(not re.fullmatch(r"[1-9][0-9]*", details[0].get(k, "")) for k in ("passedRules", "passedChecks")):
+        raise ValueError("PDFA3B_NOT_COMPLIANT")
+    return sha(data)
+
+
 def validate_pdfa3b(path, validator):
-    """Require an explicitly configured actual veraPDF executable and 3b report."""
+    """Require the trusted veraPDF executable and a complete, file-bound 3b report."""
     validator = Path(validator)
     if not validator.is_absolute() or not validator.is_file() or not os.access(validator, os.X_OK):
         raise ValueError("VERAPDF_UNAVAILABLE")
+    path = Path(path).resolve(strict=True)
+    size = path.stat().st_size
+    if not path.is_file() or not 1 <= size <= MAX_PDF:
+        raise ValueError("INVALID_PDF_SIZE")
+    before = sha(path.read_bytes())
     with tempfile.TemporaryFile() as report:
         run = subprocess.run([str(validator), "--format", "xml", "--flavour", "3b", str(path)], stdout=report, stderr=subprocess.DEVNULL, timeout=120, check=False)
         report.seek(0)
         data = report.read(2 * 1024 * 1024 + 1)
     if run.returncode or not 1 <= len(data) <= 2 * 1024 * 1024:
         raise ValueError("VERAPDF_FAILED")
-    root = ElementTree.fromstring(data, forbid_dtd=True, forbid_entities=True, forbid_external=True)
-    reports = root.findall(".//validationReport")
-    if len(reports) != 1 or reports[0].attrib.get("isCompliant") != "true" or reports[0].attrib.get("profileName") != "PDF/A-3b validation profile":
-        raise ValueError("PDFA3B_NOT_COMPLIANT")
-    return sha(data)
+    if path.stat().st_size != size or sha(path.read_bytes()) != before:
+        raise ValueError("VERAPDF_INPUT_CHANGED")
+    return check_verapdf_report(data, path, size)
 
 
 def package_candidate(pdf, xml, *, manifest, validator):

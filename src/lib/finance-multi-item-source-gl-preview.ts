@@ -217,6 +217,7 @@ export function inspectMultiItemSourceBoundStockGl(
     const bucket=receiptsByPurchase.get(purchase.id);
     if(!bucket||bucket.count!==purchase.items.length)
       fail('Missing or partial purchase receipts; payable cannot be booked from incomplete stock lines.');
+    if(purchase.purchaseTax?.mode==='tax'&&decimalToScaled(purchase.purchaseTax.deductibleVat,2)>0n)fail('This two-account inventory preview does not support recoverable input VAT.');
     let original:bigint;
     try{original=decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
     catch{fail('Purchase base costs or landed expense totals are invalid.');}

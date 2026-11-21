@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Local-only final gate for PR 1287. Never merge, publish rules or deploy.
+set -Eeuo pipefail
+cd "$(git rev-parse --show-toplevel)"
+[[ "$(git branch --show-current)" == "feat/fiscal-batch2-remaining-settlements" ]] || { echo "Wrong branch"; exit 1; }
+[[ "$(node -p 'process.versions.node.split(".")[0]')" == 24 ]] || { echo "Node 24 required"; exit 1; }
+command -v javac >/dev/null
+export LOUREX_FISCAL_PYTHON=/tmp/lourex-qa/bin/python
+[[ -x "$LOUREX_FISCAL_PYTHON" ]] || { echo "Run bash qa first"; exit 1; }
+export PATH="/tmp/lourex-qa/bin:$PATH"
+git fetch origin main feat/fiscal-batch2-remaining-settlements
+sha="$(git rev-parse HEAD)"
+[[ "$sha" == "$(git rev-parse origin/feat/fiscal-batch2-remaining-settlements)" ]] || { echo "Branch differs from remote; stop"; exit 1; }
+[[ "$(git rev-parse origin/main)" == "006b51a7336974aadbf61432d8b66455112f9237" ]] || { echo "Main changed; review before signoff"; exit 1; }
+# New detached checkout: existing user files and generated output are preserved.
+work="$(mktemp -d /tmp/lourex-final-XXXXX)"
+git worktree add --detach "$work" "$sha"
+log="/tmp/lourex-final-${sha:0:12}.log"
+echo "FINAL QA HEAD: $sha"
+echo "Installing pinned browser tooling in isolated checkout"
+cd "$work"
+npm ci
+npm install --no-save --package-lock=false playwright@1.55.0
+npx playwright install --with-deps chromium webkit
+echo "Running final local verification. Log: $log"
+set +e
+node scripts/verify-local.mjs 2>&1 | tee "$log"
+status=${PIPESTATUS[0]}
+set -e
+if [[ "$status" -eq 0 ]]; then
+  echo "FINAL LOCAL QA PASS — $sha"
+  echo "Separate statutory and external authority acceptance still required."
+else
+  echo "FINAL LOCAL QA FAILED — $sha"
+  grep -E '^([✖✗]|not ok |# (tests|pass|fail)|.*error TS[0-9]+|.*Error:|.*LOUREX QA FAILED)' "$log" | tail -n 30 || true
+fi
+echo "Log retained at $log; isolated worktree: $work"
+exit "$status"

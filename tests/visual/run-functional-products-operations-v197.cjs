@@ -51,7 +51,7 @@ const doubleClick=async locator=>locator.evaluate(button=>{button.click();button
       try{
         await page.goto(`${BASE}?mode=operations&lang=en`,{waitUntil:'networkidle'});
         await page.getByRole('tab',{name:'Purchases'}).click();
-        await page.getByRole('button',{name:'New Purchase'}).click();
+        await page.getByRole('button',{name:'New Purchase',exact:true}).click();await page.locator('.purchase-choice-ordinary').click();
         await page.locator('.purchase-item select').selectOption('product-v197');
         await page.evaluate(()=>{window.confirm=()=>true;});
         await doubleClick(page.getByRole('button',{name:'Post Purchase'}));
@@ -76,7 +76,7 @@ const doubleClick=async locator=>locator.evaluate(button=>{button.click();button
         await page.goto(`${BASE}?mode=operations&lang=ar&failPost=1`,{waitUntil:'networkidle'});
         assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
         await page.getByRole('tab',{name:'المشتريات'}).click();
-        await page.getByRole('button',{name:'شراء جديد'}).click();
+        await page.getByRole('button',{name:'شراء جديد',exact:true}).click();await page.locator('.purchase-choice-ordinary').click();
         await page.locator('.purchase-item select').selectOption('product-v197');
         await page.evaluate(()=>{window.confirm=()=>true;});
         await page.getByRole('button',{name:'ترحيل الشراء'}).click();

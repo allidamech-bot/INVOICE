@@ -1,10 +1,16 @@
+import {assertSettlementCashContinuity,assertSupplierSettlementContinuity,assertPostedSupplierPaymentTransition} from './supplier-settlement-posting.mjs';
 import {assertAdvanceContinuity} from './advance-commercial.js';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
-import {assertSupplierSettlementTransition} from './settlement-integrity.mjs';
+import {assertSupplierSettlementTransition,assertSupplierTreasuryAuthority} from './settlement-integrity.mjs';
 import {isFiscalPurchaseReturn} from './purchase-return.mjs';
 import {inspectReturnPostings,isReturnMovement} from './return-postings.js';
 import {reviewDigest} from './commercial-source.js';
 import {fail} from '../_accounting/period-format.js';
+// Reject ordinary publication inside the dedicated fiscal QA workspace.
+export function assertFiscalWorkspacePublication(scope,old,next){
+ if(scope?.environment!=='simulation'||scope.syntheticOnly!==true)fail(422,'FISCAL_SCOPE_INVALID');
+ if(next?.kind==='invoice'&&next.status==='final'||old?.kind==='invoice'&&old.status==='final')fail(409,'FISCAL_DOCUMENT_LOCKED');
+}
 // Invoked only by isolated QA period writer, inside its final CAS. Every
 // changed invoice is checked against the immutable server approval/issue.
 export function createFiscalPeriodGuard(db,{closeProof}={}){
@@ -29,6 +35,7 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
    }
    if(input.operation!=='commit')continue;
    try{await assertAdvanceContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_ADVANCE_LOCKED');}
+   try{await assertSettlementCashContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_SETTLEMENT_CASH_LOCKED');}
    const a=new Map(before.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));
    const b=new Map(candidate.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));
    const changed=[...new Set([...a.keys(),...b.keys()])].filter(k=>!same(a.get(k),b.get(k)));
@@ -39,9 +46,12 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
     const intent=await tx.get(db.doc(base+'/issueIntents/'+k));
     const issue=await tx.get(db.doc(base+'/issues/'+k));
     if(intent.exists||issue.exists)fail(409,'FISCAL_DOCUMENT_LOCKED');
-    // Commercial finalization of Saudi test invoices cannot bypass the server.
-    const country=String(next?.companySnapshot?.country??'').trim().toUpperCase();
-    if(next?.kind==='invoice'&&next.status==='final'&&(['SA','SAU','SAUDI ARABIA','KINGDOM OF SAUDI ARABIA','السعودية','المملكة العربية السعودية'].includes(country)||/^3\d{13}3$/.test(next.companySnapshot?.vatNumber??'')))fail(409,'FISCAL_DOCUMENT_LOCKED');
+    // The server-owned synthetic fiscal workspace, not a mutable seller
+    // snapshot or invoice mode, controls the commercial publication barrier.
+    // All final invoices in this enrolled scope require trusted issuance.
+    // International/non-fiscal workspaces without this private scope remain
+    // on their existing commercial path. No phase or tax liability is inferred.
+    assertFiscalWorkspacePublication(scope,old,next);
    }
    // Only the trusted supplier-return command can introduce these movements.
    // A stale browser or backup cannot delete, modify or inject one.
@@ -62,6 +72,18 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
    if(oldPayments.size!==beforePayments.length||nextPayments.size!==afterPayments.length)fail(422,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
    const changedPurchases=new Set();
    for(const k of new Set([...oldPayments.keys(),...nextPayments.keys()])){const old=oldPayments.get(k),next=nextPayments.get(k);if(same(old,next))continue;if(old)changedPurchases.add(old.purchaseId);if(next)changedPurchases.add(next.purchaseId);}
+   // Treasury-only allocations, reversals and account changes also affect AP.
+   const oldTreasury=(before.treasuryEntries??[]).filter(e=>e.workspaceId===workspaceId),newTreasury=(candidate.treasuryEntries??[]).filter(e=>e.workspaceId===workspaceId);
+   const oldTreasuryById=new Map(oldTreasury.map(e=>[e.id,e])),newTreasuryById=new Map(newTreasury.map(e=>[e.id,e]));
+   const oldAccounts=new Map((before.treasuryAccounts??[]).map(a=>[a.id,a])),newAccounts=new Map((candidate.treasuryAccounts??[]).map(a=>[a.id,a]));
+   for(const k of new Set([...oldTreasuryById.keys(),...newTreasuryById.keys()])){
+     const old=oldTreasuryById.get(k),next=newTreasuryById.get(k);
+     if(same(old,next)&&same(oldAccounts.get(old?.fromAccountId),newAccounts.get(next?.fromAccountId)))continue;
+     for(const e of [old,next]){
+       if(e?.sourceType!=='supplier-payment')continue;
+       for(const payment of [oldPayments.get(e.sourceId),nextPayments.get(e.sourceId)])if(payment)changedPurchases.add(payment.purchaseId);
+     }
+   }
    if(changedPurchases.size>100)fail(422,'FISCAL_CHANGE_LIMIT');
    for(const k of changedPurchases){
      if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');
@@ -71,8 +93,14 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
      try{
        const snapshot=await tx.get(db.collection(base+'/accountingEntries').where('sourceId','==',k).limit(201));if(snapshot.docs.length>200)fail(422,'FISCAL_CHANGE_LIMIT');
        const adjustments=snapshot.docs.map(x=>{const r=x.data();if(r.key!==x.id)fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');return r;}).filter(x=>x.source==='purchase'&&x.key!==original.key);
-       assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today:new Date().toISOString().slice(0,10)});
+       const today=new Date().toISOString().slice(0,10);
+       assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today});
+       assertSupplierTreasuryAuthority({purchase,original,before,candidate,today,allowElevated:scope.commandsEnabled===true});
      }catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
+   }
+   const oldCashAccounts=(before.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId),newCashAccounts=(candidate.treasuryAccounts??[]).filter(x=>x.workspaceId===workspaceId);
+   if(changedPurchases.size||!same(oldCashAccounts,newCashAccounts)){
+     try{const s={accountUid:uid,workspaceId,egsId:id(scope.selectedEgsId)?scope.selectedEgsId:'unselected',environment:'simulation'};if(changedPurchases.size)await assertPostedSupplierPaymentTransition(db,tx,s,before,candidate,new Date().toISOString().slice(0,10));else await assertSupplierSettlementContinuity(db,tx,s,candidate);}catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
    try{await assertFiscalCostContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_COST_HISTORY_LOCKED');}
    const oldReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m)),newReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m));

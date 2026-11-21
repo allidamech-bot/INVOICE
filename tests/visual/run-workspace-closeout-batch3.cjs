@@ -6,10 +6,10 @@ const output='visual-qa-output/workspace-closeout-batch3';
  mkdirSync(output,{recursive:true});const browser=await chromium.launch({headless:true});const results=[];
  try{
   for(const [width,lang,theme] of [[320,'ar','dark'],[390,'en','light'],[820,'ar','light'],[1440,'en','dark']]){
-   const page=await browser.newPage({viewport:{width,height:900}});page.setDefaultTimeout(8000);
+   const page=await browser.newPage({viewport:{width,height:900}});page.setDefaultTimeout(8000);page.setDefaultNavigationTimeout(15000);
    const errors=[];page.on('pageerror',error=>errors.push(error.message));
    const text=(en,ar)=>lang==='ar'?ar:en;
-   const open=async(screen,empty=false)=>{await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-financial.html?screen=${screen}&lang=${lang}${empty?'&empty=1':''}`,{waitUntil:'networkidle'});await page.evaluate(theme=>document.documentElement.dataset.uiTheme=theme,theme);};
+   const open=async(screen,empty=false)=>{console.log('[QA workspace closeout]',width,lang,theme,screen,empty?'empty':'populated');await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-financial.html?screen=${screen}&lang=${lang}${empty?'&empty=1':''}`,{waitUntil:'load'});await page.waitForFunction(()=>typeof window.financialSourceSnapshot==='function');await page.evaluate(theme=>document.documentElement.dataset.uiTheme=theme,theme);};
    const bounds=async(name)=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name}: horizontal overflow`);
    const touch=async locator=>{await locator.scrollIntoViewIfNeeded();const rect=await locator.boundingBox();assert.ok(rect.height>=43.5,'action retains 44px hit area');await locator.click({trial:true});};
    await open('reports');const before=await page.evaluate(()=>window.financialSourceSnapshot());
@@ -37,10 +37,11 @@ const output='visual-qa-output/workspace-closeout-batch3';
    const save=editor.getByRole('button',{name:text('Save Supplier','حفظ المورد'),exact:true});await touch(save);await save.click();
    await page.waitForFunction(()=>window.financialFixture.state.suppliers.length===1);
    assert.equal(await page.evaluate(()=>window.financialFixture.state.suppliers[0].nameEn),'Reviewed Source');
-   await page.locator('#operations-tab-purchases').click();await page.locator('.ta-ops-empty').getByRole('button',{name:text('New Purchase','شراء جديد'),exact:true}).click();
+   await page.locator('#operations-tab-purchases').click();await page.locator('.ta-ops-empty').getByRole('button',{name:text('New Purchase','شراء جديد'),exact:true}).click();await page.locator('.purchase-choice-ordinary').click();
    await page.locator('.ta-ops-purchase-editor').waitFor();assert.equal(await page.evaluate(()=>window.financialFixture.state.purchases.length),0,'opening a reviewed draft cannot post or persist it');await bounds('purchase create');
    await page.screenshot({path:`${output}/purchase-${width}-${lang}-${theme}.png`,animations:'disabled'});
-   await page.goto(`http://127.0.0.1:4173/tests/visual/workspace-ux-batch3.html?lang=${lang}&theme=${theme}&vault=1`,{waitUntil:'networkidle'});
+   console.log('[QA workspace closeout]',width,lang,theme,'items/planning');await page.goto(`http://127.0.0.1:4173/tests/visual/workspace-ux-batch3.html?lang=${lang}&theme=${theme}&vault=1`,{waitUntil:'load'});
+   await page.waitForFunction(()=>typeof window.navigateWorkspace==='function');
    assert.equal(await page.evaluate(()=>document.documentElement.dataset.uiTheme),theme,'theme preference must survive production ThemeControl initialization');
    await page.evaluate(()=>window.navigateWorkspace('items'));
    await page.locator('.ta-product-stock').waitFor();assert.equal((await page.locator('.ta-product-stock bdi').innerText()).trim(),'12','stock comes from the posted movement, not the draft purchase');

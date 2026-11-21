@@ -11,7 +11,7 @@ const BASE=process.env.LOUREX_VISUAL_BASE_URL||'http://127.0.0.1:4173';
   browser.on('disconnected',()=>{if(page.isClosed()===false)console.error('[QA browser unexpectedly disconnected]',page.url());});
   page.on('pageerror',error=>console.error('[QA pageerror]',String(error?.message||error)));
   page.on('pageerror',error=>failures.push(`pageerror: ${String(error?.message||error)}`));
-  await page.goto(`${BASE}/tests/visual/obsidian-shell.html?lang=en&v=451-overlay`,{waitUntil:'load'});
+  await page.goto(`${BASE}/tests/visual/obsidian-shell.html?lang=en&v=451-overlay&shellOnly=1`,{waitUntil:'load'});
   await page.waitForSelector('.ta-mobile-nav',{timeout:10_000});
 
   const lockState=()=>page.evaluate(()=>({

@@ -52,11 +52,14 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
     },qrVerifiedFromPdf):[];
     const original=(await (capture?capture(index,'original'):captureSheet(sheet,'original'))).toString('base64');
     const reference=capture?(await captureSheet(sheet,'original')).toString('base64'):original;
-    const hide=await page.addStyleTag({content:'.invoice-page *{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important}'});
+    // A diagnostic mask must outrank template-specific !important ink, including
+    // Obsidian light cards. The impossible ID increases :is() specificity
+    // without altering the matching invoice-page selector or QA threshold.
+    const hide=await page.addStyleTag({content:'.invoice-page:is(#lourex-pixel-mask-sentinel, .invoice-page) *{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important}'});
     let background,mask;
     try {
       background=(await (capture?capture(index,'background'):captureSheet(sheet,'background'))).toString('base64');
-      await hide.evaluate(el=>{el.textContent='.invoice-page *{color:rgb(255,0,255)!important;-webkit-text-fill-color:rgb(255,0,255)!important;text-shadow:none!important}';});
+      await hide.evaluate(el=>{el.textContent='.invoice-page:is(#lourex-pixel-mask-sentinel, .invoice-page) *{color:rgb(255,0,255)!important;-webkit-text-fill-color:rgb(255,0,255)!important;text-shadow:none!important}';});
       mask=(await (capture?capture(index,'mask'):captureSheet(sheet,'mask'))).toString('base64');
     } finally {await hide.evaluate(el=>el.remove());}
     results.push(await page.evaluate(async({background,mask,original,reference,texts,media,fromPdf})=>{

@@ -1,4 +1,5 @@
 import {stockCostCents} from './fiscal-cost.mjs';
+import {planPurchaseCostCorrection} from './purchase-cost-correction.mjs';
 const need=ok=>{if(!ok)throw Error('FISCAL_LOT_ALLOCATION_REVIEW_REQUIRED');};
 const day=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
 const qty=v=>{need(typeof v==='string'&&/^\d+(?:\.\d{1,4})?$/.test(v)&&v.length<=30);const [a,b='']=v.split('.');return BigInt(a+b.padEnd(4,'0'));};
@@ -21,16 +22,31 @@ export function planReviewedLotCostBridge({purchase,amount,allocations,assignmen
  const allocationMap=new Map(),usedLines=new Set(),assigned=new Map();for(const a of allocations){need(a.lineId&&!allocationMap.has(a.lineId));allocationMap.set(a.lineId,a);}
  for(const a of assignments){need(a.movementId&&!assigned.has(a.movementId)&&Array.isArray(a.lots)&&a.lots.length>0);assigned.set(a.movementId,a.lots);}
  const lots=new Map(),consumed=new Map();
+ // Match the existing commercial warehouse ledger: inbound uses toWarehouseId,
+ // outbound uses fromWarehouseId; missing location means the branch default.
+ // The historical fixture alias is accepted only if it agrees with the real field.
+ const warehouse=v=>{need(v===undefined||v===''||typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v));return v||'';};
+ const operationalLocation=(m,direction)=>{const actual=warehouse(direction==='in'?m.toWarehouseId:m.fromWarehouseId),alias=warehouse(m.warehouseId);need(!actual||!alias||actual===alias);return actual||alias||'warehouse-'+purchase.branchId;};
+ const location=(lot,id)=>lot.locations.get(id)??0n;
+ const move=(lot,from,to,n)=>{need(location(lot,from)>=n);lot.locations.set(from,location(lot,from)-n);if(to!==null)lot.locations.set(to,location(lot,to)+n);};
  for(const m of [...related].sort(order)){
    need(!m.salesReturn&&!m.salesReturnCorrection&&!m.invoiceVoidStock&&!m.id.startsWith('fiscal-purchase-return:'));
    const q=signedQty(m.quantity);need(q!==0n);
-   if(m.type==='transfer'){need(q>0n&&m.fromWarehouseId&&m.toWarehouseId&&m.fromWarehouseId!==m.toWarehouseId);continue;}
-   if(q>0n){need(['purchase','opening','adjustment'].includes(m.type));lots.set(m.id,{movement:m,total:q,remaining:q});continue;}
-   need(['issue','adjustment'].includes(m.type));const slices=assigned.get(m.id);need(slices);assigned.delete(m.id);let total=0n;const refs=new Set();
-   for(const a of slices){const n=qty(a.quantity),lot=lots.get(a.receiptId);need(n>0n&&lot&&lot.movement.itemId===m.itemId&&!refs.has(a.receiptId)&&n<=lot.remaining);refs.add(a.receiptId);lot.remaining-=n;total+=n;const arr=consumed.get(a.receiptId)??[];arr.push({movement:m,quantity:n});consumed.set(a.receiptId,arr);}
-   need(total===-q);
+   const transfer=m.type==='transfer';
+   if(transfer)need(q>0n&&warehouse(m.fromWarehouseId)&&warehouse(m.toWarehouseId)&&m.fromWarehouseId!==m.toWarehouseId);
+   if(!transfer&&q>0n){need(['purchase','opening','adjustment'].includes(m.type));lots.set(m.id,{movement:m,total:q,remaining:q,locations:new Map([[operationalLocation(m,'in'),q]])});continue;}
+   need(transfer||['issue','adjustment'].includes(m.type));
+   const from=(transfer?warehouse(m.fromWarehouseId):operationalLocation(m,'out')),to=transfer?warehouse(m.toWarehouseId):null;
+   const slices=assigned.get(m.id);need(slices);assigned.delete(m.id);let total=0n;const refs=new Set();
+   for(const a of slices){
+     const n=qty(a.quantity),lot=lots.get(a.receiptId);need(n>0n&&lot&&lot.movement.itemId===m.itemId&&!refs.has(a.receiptId)&&n<=lot.remaining);refs.add(a.receiptId);
+     move(lot,from,to,n);total+=n;
+     if(!transfer){lot.remaining-=n;const arr=consumed.get(a.receiptId)??[];arr.push({movement:m,quantity:n});consumed.set(a.receiptId,arr);}
+   }
+   need(total===(transfer?q:-q));
  }
  need(assigned.size===0);
+ for(const l of lots.values())need([...l.locations.values()].reduce((a,b)=>a+b,0n)===l.remaining);
  const lines=[],updates=[],claims=[],usedLots=new Set(),latest=new Map();let oldTotal=0n,reliefTotal=0n,inventoryRelief=0n,cogsRelief=0n,expenseRelief=0n;
  for(const m of [...related].sort(order))if(m.type==='purchase')latest.set(m.itemId,m.id);
  for(const l of purchase.items){need(l.id&&!usedLines.has(l.id));usedLines.add(l.id);const a=allocationMap.get(l.id);need(a);const quantity=qty(l.quantity),cost=l.landedUnitCost||l.unitCost,old=stockCostCents(l.quantity,cost),tax=cents(a.deductibleVat),corrected=stockCostCents(l.quantity,a.adjustedUnitCost);need(quantity>0n&&tax<=old&&corrected===old-tax);oldTotal+=old;reliefTotal+=tax;
@@ -46,4 +62,33 @@ export function planReviewedLotCostBridge({purchase,amount,allocations,assignmen
  }
  need(oldTotal===gross&&reliefTotal===deductible&&inventoryRelief+cogsRelief+expenseRelief===deductible&&new Set(updates.map(u=>u.itemId)).size===updates.length);
  return {grossPayable:money(gross),deductibleVat:money(deductible),correctedCost:money(gross-deductible),lines,updates,claims,valuationBridge:{inventoryRelief:money(inventoryRelief),cogsRelief:money(cogsRelief),expenseRelief:money(expenseRelief)}};
+}
+
+// Re-run the frozen reviewed calculation; the aggregate relief alone is not
+// proof of its location, cost-of-sales attribution or original cost basis.
+export function replayPostedCostAllocation({purchase,amount,record,review,movements,savedItems,digest}){
+ need(typeof digest==='function'&&record?.plan&&review?.state==='approved'&&record.reviewDigest===digest(review)&&review.effectiveDate===record.effectiveDate&&record.purchaseId===purchase.id&&review.purchaseId===purchase.id&&Array.isArray(record.plan.historyBindings)&&Array.isArray(record.plan.updates)&&Array.isArray(review.allocations)&&review.allocationDigest===digest(review.allocations));
+ const bindings=record.plan.historyBindings,ids=new Set(bindings.map(x=>x.movementId)),tracked=new Set(purchase.items.filter(x=>x.savedItemId).map(x=>x.savedItemId));
+ need(ids.size===bindings.length&&bindings.length<=1000);
+ const history=movements.filter(x=>ids.has(x.id)).sort((a,b)=>a.id.localeCompare(b.id));
+ need(history.length===bindings.length&&history.every(m=>tracked.has(m.itemId)&&bindings.some(b=>b.movementId===m.id&&b.digest===digest(m))));
+ // Later stock movements may legitimately change quantity or catalog cost.
+ // Never infer their reviewed lot attribution, nor restate historic relief.
+ for(const m of movements.filter(x=>tracked.has(x.itemId)&&!ids.has(x.id)))need(day(m.date)&&m.date>=record.effectiveDate&&Number.isFinite(Date.parse(m.createdAt))&&Date.parse(m.createdAt)>=Date.parse(record.committedAt));
+ const updates=new Map(record.plan.updates.map(x=>[x.itemId,x]));need(updates.size===record.plan.updates.length);
+ const historicalCatalog=savedItems.map(x=>updates.has(x.id)?{...x,archived:false,lastUnitCost:updates.get(x.id).previousUnitCost,lastCostCurrency:purchase.currency}:x);
+ const args={purchase,amount,allocations:review.allocations,movements:history,savedItems:historicalCatalog};
+ let expected;
+ if(review.mode==='reviewed-lots'){
+   need(Array.isArray(review.lotAssignments)&&review.lotAssignmentsDigest===digest(review.lotAssignments)&&review.movementDigest===digest(history));
+   expected=planReviewedLotCostBridge({...args,assignments:review.lotAssignments,through:record.effectiveDate});
+   expected={...expected,lotBindings:review.lotAssignments.map(a=>({movementId:a.movementId,digest:digest(a.lots.slice().sort((x,y)=>x.receiptId.localeCompare(y.receiptId)))}))};
+ }else{
+   need(review.mode===undefined);expected=planPurchaseCostCorrection(args);
+   const inventory=expected.lines.filter(l=>l.itemId).reduce((n,l)=>n+cents(l.deductibleVat),0n);
+   expected={...expected,valuationBridge:{inventoryRelief:money(inventory),cogsRelief:'0.00',expenseRelief:money(cents(expected.deductibleVat)-inventory)}};
+ }
+ expected={...expected,historyBindings:history.map(m=>({movementId:m.id,digest:digest(m)}))};
+ need(digest(expected)===digest(record.plan));
+ return {valuationBridge:expected.valuationBridge,historicalVerified:true,subsequentMovementCount:movements.filter(x=>tracked.has(x.itemId)&&!ids.has(x.id)).length};
 }

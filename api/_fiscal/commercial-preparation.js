@@ -1,8 +1,9 @@
 import {randomUUID} from 'node:crypto';
-import {simulationBase,readSimulationContext} from './simulation-scope.js';
+import {issuanceBoundary,assertProductionSale} from './issuance-boundary.js';
 import {hashArtifact,hashCanonicalInvoice} from './fiscal-artifacts.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
-import {buildManagedSimplifiedQrReference} from './simplified-qr-reference.js';
+import {buildManagedSdk4SimplifiedStamp} from './sdk4-xades-candidate.js';
+import {normalizeSdk4Proof} from './sdk4-local-validator.js';
 
 // Server-only preparation command. Source is an immutable, separately approved
 // private intent, never a request's monetary fields or a client-selected route.
@@ -11,15 +12,17 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/;
 import {readApprovedIntent} from './issue-intent.js';
 import {assertCurrentApprovedSource} from './commercial-source.js';
 function need(ok,code='FISCAL_PREPARATION_NOT_ELIGIBLE'){if(!ok)throw Error(code);}
-export function createCommercialFiscalPreparation({db,ledger,canonicalize,validateOfficial,resolveProtectedSession,policy,clock=()=>new Date().toISOString(),uuid=randomUUID}){
+export function createCommercialFiscalPreparation({db,ledger,canonicalize,validateOfficial,resolveProtectedSession,policy,clock=()=>new Date().toISOString(),uuid=randomUUID,...boundaryOptions}){
   need(db?.runTransaction&&db?.doc&&typeof ledger?.prepare==='function'&&typeof canonicalize==='function'&&typeof validateOfficial==='function'&&typeof clock==='function'&&typeof uuid==='function','FISCAL_PREPARATION_NOT_CONFIGURED');
+  const boundary=issuanceBoundary(db,boundaryOptions);
   return async function prepare(scope,documentId){
     need(typeof documentId==='string'&&ID.test(documentId));
     scope=Object.freeze({...scope});
-    const base=simulationBase(scope);
+    const base=boundary.base(scope);
     const loaded=await db.runTransaction(async tx=>{
-      const {unit}=await readSimulationContext(db,tx,scope,{active:true});
+      const {unit}=await boundary.read(tx,scope,{active:true});
       const intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+documentId)),scope,documentId);
+      assertProductionSale(scope,intent.payload.document,intent.payload.review,unit);
       const issue=await tx.get(db.doc(base+'/issues/'+documentId));
       if(issue.exists){
         const v=issue.data();
@@ -42,13 +45,17 @@ export function createCommercialFiscalPreparation({db,ledger,canonicalize,valida
     if(mapped.mode==='reporting'){
       need(typeof resolveProtectedSession==='function'&&policy,'FISCAL_SIGNING_NOT_CONFIGURED');
       const session=await resolveProtectedSession(scope,structuredClone(p.issuer));
-      need(session?.scope&&['accountUid','workspaceId','egsId','environment'].every(k=>session.scope[k]===scope[k])&&session.issuerVat===p.issuer.vatNumber,'FISCAL_SIGNING_SCOPE_MISMATCH');
-      const signed=await buildManagedSimplifiedQrReference({invoice:mapped.invoice,session,policy,canonicalize});
+      need(session?.scope&&(scope.environment!=='production'||session.credentialKind==='operational')&&['accountUid','workspaceId','egsId','environment'].every(k=>session.scope[k]===scope[k])&&session.issuerVat===p.issuer.vatNumber,'FISCAL_SIGNING_SCOPE_MISMATCH');
+      const signed=await buildManagedSdk4SimplifiedStamp({unsigned:bytes,session,policy,canonicalize});
       need(signed.invoiceHash===invoiceHash,'FISCAL_SIGNED_HASH_MISMATCH');
       bytes=Buffer.from(signed.bytes);
     }
-    need(await validateOfficial({scope,mode:mapped.mode,invoice:structuredClone(mapped.invoice),context:structuredClone(mapped.context),bytes:Buffer.from(bytes),invoiceHash})===true,'FISCAL_OFFICIAL_VALIDATION_REQUIRED');
-    const result=await ledger.prepare(scope,{...scope,...identity,mode:mapped.mode,invoiceHash,artifactDigest:hashArtifact(bytes),snapshotDigest:intent.digest},bytes,intent.bytes,{approvedIntent:true});
+    const validated=await validateOfficial({scope,mode:mapped.mode,invoice:structuredClone(mapped.invoice),context:structuredClone(mapped.context),bytes:Buffer.from(bytes),invoiceHash});
+    // Direct synthetic service fixtures retain their explicit boolean adapter.
+    // The configured runtime ledger requires an exact, pinned SDK proof.
+    if(scope.environment==='production')need(validated!==true,'FISCAL_OFFICIAL_VALIDATION_REQUIRED');
+    const sdkProof=validated===true?undefined:normalizeSdk4Proof(validated,{uuid:identity.uuid,mode:mapped.mode,artifactDigest:hashArtifact(bytes)});
+    const result=await ledger.prepare(scope,{...scope,...identity,mode:mapped.mode,invoiceHash,artifactDigest:hashArtifact(bytes),snapshotDigest:intent.digest},bytes,intent.bytes,{approvedIntent:true,...(sdkProof?{sdkProof}:{})});
     return project(result);
   };
 }

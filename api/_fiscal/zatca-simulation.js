@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
-import {assertReadyForProductionCsid} from './onboarding.js';
+import {assertReadyForProductionCsid,assertProductionOnboardingReady} from './onboarding.js';
 
-// Internal transport only. No public route and no live production traffic.
+// Internal transport only. Production requires a separate trusted authorization callback.
 // Never log request/response bodies: onboarding responses contain secrets.
 const ORIGIN='https://gw-fatoora.zatca.gov.sa/e-invoicing/';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
@@ -90,15 +90,17 @@ export function classifyStoredSubmissionResponse({httpStatus,bytes,mode}){
   let value=null;try{const parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))value=parsed;}catch{}
   return outcome({status:httpStatus,value,bytes:Buffer.from(bytes)},mode);
 }
-export function createZatcaSimulationClient({environment,authorizedScope,fetchImpl=fetch,timeoutMs=15000}){
-  if(environment!=='simulation')throw Error('PRODUCTION_DISABLED');
+function createClient({environment,authorizedScope,fetchImpl=fetch,timeoutMs=15000,authorizeOperation},endpoint){
   if(typeof fetchImpl!=='function'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000)throw Error('INVALID_TRANSPORT');
   const s=scope(authorizedScope);
   const checkedAuth=(c,k)=>auth(c,s,environment,k);
-  async function post(path,body,headers={},retainMalformed=false){
+  async function post(path,body,headers={},retainMalformed=false,claim={}){
+    if(environment==='production'){
+      if(await authorizeOperation(Object.freeze({scope:Object.freeze({...s,environment}),...claim}))!==true)throw Error('PRODUCTION_OPERATION_NOT_AUTHORIZED');
+    }
     const controller=new AbortController();let timer;
     try{return await Promise.race([(async()=>{
-      const res=await fetchImpl(ORIGIN+'simulation/'+path,{method:'POST',redirect:'error',signal:controller.signal,
+      const res=await fetchImpl(ORIGIN+endpoint+'/'+path,{method:'POST',redirect:'error',signal:controller.signal,
         headers:{'Content-Type':'application/json','Accept':'application/json','Accept-Language':'en','Accept-Version':'V2',...headers},
         body:JSON.stringify(body)});
       if(!Number.isInteger(res.status)||res.status<100||res.status>599)throw Error('INVALID_RESPONSE');
@@ -111,27 +113,40 @@ export function createZatcaSimulationClient({environment,authorizedScope,fetchIm
     async requestCompliance({otp,csr}){
       if(typeof otp!=='string'||!/^[0-9]{6}$/.test(otp))throw Error('INVALID_OTP');
       base64(csr,32*1024);
-      const r=await post('compliance',{csr},{OTP:otp});
+      const r=await post('compliance',{csr},{OTP:otp},false,{operation:'compliance-csid',csrDigest:createHash('sha256').update(Buffer.from(csr,'base64')).digest('hex')});
       if(r.status!==200&&r.status!==201)throw Error('COMPLIANCE_CSID_NOT_CONFIRMED');
       return issued(r.value,s,environment,'compliance');
     },
     async checkCompliance(credential,payload,mode){
       if(mode!=='clearance'&&mode!=='reporting')throw Error('INVALID_MODE');
-      const r=await post('compliance/invoices',invoice(payload),{Authorization:checkedAuth(credential,'compliance')});
+      const document=invoice(payload);
+      const r=await post('compliance/invoices',document,{Authorization:checkedAuth(credential,'compliance')},false,{operation:'compliance-check',mode,uuid:document.uuid,invoiceHash:document.invoiceHash,artifactDigest:createHash('sha256').update(Buffer.from(document.invoice,'base64')).digest('hex'),credentialRequestId:credential.requestId});
       return outcome(r,mode,true);
     },
     async requestProductionCsid(credential,onboarding){
       const authorization=checkedAuth(credential,'compliance');
-      assertReadyForProductionCsid(onboarding,credential);
+      if(environment==='simulation')assertReadyForProductionCsid(onboarding,credential);else assertProductionOnboardingReady(onboarding,credential);
       if(!Number.isSafeInteger(credential.requestId)||credential.requestId<=0)throw Error('INVALID_REQUEST_ID');
-      const r=await post('production/csids',{compliance_request_id:String(credential.requestId)},{Authorization:authorization});
+      const r=await post('production/csids',{compliance_request_id:String(credential.requestId)},{Authorization:authorization},false,{operation:'operational-csid',credentialRequestId:credential.requestId,onboardingVersion:onboarding.version});
       if(r.status!==200&&r.status!==201)throw Error('PRODUCTION_CSID_NOT_CONFIRMED');
       return issued(r.value,s,environment,'production');
     },
     async submit(credential,payload,mode){
       if(mode!=='clearance'&&mode!=='reporting')throw Error('INVALID_MODE');
-      const r=await post('invoices/'+mode+'/single',invoice(payload),{Authorization:checkedAuth(credential,'production'),...(mode==='clearance'?{'Clearance-Status':'1'}:{})},true);
+      const document=invoice(payload);
+      const r=await post('invoices/'+mode+'/single',document,{Authorization:checkedAuth(credential,'production'),...(mode==='clearance'?{'Clearance-Status':'1'}:{})},true,{operation:'submit',mode,uuid:document.uuid,invoiceHash:document.invoiceHash,artifactDigest:createHash('sha256').update(Buffer.from(document.invoice,'base64')).digest('hex'),credentialRequestId:credential.requestId});
       return classifyStoredSubmissionResponse({httpStatus:r.status,bytes:r.bytes,mode});
     }
   });
+}
+
+export function createZatcaSimulationClient(options){
+  if(options?.environment!=='simulation')throw Error('PRODUCTION_DISABLED');
+  return createClient(options,'simulation');
+}
+// Private composition only. The authorizer must atomically claim the exact
+// operation against verified, persisted tenant state (not a browser flag).
+export function createZatcaProductionClient(options){
+  if(options?.environment!=='production'||options.authorizedScope?.environment!=='production'||typeof options.authorizeOperation!=='function')throw Error('PRODUCTION_TRANSPORT_NOT_CONFIGURED');
+  return createClient(options,'core');
 }

@@ -50,7 +50,13 @@ test('authenticated artifact service serves exact immutable accepted XML and ref
  const invalid=createFiscalOutputService({db:f.db,verifyPdf:async()=>({valid:false})});await assert.rejects(invalid.archivePdf(scope,documentId,1,pdf),/FISCAL_PDF_NOT_VERIFIED/);
  // A synthetic verifier cannot establish compliance; this tests only storage binding.
  f.db.runTransaction=fn=>fn({get:async ref=>({exists:f.rows.has(ref.path),data:()=>structuredClone(f.rows.get(ref.path))}),create:(ref,v)=>{assert(!f.rows.has(ref.path));f.put(ref.path,v);}});
- const archive=createFiscalOutputService({db:f.db,verifyPdf:async()=>({valid:true,pdfDigest:sha(pdf),xmlDigest:sha(cleared),validationDigest:'c'.repeat(64)})});
+ const archive=createFiscalOutputService({db:f.db,verifyPdf:async({record})=>{assert.equal(record.environment,'simulation');return {valid:true,pdfDigest:sha(pdf),xmlDigest:sha(cleared),validationDigest:'c'.repeat(64)};}});
  await archive.archivePdf(scope,documentId,1,pdf);assert.deepEqual(Buffer.from((await output.read(scope,documentId,1,'pdf')).bytes,'base64'),pdf);
  f.put(path+'/artifacts/verifiedPdf/data/pdf',{sha256:sha(pdf),bytes:Buffer.from('tampered').toString('base64')});await assert.rejects(output.read(scope,documentId,1,'pdf'));
+});
+
+test('accepted reader supplies verified simulation scope for historical issue records lacking environment',async()=>{
+ const f=fixture(),{environment,...legacy}=f.record;f.put(path,legacy);
+ assert.equal((await f.read()).record.environment,'simulation');
+ f.put(path,{...legacy,environment:'production'});await assert.rejects(f.read());
 });

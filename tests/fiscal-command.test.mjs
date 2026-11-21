@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createFiscalCommandService} from '../api/_fiscal/command-service.js';
 import {createFiscalCommandHandler} from '../api/_fiscal/command-handler.js';
-import {fiscalCommandConfig} from '../api/_fiscal/command-runtime.js';
+import {fiscalCommandConfig,fiscalSimulationAdaptersConfigured} from '../api/_fiscal/command-runtime.js';
 const scope={accountUid:'owner',workspaceId:'qa',egsId:'egs',environment:'simulation'},owner={uid:'owner',role:'owner'},base='fiscalPrivateV1/owner/workspaces/qa',doc={documentId:'doc',documentRevision:1};
 const cmd=(operation,extra={})=>({operation,workspaceId:'qa',...extra});
 function fixture(patch={}){
@@ -24,7 +24,8 @@ test('wrong account, revision, injected EGS/amount and disabled commands fail cl
 test('trusted preparation and exact queue version are composed without client totals',async()=>{
  const calls=[];const f=fixture({prepare:async(s,id)=>{calls.push(['prepare',s,id]);return {documentId:id,status:'queued',version:1};},submit:async(s,id,v)=>{calls.push(['submit',s,id,v]);return {documentId:id,status:'reported',version:3};}});
  assert.equal((await f.execute(owner,cmd('prepare',doc))).status,'queued');
- f.rows.set(base+'/issues/doc',{...scope,...doc,status:'queued',version:1});await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:2})),/STALE_ISSUE/);
+ f.rows.set(base+'/issueIntents/doc',{...scope,...doc,state:'approved',sha256:'a'.repeat(64)});
+ f.rows.set(base+'/issues/doc',{...scope,...doc,status:'queued',version:1,snapshotDigest:'a'.repeat(64)});await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:2})),/STALE_ISSUE/);
  assert.equal((await f.execute(owner,cmd('submit',{...doc,expectedVersion:1}))).status,'reported');assert.equal(calls.length,2);
 });
 async function http(handler,patch={}){const out={};await handler({method:'POST',headers:{host:'qa.test',origin:'https://qa.test','x-requested-with':'LOUREX-Invoice','content-type':'application/json',authorization:'Bearer '+'a'.repeat(128)},body:cmd('inspect'),...patch},{set statusCode(v){out.status=v;},setHeader(){},end(v){out.body=JSON.parse(v);}});return out;}
@@ -33,9 +34,11 @@ test('HTTP verifies origin and identity and returns only bounded public errors',
  assert.equal((await http(h)).status,200);assert.equal((await http(h,{body:{...cmd('inspect'),secret:'x'}})).status,400);assert.equal((await http(h,{method:'GET'})).status,405);assert.equal((await http(h,{body:cmd('prepare',doc)})).status,503);
  const revoked=createFiscalCommandHandler({getRuntime:async()=>({verifyIdentity:async()=>{throw Error('private');},execute:f.execute})});assert.deepEqual(await http(revoked),{status:401,body:{code:'FISCAL_AUTH_INVALID'}});
 });
-test('QA writer key cannot use production or reader identity',()=>{
- const project='lourex-fiscal-qa',reader={project_id:project,client_email:'reader@'+project+'.iam.gserviceaccount.com',private_key:'test'},writer={...reader,client_email:'writer@'+project+'.iam.gserviceaccount.com'},env={VERCEL_ENV:'preview',LOUREX_FISCAL_STATUS_ENABLED:'true',LOUREX_FISCAL_COMMANDS_ENABLED:'true',LOUREX_FISCAL_QA_PROJECT_ID:project,LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON:JSON.stringify(reader),LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(writer)};
- assert.deepEqual(fiscalCommandConfig(env),{project,account:writer});for(const p of [{VERCEL_ENV:'production'},{LOUREX_FISCAL_COMMANDS_ENABLED:'false'},{LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(reader)}])assert.throws(()=>fiscalCommandConfig({...env,...p}));
+test('QA command runtime requires preview keyless WIF and rejects static keys',()=>{
+ const project='lourex-fiscal-qa';
+ const env={VERCEL_ENV:'preview',VERCEL_PROJECT_ID:'prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ',LOUREX_FISCAL_QA_AUTH_MODE:'vercel-oidc',LOUREX_FISCAL_STATUS_ENABLED:'true',LOUREX_FISCAL_COMMANDS_ENABLED:'true',LOUREX_FISCAL_QA_PROJECT_ID:project};
+ assert.deepEqual(fiscalCommandConfig(env),{project});
+ for(const patch of [{VERCEL_ENV:'production'},{LOUREX_FISCAL_COMMANDS_ENABLED:'false'},{VERCEL_PROJECT_ID:'other'},{LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:'private-key'},{LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON:'private-key'},{LOUREX_FISCAL_QA_AUTH_MODE:'key'}])assert.throws(()=>fiscalCommandConfig({...env,...patch}));
 });
 
 test('held enrollment attempt is visible even before onboarding exists and prevents new remote commands',async()=>{const f=fixture({enrollment:{begin:async()=>{throw Error('must not call');}}});f.rows.set(base+'/egs/egs',{...scope,active:false});f.rows.set(base+'/egs/egs/enrollmentAttempts/compliance-csid',{...scope,state:'held'});const s=await f.execute(owner,cmd('inspect'));assert.equal(s.enrollmentHeld,true);assert.equal(s.onboarding,null);await assert.rejects(f.execute(owner,cmd('enroll',{otp:'123456'})),/ATTEMPT_HELD/);});
@@ -85,4 +88,44 @@ test('supplier dispatch command accepts only approved adjustment identity from t
  assert.deepEqual(await f.execute(owner,cmd('post-purchase-return',{adjustmentId:'a'})),{environment:'simulation',status:'posted',key:'purchase-return-a'});
  for(const extra of [{adjustmentId:'a',quantity:'1'},{adjustmentId:'a',warehouseId:'injected'},{adjustmentId:'bad/path'}])await assert.rejects(f.execute(owner,cmd('post-purchase-return',extra)));
  await assert.rejects(f.execute({...owner,role:'viewer'},cmd('post-purchase-return',{adjustmentId:'a'})));assert.deepEqual(calls,[[scope,'a']]);
+});
+
+test('supplier settlement command only accepts owner and approved settlement identity',async()=>{
+ const calls=[];const f=fixture({accounting:{postSupplierSettlement:async(s,id)=>{calls.push([s,id]);return {status:'posted',key:'supplier-settlement-'+id};}}});
+ assert.deepEqual(await f.execute(owner,cmd('post-supplier-settlement',{settlementId:'s1'})),{environment:'simulation',status:'posted',key:'supplier-settlement-s1'});
+ for(const extra of [{settlementId:'s1',amount:'1.00'},{settlementId:'bad/path'},{settlementId:'s1',egsId:'other'}])await assert.rejects(f.execute(owner,cmd('post-supplier-settlement',extra)));
+ await assert.rejects(f.execute({...owner,role:'viewer'},cmd('post-supplier-settlement',{settlementId:'s1'})));assert.deepEqual(calls,[[scope,'s1']]);
+});
+
+test('queued immutable issue survives unrelated cloud changes but not missing or conflicting approval',async()=>{
+ const calls=[],f=fixture({submit:async(s,id,v)=>{calls.push([s,id,v]);return {status:'reported',version:3};}});
+ const intent={...scope,...doc,state:'approved',sha256:'a'.repeat(64)},issue={...scope,...doc,status:'queued',version:1,snapshotDigest:intent.sha256};
+ f.rows.set(base+'/issues/doc',issue);
+ await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:1})),/STALE_ISSUE/);
+ f.rows.set(base+'/issueIntents/doc',intent);
+ f.rows.set('users/owner/workspace/meta',{chunkStorage:'period-generations-v1',revision:'newer',sha256:'b'.repeat(64)});
+ for(const changed of [{...intent,documentRevision:2},{...intent,sha256:'b'.repeat(64)}]){
+  f.rows.set(base+'/issueIntents/doc',changed);
+  await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:1})),/STALE_ISSUE/);
+ }
+ f.rows.set(base+'/issueIntents/doc',intent);
+ assert.equal((await f.execute(owner,cmd('submit',{...doc,expectedVersion:1}))).status,'reported');
+ assert.deepEqual(calls,[[scope,'doc',1]]);
+});
+test('server simulation composition is off by default and refuses partial verifier bundles',()=>{
+ const fn=()=>{},root=process.platform==='win32'?'C:\\qa':'/qa',sdk={pythonExecutable:root,installationRoot:root,manifestPath:root,javaHome:root,manifestSha256:'a'.repeat(64)},preparation={canonicalize:fn,sdk,resolveProtectedSession:fn,policy:{}},submission={resolveCredential:fn,verifyPrepared:fn,verifyAuthorityResult:fn},enrollment={resolveProtectedSession:fn,verifyCredential:fn,buildComplianceInvoice:fn,verifyComplianceResult:fn};
+ assert.equal(fiscalSimulationAdaptersConfigured(undefined),false);
+ assert.equal(fiscalSimulationAdaptersConfigured({preparation,submission,enrollment}),true);
+ for(const x of [null,{}, {preparation,submission}, {preparation:{...preparation,sdk:undefined},submission,enrollment}, {preparation:{...preparation,validateOfficial:fn},submission,enrollment}, {preparation,submission:{...submission,verifyAuthorityResult:true},enrollment}])assert.throws(()=>fiscalSimulationAdaptersConfigured(x),/VERIFICATION_UNAVAILABLE/);
+});
+
+import {privateAcceptanceAdaptersConfigured} from '../api/_fiscal/command-runtime.js';
+test('private release adapters are not public commands and are disabled by default',async()=>{
+ assert.equal(privateAcceptanceAdaptersConfigured(undefined),null);
+ assert.throws(()=>privateAcceptanceAdaptersConfigured({pdf:{}}));
+ assert.throws(()=>privateAcceptanceAdaptersConfigured({verifySupplierSettlementEvidence:true}));
+ const fn=async()=>({valid:false});
+ assert.equal(privateAcceptanceAdaptersConfigured({verifySupplierSettlementEvidence:fn}).verifySupplierSettlementEvidence,fn);
+ const f=fixture();
+ for(const operation of ['provision-supplier-settlement','archive-pdf'])await assert.rejects(f.execute(owner,cmd(operation,{})));
 });

@@ -1,3 +1,4 @@
+import {assertInvoiceMode,needsSaudiFiscalIssuance,withInvoiceMode} from '../dist/src/lib/invoice-mode.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -13,7 +14,7 @@ async function harness(){
  const creation=source.slice(source.indexOf('  private reserveDocument='),source.indexOf('  private saveDocument='));
  const duplicate=source.slice(source.indexOf('  private duplicate='),source.indexOf('\n',source.indexOf('  private duplicate=')));
  const js=ts.transpileModule(`class Harness {${creation}\n${duplicate}}`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
- const context={nextDocumentNumber,createBlankDocument,duplicateDocument,overlayWorkspaceScope,paymentTermPresetByLabel,applyPaymentTermPreset,applyCustomerCommercialDefaults,customerSnapshotFrom,confirmWorkspaceDeparture:()=>true,isDeliveryLinkedInvoice:()=>false,document:{documentElement:{setAttribute(){},removeAttribute(){}}},t:en=>en};
+ const context={withInvoiceMode,nextDocumentNumber,createBlankDocument,duplicateDocument,overlayWorkspaceScope,paymentTermPresetByLabel,applyPaymentTermPreset,applyCustomerCommercialDefaults,customerSnapshotFrom,confirmWorkspaceDeparture:()=>true,isDeliveryLinkedInvoice:()=>false,document:{documentElement:{setAttribute(){},removeAttribute(){}}},t:en=>en};
  vm.runInNewContext(js+';this.Harness=Harness;',context);
  const h=new context.Harness();
  let full=emptyVault();
@@ -51,7 +52,7 @@ test('real reservation and new-document methods never re-stamp hidden company/br
 });
 test('customer-specific creation preserves hidden workspace records',async()=>{
  const run=await harness();const customer={id:'qa-customer',companyNameEn:'Synthetic buyer',preferredCurrency:'USD',paymentTerms:'',paymentDueDays:''};
- await run.h.newDocumentForCustomer('invoice',customer);assertIsolation(run);
+ await run.h.newDocumentForCustomer('invoice',customer,'ordinary');assertIsolation(run);
 });
 test('duplicate uses the scoped reservation without importing foreign records',async()=>{
  const run=await harness();const doc=createBlankDocument('invoice','INV-QA-SOURCE',scopeVault(run.getFull()).company);

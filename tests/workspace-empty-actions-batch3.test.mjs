@@ -1,3 +1,4 @@
+import {purchaseTaxDraft} from '../dist/src/lib/purchase-tax.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ const React={createElement:(tag,props,...children)=>({tag,props:props??{},childr
 const Button=()=>null;
 function load(file){
  const exports={};
- const imports={Button,t:en=>en,todayIso:()=> '2026-10-04',createPurchase:()=>({id:'new',items:[]}),createPurchaseItem:()=>({id:'line'})};
+ const imports={Button,purchaseTaxDraft,t:en=>en,todayIso:()=> '2026-10-04',createPurchase:()=>({id:'new',items:[]}),createPurchaseItem:()=>({id:'line'})};
  const code=ts.transpileModule(readFileSync(`src/components/${file}.tsx`,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
  runInNewContext(code,{exports,require:()=>imports,React});return exports[file];
 }
@@ -28,7 +29,7 @@ test('true purchase empty action reuses the canonical editor and its discard gua
  const action=buttons(page.emptyState('backup','No purchases yet.','Create a purchase.'))[0];
  assert.equal(action.children[0],'New Purchase');
  page.confirmDiscardCurrent=()=>false;action.props.onClick();assert.equal(page.state.purchaseEdit,null);
- page.confirmDiscardCurrent=()=>true;action.props.onClick();assert.equal(page.state.purchaseEdit.id,'new');
+ page.confirmDiscardCurrent=()=>true;action.props.onClick();assert.equal(page.state.purchaseEdit,null);assert.ok(page.state.purchaseChoice);page.selectPurchaseMode('ordinary');assert.equal(page.state.purchaseEdit.id,'new');assert.equal(page.state.purchaseEdit.purchaseTax.mode,'ordinary');
  assert.equal(page.state.purchaseEdit.items.length,1);
  page.state.busy=true;assert.equal(buttons(page.emptyState('backup','No purchases yet.','Create a purchase.'))[0].props.disabled,true);
  page.state.tab='inventory';page.state.search='missing';assert.equal(buttons(page.emptyState('items','No movements yet.','Record a movement.')).length,0,'do not invent an inventory posting action');

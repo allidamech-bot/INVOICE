@@ -234,7 +234,27 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel .lourex-ai-plus-menu')?.dataset?.view==='tools');
         await menu.locator('.lourex-ai-plus-item').filter({hasText:lang==='ar'?'الموجز الصباحي':'Morning Brief'}).click();
         const brief=page.locator('.lourex-proactive-brief');
-        await brief.waitFor({state:'visible'});
+        try{await brief.waitFor({state:'visible'});}
+        catch(error){
+          // Diagnostic is deliberately bounded and synthetic-fixture-only.
+          // Failure remains blocking; do not relax the Brief visibility contract.
+          const diagnostic=await page.evaluate(()=>{
+            const panel=document.getElementById('lourex-ai-panel');
+            const mount=panel?.querySelector('[data-lourex-daily-command-center-mount]');
+            const short=node=>String(node?.textContent||'').replace(/\s+/g,' ').trim().slice(0,260);
+            return{
+              panelReady:panel?.dataset?.workspaceReady||null,
+              dailyMount:Boolean(mount),dailyReady:mount?.getAttribute('data-lourex-daily-ready')||null,
+              dailyMountText:short(mount),
+              briefCount:document.querySelectorAll('.lourex-proactive-brief').length,
+              modalSurfaces:[...document.querySelectorAll('.modal,[role="dialog"],.modal-backdrop')].slice(-6).map(node=>({className:String(node.className||'').slice(0,120),visible:!!node.getClientRects().length,text:short(node)})),
+              feedback:[...document.querySelectorAll('[role="alert"],[role="status"]')].slice(-6).map(short),
+              plusMenuView:panel?.querySelector('.lourex-ai-plus-menu')?.dataset?.view||null
+            };
+          });
+          await page.screenshot({path:`${output}/morning-brief-failed-${matrix.name}-${width}-${lang}-${theme}.png`,animations:'disabled'});
+          throw new Error('Morning Brief did not become visible: '+JSON.stringify({matrix:matrix.name,width,lang,theme,diagnostic,errors})+'; cause: '+error.message);
+        }
         const briefBox=await brief.boundingBox();
         assert.ok(briefBox&&briefBox.x>=-1&&briefBox.x+briefBox.width<=width+1,'Morning Brief stays within viewport');
         assert.match(await brief.innerText(),lang==='ar'?/الأعمال[\s\S]*الشخصي/:/Business[\s\S]*Personal/,'Morning Brief keeps Business and Personal separated');

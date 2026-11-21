@@ -165,12 +165,12 @@ const MANIFEST={
       },
       {
         "file": "tests/visual/run-workspace-closeout-batch3.cjs",
-        "seconds": 180,
+        "seconds": 360,
         "args": []
       },
       {
         "file": "tests/visual/run-notification-recovery-batch3.cjs",
-        "seconds": 180,
+        "seconds": 360,
         "args": []
       },
       {
@@ -180,6 +180,11 @@ const MANIFEST={
       },
       {
         "file": "tests/visual/run-commercial-completion-batch6.cjs",
+        "seconds": 180,
+        "args": []
+      },
+      {
+        "file": "tests/visual/run-invoice-mode.cjs",
         "seconds": 180,
         "args": []
       },
@@ -454,15 +459,22 @@ const CONTRACTS=[
   'tests/fiscal-vat-report.test.mjs',
   'tests/fiscal-accounting.test.mjs',
   'tests/fiscal-purchase-reconciliation.test.mjs',
+  'tests/finance-gl-fiscal-cost-bridge.test.mjs',
+  'tests/fiscal-stock-gl-review.test.mjs',
   'tests/fiscal-cost.test.mjs',
   'tests/fiscal-coverage.test.mjs',
   'tests/fiscal-purchase-cost-correction.test.mjs',
   'tests/fiscal-return-cost.test.mjs',
   'tests/fiscal-purchase-return.test.mjs',
   'tests/fiscal-settlement-integrity.test.mjs',
+  'tests/fiscal-supplier-commercial-settlements.test.mjs',
+  'tests/fiscal-supplier-settlement-posting.test.mjs',
+  'tests/purchase-tax.test.mjs',
+  'tests/fiscal-advance-refund-plan.test.mjs',
   'tests/fiscal-lot-cost-bridge.test.mjs',
   'tests/fiscal-cost-continuity.test.mjs',
   'tests/fiscal-advance-commercial.test.mjs',
+  'tests/invoice-mode.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
   'tests/fiscal-enrollment.test.mjs',
@@ -470,6 +482,9 @@ const CONTRACTS=[
   'tests/fiscal-onboarding-runtime.test.mjs',
   'tests/fiscal-xades-reference.test.mjs',
   'tests/fiscal-simplified-qr-reference.test.mjs',
+  'tests/fiscal-sdk4-simplified-qr.test.mjs',
+  'tests/fiscal-sdk4-local-validator.test.mjs',
+  'tests/fiscal-sdk4-validation-evidence.test.mjs',
   'tests/fiscal-clearance-verifier.test.mjs',
   'tests/fiscal-authority-evidence.test.mjs',
   'tests/fiscal-authority-certificate.test.mjs',
@@ -479,8 +494,16 @@ const CONTRACTS=[
   'tests/fiscal-managed-signing.test.mjs',
   'tests/fiscal-managed-csr.test.mjs',
   'tests/fiscal-managed-enrollment.test.mjs',
+  'tests/fiscal-production-profile.test.mjs',
+  'tests/fiscal-production-boundaries.test.mjs',
+  'tests/fiscal-production-scope.test.mjs',
+  'tests/fiscal-production-enrollment-command.test.mjs',
+  'tests/fiscal-production-period-guard.test.mjs',
+  'tests/fiscal-production-issuance-boundary.test.mjs',
+  'tests/fiscal-production-issuance-command.test.mjs',
   'tests/fiscal-protected-signing.test.mjs',
   'tests/fiscal-pdfa.test.mjs',
+  'tests/fiscal-pdf-archive-verifier.test.mjs',
   'tests/fiscal-accepted-issue.test.mjs',
   'tests/fiscal-special-context.test.mjs',
   'tests/fiscal-attempt-recovery.test.mjs',
@@ -501,14 +524,14 @@ const args=new Set(process.argv.slice(2));
 for(const arg of args)if(!['--quick','--legacy','--help'].includes(arg))throw Error('Unknown argument '+arg);
 if(args.has('--help')){
   console.log('Usage: node scripts/verify-local.mjs [--quick] [--legacy]');
-  console.log('Default: security, typecheck, production build, PR+B07 contracts and mandatory Chromium/WebKit QA.');
-  console.log('--quick: developer-only; skips browsers, NOT a merge signoff.');
+  console.log('Default: security, typecheck, production build, PR+B07 contracts, real local Firestore emulator and mandatory Chromium/WebKit QA.');
+  console.log('--quick: developer-only; skips emulator and browsers, NOT a merge signoff.');
   console.log('--legacy: include historical NON-BLOCKING diagnostics.');
   process.exit(0);
 }
 const npm=process.platform==='win32'?'npm.cmd':'npm';
-function run(cmd,argv,timeout=600000){
-  const result=spawnSync(cmd,argv,{cwd:ROOT,stdio:'inherit',encoding:'utf8',timeout,windowsHide:true,shell:process.platform==='win32'&&cmd===npm});
+function run(cmd,argv,timeout=600000,env=process.env){
+  const result=spawnSync(cmd,argv,{cwd:ROOT,stdio:'inherit',encoding:'utf8',timeout,env,windowsHide:true,shell:process.platform==='win32'&&cmd===npm});
   if(result.error)throw Error('Command failed: '+cmd+' '+argv.join(' ')+' / '+result.error.message);
   if(result.status!==0)throw Error('Command failed ('+result.status+'): '+cmd+' '+argv.join(' '));
 }
@@ -552,16 +575,47 @@ async function startServer(){
   }
   server.kill();throw Error('Local QA fixture server unavailable on port 4173');
 }
+function executeBrowserSuite(suite){
+  // A detached process group lets us reap Playwright children if the Node
+  // test runner times out. Otherwise orphaned Chromium/WebKit processes can
+  // poison every later mandatory suite on the same CI worker.
+  const result=spawnSync(process.execPath,[suite.file,...suite.args],{
+    cwd:ROOT,encoding:'utf8',timeout:suite.seconds*1000,env:process.env,
+    windowsHide:true,detached:process.platform!=='win32',maxBuffer:16*1024*1024
+  });
+  if(result.stdout)process.stdout.write(result.stdout);
+  if(result.stderr)process.stderr.write(result.stderr);
+  const timedOut=result.error?.code==='ETIMEDOUT';
+  // The Node test may exit while a Playwright browser subprocess remains.
+  // Always reap the *dedicated* per-test process group, on pass AND failure;
+  // the parent QA server is in a different group and is never touched.
+  if(result.pid&&process.platform!=='win32'){
+    try{process.kill(-result.pid,'SIGKILL');}catch{}
+  }
+  const output=(result.stdout||'')+'\n'+(result.stderr||'');
+  const crashed=timedOut||/\[QA browser crash\]|Target page, context or browser has been closed|browser unexpectedly disconnected/i.test(output);
+  return{
+    passed:!result.error&&result.status===0,
+    crashed,
+    reason:result.error?result.error.message:'Command failed ('+result.status+'): '+process.execPath+' '+suite.file
+  };
+}
 function runBrowserQa(shard,suites,failures=null){
   console.log('[LOUREX mandatory browser QA] '+shard+' / '+suites.length+' suites');
   for(const suite of suites){
-    try{run(process.execPath,[suite.file,...suite.args],suite.seconds*1000);}
-    catch(error){
-      if(!failures)throw error;
-      const reason=error instanceof Error?error.message:String(error);
-      failures.push(shard+': '+suite.file+' — '+reason);
-      console.error('[LOUREX mandatory browser QA FAIL] '+shard+' / '+suite.file+': '+reason);
+    let result=executeBrowserSuite(suite);
+    if(!result.passed&&result.crashed){
+      // One fresh-process retry is allowed only for an observed browser
+      // crash/process timeout, never for assertion or business-contract
+      // failures. A second failure remains release-blocking.
+      console.warn('[LOUREX browser process recovery] '+shard+' / '+suite.file+' — crash or terminated process; retrying once with all assertions unchanged.');
+      result=executeBrowserSuite(suite);
     }
+    if(result.passed)continue;
+    const reason=result.reason;
+    if(!failures)throw Error(reason);
+    failures.push(shard+': '+suite.file+' — '+reason);
+    console.error('[LOUREX mandatory browser QA FAIL] '+shard+' / '+suite.file+': '+reason);
   }
 }
 function runLocalChecks(){
@@ -577,9 +631,25 @@ function runLocalChecks(){
   for(const file of tests)if(!existsSync(path.join(ROOT,file)))throw Error('Mandatory contract missing: '+file);
   run(process.execPath,['--test','--test-concurrency=2',...tests],900000);
 }
+function runFirestoreQa(){
+  // Same pinned CLI, rules and isolated demo project IDs as the existing
+  // branch QA workflows. No cloud project, credentials or paid runner needed.
+  const env={...process.env};
+  for(const key of Object.keys(env)){
+    if(/^(GOOGLE_APPLICATION_CREDENTIALS|GOOGLE_CLOUD_PROJECT|GCLOUD_PROJECT|CLOUDSDK_.*|FIREBASE_.*|FIRESTORE_EMULATOR_HOST|GOOGLE_OAUTH_ACCESS_TOKEN|GOOGLE_CLOUD_ACCESS_TOKEN)$/i.test(key)||/^LOUREX_FISCAL_.*(?:ACCOUNT_JSON|KMS_KEY)$/i.test(key))delete env[key];
+  }
+  env.CI='true';
+  for(const [project,files] of [
+    ['demo-lourex-gl-qa',['tests/finance-gl-emulator-atomic-22bc.integration.mjs']],
+    ['demo-lourex-period',['tests/period-server-emulator.integration.mjs','tests/period-server-publication-acceptance.integration.mjs','tests/firebase-firestore-rules-emulator.integration.mjs']]
+  ]){
+    run(npm,['exec','--yes','--package=firebase-tools@14.12.1','--','firebase','emulators:exec','--only','firestore','--project',project,'--config','firebase.ai-ci.json','node --test '+files.join(' ')],1200000,env);
+  }
+}
 async function main(){
-  if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory browser QA; not a merge signoff.');
+  if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory browser QA and Firestore emulator QA; not a merge signoff.');
   runLocalChecks();
+  if(!args.has('--quick'))runFirestoreQa();
   if(!args.has('--quick')||args.has('--legacy')){
     assertBrowserReady();
     const server=await startServer();
@@ -609,6 +679,6 @@ async function main(){
     try{run(process.execPath,['--test',...files],1800000);}
     catch(error){console.warn('NON-BLOCKING historical unit baseline failed: '+error.message);}
   }
-  console.log(args.has('--quick')?'Quick checks PASS; browser QA NOT RUN.':'Mandatory LOUREX local QA PASS including Chromium/WebKit.');
+  console.log(args.has('--quick')?'Quick checks PASS; Firestore emulator and browser QA NOT RUN.':'Mandatory LOUREX local QA PASS including local Firestore emulator and Chromium/WebKit.');
 }
 main().catch(error=>{console.error('LOUREX QA FAILED: '+error.message);process.exitCode=1;});

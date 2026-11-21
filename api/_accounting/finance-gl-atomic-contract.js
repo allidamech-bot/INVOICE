@@ -206,3 +206,53 @@ export function prototypeFinanceGlAtomicAppend(
     trustedPostingCommitted:false,productionReady:false
   };
 }
+
+
+/** Reconcile a reviewed LEGACY gross-cost basis against the already posted
+ * fiscal purchase model. This is a comparison of two accounting bases, NOT
+ * a second input-VAT journal, GL posting, or approved chart of accounts.
+ * The fiscal service must authenticate and replay the purchase and allocation
+ * evidence before calling this pure contract. */
+export function previewFiscalCostReclassification({scope,purchase,original,plan,effectiveDate}){
+ const need=ok=>{if(!ok)fail('FISCAL_COST_BRIDGE_INVALID');};
+ const money=v=>{need(typeof v==='string'&&/^(?:0|[1-9]\d{0,17})\.\d{2}$/.test(v));return BigInt(v.replace('.',''));};
+ const fmt=n=>String(n/100n)+'.'+String(n%100n).padStart(2,'0');
+ need(scope?.environment==='simulation'&&nonempty(scope.accountUid)&&nonempty(scope.workspaceId)&&nonempty(scope.egsId)
+  &&purchase?.status==='posted'&&purchase.workspaceId===scope.workspaceId&&nonempty(purchase.branchId)&&nonempty(purchase.id)
+  &&purchase.currency==='SAR'&&purchase.purchaseTax===undefined&&validDate(purchase.date)&&validDate(effectiveDate)
+  &&original?.accountUid===scope.accountUid&&original.workspaceId===scope.workspaceId&&original.egsId===scope.egsId
+  &&original.environment===scope.environment&&original.source==='purchase'&&original.sourceId===purchase.id&&original.key==='purchase-'+purchase.id
+  &&original.currency===purchase.currency&&validDate(original.taxDate)&&effectiveDate>=purchase.date&&effectiveDate>=original.taxDate);
+ const a=original.amount,v=plan?.valuationBridge;
+ need(a?.kind==='invoice'&&a.treatment==='domestic'&&v&&Array.isArray(purchase.items)&&purchase.items.length>0&&purchase.items.length<=200&&Array.isArray(plan.lines)&&plan.lines.length===purchase.items.length);
+ const gross=money(a.gross),vat=money(a.vat),deductible=money(a.deductibleVat),corrected=gross-deductible;
+ need(money(a.net)+vat===gross&&deductible>0n&&deductible<=vat&&money(plan.grossPayable)===gross&&money(plan.deductibleVat)===deductible&&money(plan.correctedCost)===corrected);
+ const expected=new Map([['purchase-cost:debit',corrected],['input-vat:debit',deductible],['accounts-payable:credit',gross]].filter(([,n])=>n>0n));
+ need(Array.isArray(a.lines)&&a.lines.length===expected.size);
+ for(const line of a.lines){const key=line.account+':'+line.side;need(expected.has(key)&&expected.get(key)===money(line.amount));expected.delete(key);}
+ need(expected.size===0);
+ const inventory=money(v.inventoryRelief),cogs=money(v.cogsRelief),expense=money(v.expenseRelief);
+ need(inventory+cogs+expense===deductible);
+ const items=new Map(purchase.items.map(x=>[x.id,x])),seen=new Set(),movements=new Set();
+ need(items.size===purchase.items.length);
+ let oldTotal=0n,newTotal=0n,vatTotal=0n,invTotal=0n,cogsTotal=0n,expTotal=0n;
+ for(const row of plan.lines){
+  const item=items.get(row.lineId);
+  need(item&&!seen.has(row.lineId)&&row.itemId===(item.savedItemId||null));
+  seen.add(row.lineId);
+  if(row.itemId){need(nonempty(row.movementId)&&!movements.has(row.movementId));movements.add(row.movementId);}else need(row.movementId===null);
+  const old=money(row.originalAmount),tax=money(row.deductibleVat),next=money(row.correctedAmount);
+  need(tax<=old&&next===old-tax);oldTotal+=old;newTotal+=next;vatTotal+=tax;
+  const explicit=['inventoryRelief','cogsRelief','expenseRelief'].some(k=>row[k]!==undefined);
+  const inv=explicit?money(row.inventoryRelief):row.itemId?tax:0n, cg=explicit?money(row.cogsRelief):0n, exp=explicit?money(row.expenseRelief):row.itemId?0n:tax;
+  need(inv+cg+exp===tax&&(row.itemId||inv===0n&&cg===0n));
+  invTotal+=inv;cogsTotal+=cg;expTotal+=exp;
+ }
+ need(oldTotal===gross&&newTotal===corrected&&vatTotal===deductible&&invTotal===inventory&&cogsTotal===cogs&&expTotal===expense);
+ const lines=[{account:'input-vat',side:'debit',amount:fmt(deductible)},...[
+  ['inventory',inventory],['cost-of-sales',cogs],['other-expense',expense]
+ ].filter(([,n])=>n>0n).map(([account,n])=>({account,side:'credit',amount:fmt(n)}))];
+ return {format:'LOUREX_FISCAL_COST_GL_BRIDGE_V1',workspaceId:scope.workspaceId,branchId:purchase.branchId,purchaseId:purchase.id,currency:'SAR',effectiveDate,
+  legacyGrossCost:fmt(gross),fiscalNetCost:fmt(corrected),deductibleVat:fmt(deductible),lines,totalDebit:fmt(deductible),totalCredit:fmt(inventory+cogs+expense),
+  mode:'reconciliation-only',alreadyRecognizedInFiscalPurchase:true,glPosted:false,productionReady:false};
+}

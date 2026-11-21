@@ -170,7 +170,7 @@ async function runCase(name,browserType,viewport,lang){
     page.on('pageerror',error=>console.error('[QA pageerror]',String(error?.message||error)));
     const failures=[];
     page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
-    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
+    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}&shellOnly=1`,{waitUntil:'load'});
     await page.locator('.ta-shell').waitFor({state:'visible'});
 
     if(viewport.width<=900)await runMobileCreateQa(page,viewport,failures);
