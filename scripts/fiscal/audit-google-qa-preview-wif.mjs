@@ -32,7 +32,12 @@ const bindings=p=>{
   return p.bindings;
 };
 const rolesFor=(policy,principal)=>bindings(policy)
-  .filter(b=>b.members.includes(principal)).map(b=>b.role);
+  .filter(b=>b.members.includes(principal)).map(b=>{
+    // The bootstrap specifies unconditional direct IAM bindings. A scoped,
+    // expired or future-dated grant is not proof this runtime can access QA.
+    if(b.condition!==undefined)stop();
+    return b.role;
+  });
 const equalSet=(actual,expected)=>actual.length===expected.length&&
   new Set(actual).size===expected.length&&expected.every(x=>actual.includes(x));
 
@@ -59,7 +64,7 @@ export function evaluateQaPreviewWifEvidence(e){
   // The only principal allowed to impersonate this QA service account in
   // this designated role must be the preview subject, never production.
   const impersonators=bindings(pb).filter(b=>b.role==='roles/iam.workloadIdentityUser');
-  if(impersonators.length!==1||
+  if(impersonators.length!==1||impersonators[0].condition!==undefined||
     !equalSet(impersonators[0].members,[subject])||
     bindings(pb).some(b=>b.role==='roles/iam.serviceAccountTokenCreator'))stop();
   // QA principal has exactly its data-plane and Firebase Auth read roles on
