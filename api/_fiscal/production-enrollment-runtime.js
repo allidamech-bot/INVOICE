@@ -9,12 +9,13 @@ import {X509Certificate,createHash} from 'node:crypto';
 import {createProductionJournalVerification} from './production-journal-verification.js';
 import {createProductionRegistrationCoordinator} from './production-registration-coordinator.js';
 import {createProductionComplianceBuilder} from './production-compliance-builder.js';
+import {createProductionProvisioningBridge} from './production-provisioning-bridge.js';
 
 // Use on a trusted server supporting the pinned SDK and OpenSSL. This is not
 // browser-configurable and must never be instantiated with synthetic adapters.
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const need=(ok,code='FISCAL_ENROLLMENT_UNAVAILABLE')=>{if(!ok)throw Error(code);};
-export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId,keyName,getAccessToken,trust,loadCertificateChain,verifyTaxpayerRegistration,sdk,canonicalize,policy,clearance,testBuyer,sdkManifestSha256}){
+export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId,keyName,getAccessToken,trust,loadCertificateChain,verifyTaxpayerRegistration,sdk,canonicalize,policy,clearance,testBuyer,sdkManifestSha256,authorizeOperator,verifyTaxpayerEligibility,resolveApprovedHsmKey}){
   need(trust?.environment==='production'&&/^[a-f0-9]{64}$/.test(trust.rootDigest??'')&&typeof trust.egsPolicyOid==='string'&&/^[a-f0-9]{64}$/.test(sdkManifestSha256??'')&&sdk?.manifestSha256===sdkManifestSha256&&policy&&[loadCertificateChain,verifyTaxpayerRegistration,canonicalize,getAccessToken].every(f=>typeof f==='function'));
   const kms=createProductionManagedKms({projectId:kmsProjectId,keyName,getAccessToken});
   let authority,vault;
@@ -58,7 +59,16 @@ export function createProductionEnrollmentRuntime({db,loadWorkspace,kmsProjectId
   async function resolveOperationalCredential(scope){return (await activeCredential(scope)).credential;}
   async function resolveOperationalSession(scope,issuer){const {profile,credential}=await activeCredential(scope,issuer);return protectedSession(scope,profile,credential);}
   const registerVerifiedUnit=createProductionRegistrationCoordinator({db,loadWorkspace,authority,kmsProjectId,getAccessToken});
-  return Object.freeze({authority,enrollment,vault,registerVerifiedUnit,resolveOperationalCredential,resolveOperationalSession});
+  // The EGS registration operator is independent of commercial issuance.
+  // Customer requests are only actionable when all external authorizers exist.
+  const provisioningReady=[authorizeOperator,verifyTaxpayerEligibility,resolveApprovedHsmKey]
+    .every(f=>typeof f==='function');
+  const provisionRequestedUnit=provisioningReady?createProductionProvisioningBridge({
+    db,loadWorkspace,registerVerifiedUnit,
+    authorizeOperator,verifyTaxpayerEligibility,resolveApprovedHsmKey,
+  }):undefined;
+  return Object.freeze({authority,enrollment,vault,registerVerifiedUnit,
+    provisionRequestedUnit,resolveOperationalCredential,resolveOperationalSession});
 }
 
 // The same registration/credential authority owns the commercial issuance
@@ -78,20 +88,9 @@ export async function createProductionFiscalRuntime({db,loadWorkspace,enrollment
     return session.credentialKind==='operational'&&session.scope.environment==='production'&&
       ['accountUid','workspaceId','egsId'].every(k=>session.scope[k]===scope[k]);
   }
-  // Operator-only provisioning path; never exposed through the hosted
-  // customer profile handler. All three independently supplied production
-  // capabilities are mandatory and there is no synthetic fallback.
-  let provisionRequestedUnit;
-  if(['authorizeOperator','verifyTaxpayerEligibility','resolveApprovedHsmKey']
-    .every(k=>typeof enrollmentAdapters[k]==='function')){
-    const {createProductionProvisioningBridge}=await import('./production-provisioning-bridge.js');
-    provisionRequestedUnit=createProductionProvisioningBridge({
-      db,loadWorkspace,registerVerifiedUnit:registered.registerVerifiedUnit,
-      authorizeOperator:enrollmentAdapters.authorizeOperator,
-      verifyTaxpayerEligibility:enrollmentAdapters.verifyTaxpayerEligibility,
-      resolveApprovedHsmKey:enrollmentAdapters.resolveApprovedHsmKey,
-    });
-  }
+  // Keep the same independently authorized provisioning service for
+  // enrollment-only and enrollment+issuance compositions.
+  const provisionRequestedUnit=registered.provisionRequestedUnit;
   // Separate immutable, independently approved emergency hold. This does not
   // enable a browser suspension route or an automatic reactivation path.
   let holdUnit;
