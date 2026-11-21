@@ -16,12 +16,12 @@ const same=(a,b,fields)=>a&&b&&fields.every(k=>a[k]===b[k]);
 const digest=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 
 export function createProductionProvisioningBridge({
-  db,loadWorkspace,registerVerifiedUnit,authorizeOperator,
+  db,loadWorkspace,registerVerifiedUnit,readRegisteredUnit,authorizeOperator,
   verifyTaxpayerEligibility,resolveApprovedHsmKey,clock=()=>new Date().toISOString(),
 }){
   need(typeof db?.doc==='function'&&typeof db?.runTransaction==='function'&&
-    [loadWorkspace,registerVerifiedUnit,authorizeOperator,verifyTaxpayerEligibility,
-      resolveApprovedHsmKey,clock].every(fn=>typeof fn==='function'));
+    [loadWorkspace,registerVerifiedUnit,readRegisteredUnit,authorizeOperator,
+      verifyTaxpayerEligibility,resolveApprovedHsmKey,clock].every(fn=>typeof fn==='function'));
   async function source({accountUid,workspaceId,branchId}){
     const root='fiscalProductionV1/'+accountUid+'/workspaces/'+workspaceId;
     return db.runTransaction(async tx=>{
@@ -58,9 +58,16 @@ export function createProductionProvisioningBridge({
         // registered marker or a held EGS must never short-circuit retries
         // into a false successful provisioning result.
         const path=root+'/egs/'+egsId;
-        const unit=data(await tx.get(db.doc(path)));
         const hold=data(await tx.get(db.doc(path+'/security/hold')));
         need(!hold,'PRODUCTION_SECURITY_HOLD');
+        // A request marker and a few EGS fields are not cryptographic proof.
+        // Reuse the SAME authority reader used by signing and issuance. It
+        // verifies profile lock/digest, immutable registration digest, HSM
+        // binding, public-key uniqueness registry and the security hold.
+        let unit;
+        try{unit=await readRegisteredUnit(tx,{
+          environment:'production',accountUid,workspaceId,egsId
+        });}catch{need(false,'PRODUCTION_PROVISIONING_SOURCE_CHANGED');}
         need(unit?.environment==='production'&&unit.accountUid===accountUid&&
           unit.workspaceId===workspaceId&&unit.egsId===egsId&&
           unit.branchId===branchId&&unit.unit?.egsId===egsId&&
