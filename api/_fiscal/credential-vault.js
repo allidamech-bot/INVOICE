@@ -52,6 +52,11 @@ function createCredentialVault({db,wrapKey,unwrapKey,authorizeScope},environment
         plain=Buffer.concat([decipher.update(ciphertext),decipher.final()]);
         const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(plain));
         const record={accountUid:c.accountUid,workspaceId:c.workspaceId,egsId:c.egsId,environment:c.environment,kind:c.kind,...payload(c,{...value,accountUid:c.accountUid,workspaceId:c.workspaceId,egsId:c.egsId,environment:c.environment,kind:c.kind})};
+        // Unwrapping may involve an external HSM/KMS request. An emergency
+        // security hold or tenant authorization change can occur while it is
+        // in flight. Re-check the exact scope AFTER decryption and BEFORE
+        // releasing the plaintext credential to a trusted caller.
+        if(protectedScope)await db.runTransaction(tx=>authorize(tx,c,'load'));
         return record;
       }catch{throw Error('CREDENTIAL_LOAD_FAILED');}finally{if(Buffer.isBuffer(key))key.fill(0);if(plain)plain.fill(0);}
     }
