@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {createProductionEnrollmentCommand,parseProductionEnrollmentCommand} from '../api/_fiscal/production-enrollment-command.js';
 const owner={uid:'owner',role:'owner'},w='company',unit={environment:'production',accountUid:'owner',workspaceId:w,egsId:'unit',branchId:'branch',state:'enrolling',privateKey:'never-return'};
 function fixture(configured=true){
@@ -31,4 +32,20 @@ test('registration intake rejects extra identity and invalid branch, type or ver
  const input={operation:'enrollment-request',workspaceId:w,branchId:'branch',expectedProfileVersion:1,functionalityMap:'1100',businessCategory:'Retail'};
  assert.deepEqual(parseProductionEnrollmentCommand(input),input);
  for(const patch of [{accountUid:'other'},{otp:'123456'},{branchId:'../other'},{functionalityMap:'1111'},{expectedProfileVersion:0}])assert.throws(()=>parseProductionEnrollmentCommand({...input,...patch}),/INVALID/);
+});
+
+test('unavailable ZATCA runtime rejects provisioning before any Firestore read or write',async()=>{
+ const db={
+   doc:()=>{throw Error('DATABASE_WAS_ACCESSED');},
+   collection:()=>{throw Error('DATABASE_WAS_ACCESSED');},
+   runTransaction:()=>{throw Error('DATABASE_WAS_ACCESSED');}
+ };
+ const execute=createProductionEnrollmentCommand({db,loadWorkspace:async()=>{throw Error('WORKSPACE_WAS_ACCESSED');}});
+ await assert.rejects(execute(owner,{operation:'enrollment-request',workspaceId:w,branchId:'branch',expectedProfileVersion:1,functionalityMap:'1100',businessCategory:'Retail'}),e=>e.message==='FISCAL_ENROLLMENT_UNAVAILABLE');
+});
+
+test('customer registration controls are hidden until a trusted enrollment runtime is available',async()=>{
+ const ui=await readFile(new URL('../src/components/FiscalProductionEnrollmentPanel.tsx',import.meta.url),'utf8');
+ assert.match(ui,/s\.available&&s\.profileVersion>0&&s\.branches\.some/);
+ assert.match(ui,/طلب تسجيل داخلي محفوظ في LOUREX/);
 });
