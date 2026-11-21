@@ -1,0 +1,36 @@
+name: LOUREX Fiscal Protected Issuance Readiness QA
+
+on:
+  pull_request:
+    paths:
+      - 'api/_fiscal/production-enrollment-runtime.js'
+      - 'api/_fiscal/production-profile-runtime.js'
+      - 'api/_fiscal/production-enrollment-command.js'
+      - 'tests/fiscal-production-enrollment-command.test.mjs'
+      - 'tests/fiscal-production-profile.test.mjs'
+      - '.github/workflows/lourex-fiscal-operational-readiness-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tenant-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      LOUREX_FISCAL_LIVE_ENABLED: 'false'
+      LOUREX_AWS_WORKER_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check protected fiscal runtime boundaries
+        run: |
+          node --check api/_fiscal/production-enrollment-runtime.js
+          node --check api/_fiscal/production-profile-runtime.js
+          node --check api/_fiscal/production-enrollment-command.js
+      - name: Run focused tenant status and fail-closed profile tests
+        run: node --test tests/fiscal-production-enrollment-command.test.mjs tests/fiscal-production-profile.test.mjs
