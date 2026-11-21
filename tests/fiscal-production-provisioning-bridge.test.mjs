@@ -22,7 +22,7 @@ function fixture(overrides={}){
  ]);
  const workspaces=new Map([[scope.accountUid+'/'+scope.workspaceId,{
    company:{...company},branches:[{id:scope.branchId,workspaceId:scope.workspaceId,active:true}]}]]);
- const counts={operator:0,eligibility:0,key:0,registered:0,db:0};
+ const counts={operator:0,eligibility:0,key:0,registered:0,db:0,authorityReads:0};
  const db={doc:p=>p,runTransaction:async fn=>{counts.db++;return fn({
     get:async p=>({exists:rows.has(p),data:()=>structuredClone(rows.get(p))})
   });}};
@@ -64,12 +64,24 @@ function fixture(overrides={}){
      state:'enrolling',profileVersion:1,
      issuer:{accountUid:scope.accountUid,workspaceId:scope.workspaceId,
        vatNumber:company.vatNumber,legalName:company.nameAr},
-     registrationDigest:'d'.repeat(64),eligibilityEvidenceDigest:'a'.repeat(64)
+     registrationDigest:'d'.repeat(64),eligibilityEvidenceDigest:'a'.repeat(64),
+     authorityBindingDigest:'b'.repeat(64)
    });
    return {state:'enrolling',egsId};
  };
+ const readRegisteredUnit=async(tx,s)=>{
+   counts.authorityReads++;
+   const snap=await tx.get(db.doc(base+'/egs/'+s.egsId));
+   if(!snap.exists)throw Error('PRODUCTION_AUTHORITY_UNIT_NOT_FOUND');
+   const row=snap.data();
+   // Synthetic representation of the central authority's full HSM
+   // binding / registration-digest / profile-lock checks.
+   if(row.authorityBindingDigest!=='b'.repeat(64))
+     throw Error('PRODUCTION_KEY_NOT_BOUND');
+   return row;
+ };
  const opts={db,loadWorkspace,authorizeOperator,verifyTaxpayerEligibility,
-    resolveApprovedHsmKey,registerVerifiedUnit,clock,...overrides};
+    resolveApprovedHsmKey,registerVerifiedUnit,readRegisteredUnit,clock,...overrides};
  return {run:createProductionProvisioningBridge(opts),counts,rows,workspaces,
    base,opts};
 }
@@ -173,4 +185,25 @@ test('an immutable security hold prevents a registered EGS from looking provisio
  await assert.rejects(f.run(scope,'trusted-operator'),/PRODUCTION_SECURITY_HOLD/);
  assert.equal(f.counts.key,1);
  assert.equal(f.counts.registered,1);
+});
+
+test('registered replay calls the SAME authority reader as signing, not just EGS row fields',async()=>{
+ const f=fixture(),first=await f.run(scope,'trusted-operator');
+ assert.equal(f.counts.authorityReads,0);
+ assert.equal((await f.run(scope,'trusted-operator')).state,'already-provisioned');
+ assert.equal(f.counts.authorityReads,1);
+ const stored=f.rows.get(f.base+'/egs/'+first.egsId);
+ // Every old superficial field remains valid, but the crypto binding has
+ // diverged from the independent key-registry proof.
+ stored.authorityBindingDigest='f'.repeat(64);
+ await assert.rejects(f.run(scope,'trusted-operator'),
+   /PRODUCTION_PROVISIONING_SOURCE_CHANGED/);
+ assert.equal(f.counts.authorityReads,2);
+ assert.equal(f.counts.registered,1);
+ assert.equal(f.counts.key,1);
+});
+test('missing independent authority reader cannot construct a provisioning bridge',()=>{
+ const f=fixture();
+ assert.throws(()=>createProductionProvisioningBridge({...f.opts,
+   readRegisteredUnit:undefined}),/PRODUCTION_PROVISIONING_UNAVAILABLE/);
 });
