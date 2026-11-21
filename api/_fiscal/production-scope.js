@@ -121,6 +121,8 @@ export function createProductionScopeAuthority({db,loadWorkspace,verifyRegistrat
       return db.runTransaction(async tx=>{
         const {workspace,p}=await currentProfile(tx,s),next=registration(input,s,workspace,p);
         need(digest(next)===digest(initial),'PRODUCTION_PROFILE_CHANGED');
+        const securityHold=data(await tx.get(db.doc(base(s)+'/egs/'+s.egsId+'/security/hold')));
+        need(!securityHold,'PRODUCTION_SECURITY_HOLD');
         const existing=data(await tx.get(unitRef(s))),key=data(await tx.get(keyRef(next.binding))),pub=data(await tx.get(pubRef(next.binding))),lock=data(await tx.get(profileLockRef(s)));
         if(lock)checkProfileLock(lock,s,p);
         const request=data(await tx.get(requestRef(s,next.branchId)));
