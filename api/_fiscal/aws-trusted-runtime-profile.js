@@ -84,6 +84,65 @@ export function readVerifiedAwsTrustFile(ref){
   return bytes;
  }finally{closeSync(fd);}
 }
+// X509Certificate.ca can be false for BasicConstraints CA:TRUE when keyCertSign
+// is absent. Parse the DER BasicConstraints extension independently so a
+// malformed/self-issued CA candidate never masquerades as an EGS leaf.
+function hasCaBasicConstraints(der){
+ const tlv=(at,limit)=>{
+  if(at+2>limit)deny();
+  const tag=der[at],lengthOctet=der[at+1];
+  if((tag&31)===31||lengthOctet===128)deny();
+  let length=lengthOctet,start=at+2;
+  if(lengthOctet>128){
+   const n=lengthOctet&127;
+   if(n<1||n>4||start+n>limit||der[start]===0)deny();
+   length=0;
+   for(let i=0;i<n;i++)length=length*256+der[start+i];
+   if(length<128)deny();
+   start+=n;
+  }
+  const end=start+length;
+  if(!Number.isSafeInteger(end)||end>limit)deny();
+  return {tag,start,end};
+ };
+ const cert=tlv(0,der.length);
+ if(cert.tag!==0x30||cert.end!==der.length)deny();
+ const tbs=tlv(cert.start,cert.end);
+ if(tbs.tag!==0x30)deny();
+ let found=false,hasCa=false;
+ for(let at=tbs.start;at<tbs.end;){
+  const field=tlv(at,tbs.end);at=field.end;
+  if(field.tag!==0xa3)continue;
+  const extensions=tlv(field.start,field.end);
+  if(extensions.tag!==0x30||extensions.end!==field.end)deny();
+  for(let e=extensions.start;e<extensions.end;){
+   const ext=tlv(e,extensions.end);e=ext.end;
+   if(ext.tag!==0x30)deny();
+   const oid=tlv(ext.start,ext.end);
+   if(oid.tag!==0x06)deny();
+   let pos=oid.end;
+   let val=tlv(pos,ext.end);
+   if(val.tag===0x01){
+    if(val.end-val.start!==1)deny();
+    pos=val.end;val=tlv(pos,ext.end);
+   }
+   if(val.tag!==0x04||val.end!==ext.end)deny();
+   if(oid.end-oid.start!==3||der[oid.start]!==0x55||der[oid.start+1]!==0x1d||der[oid.start+2]!==0x13)continue;
+   if(found)deny();found=true;
+   const basic=tlv(val.start,val.end);
+   if(basic.tag!==0x30||basic.end!==val.end)deny();
+   if(basic.start<basic.end){
+    const flag=tlv(basic.start,basic.end);
+    if(flag.tag===0x01){
+     if(flag.end-flag.start!==1)deny();
+     hasCa=der[flag.start]!==0;
+    }
+   }
+  }
+ }
+ return hasCa;
+}
+
 export function bindAwsTrustedRuntime({profile,scopes,readFile=readVerifiedAwsTrustFile,credentialsDirectory,createStagingFiscalRuntime,db}){
  validateAwsTrustedRuntimeProfile(profile,scopes);
  if(!['/run/credentials/lourex-aws-staging.service',
@@ -118,7 +177,7 @@ export function bindAwsTrustedRuntime({profile,scopes,readFile=readVerifiedAwsTr
    // policy and dates before accepting an enrollment credential.
    let leaf;
    try{leaf=new X509Certificate(leafDer);}catch{deny();}
-   if(leaf.ca||!leaf.raw.equals(leafDer)||leaf.publicKey.asymmetricKeyType!=='ec'||
+   if(leaf.ca||hasCaBasicConstraints(leafDer)||!leaf.raw.equals(leafDer)||leaf.publicKey.asymmetricKeyType!=='ec'||
     leaf.publicKey.asymmetricKeyDetails?.namedCurve!=='secp256k1')deny();
    return {identityVerified:true,chainDer:[Buffer.from(leafDer),...chain.chainDer.map(b=>Buffer.from(b))],
     crlsDer:chain.crlsDer.map(b=>Buffer.from(b))};
