@@ -69,5 +69,14 @@ export async function createProductionFiscalRuntime({db,loadWorkspace,enrollment
   const registered=createProductionEnrollmentRuntime({...enrollmentAdapters,sdk:issuanceAdapters.sdk,canonicalize:issuanceAdapters.canonicalize,policy:issuanceAdapters.policy,clearance:issuanceAdapters.clearance,db,loadWorkspace});
   const {createProductionIssuanceRuntime}=await import('./production-issuance-runtime.js');
   const issuance=createProductionIssuanceRuntime({...issuanceAdapters,db,productionAuthority:registered.authority,resolveCredential:registered.resolveOperationalCredential,resolveProtectedSession:registered.resolveOperationalSession});
-  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,registerVerifiedUnit:registered.registerVerifiedUnit,issuance});
+  // A persisted active flag is not proof that a current, tenant-bound,
+  // non-revoked operational certificate and HSM signing context remain usable.
+  // This is private readiness evidence only; no session or keys reach a client.
+  async function verifyIssuanceReady(scope){
+    const {requireProtectedSigningSession}=await import('./protected-signing.js');
+    const session=requireProtectedSigningSession(await registered.resolveOperationalSession(scope));
+    return session.credentialKind==='operational'&&session.scope.environment==='production'&&
+      ['accountUid','workspaceId','egsId'].every(k=>session.scope[k]===scope[k]);
+  }
+  return Object.freeze({enrollment:registered.enrollment,authority:registered.authority,registerVerifiedUnit:registered.registerVerifiedUnit,issuance,verifyIssuanceReady});
 }
