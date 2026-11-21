@@ -54,6 +54,24 @@ export function createProductionProvisioningBridge({
       if(request.state==='registered'){
         const egsId='egs-'+digest([accountUid,workspaceId,branchId]).slice(0,40);
         need(request.egsId===egsId,'PRODUCTION_PROVISIONING_SOURCE_CHANGED');
+        // The request projection is not authority evidence. A corrupted
+        // registered marker or a held EGS must never short-circuit retries
+        // into a false successful provisioning result.
+        const path=root+'/egs/'+egsId;
+        const unit=data(await tx.get(db.doc(path)));
+        const hold=data(await tx.get(db.doc(path+'/security/hold')));
+        need(!hold,'PRODUCTION_SECURITY_HOLD');
+        need(unit?.environment==='production'&&unit.accountUid===accountUid&&
+          unit.workspaceId===workspaceId&&unit.egsId===egsId&&
+          unit.branchId===branchId&&unit.unit?.egsId===egsId&&
+          ['enrolling','active'].includes(unit.state)&&
+          unit.profileVersion===profile.version&&
+          unit.issuer?.accountUid===accountUid&&unit.issuer.workspaceId===workspaceId&&
+          unit.issuer.vatNumber===snapshot.vatNumber&&
+          unit.issuer.legalName===workspace.company.nameAr.trim()&&
+          HEX.test(unit.registrationDigest??'')&&
+          HEX.test(unit.eligibilityEvidenceDigest??''),
+          'PRODUCTION_PROVISIONING_SOURCE_CHANGED');
         return {...snapshot,state:'registered',egsId};
       }
       need(request.egsId===undefined,'PRODUCTION_PROVISIONING_SOURCE_CHANGED');
