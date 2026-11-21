@@ -5,6 +5,8 @@ on:
     paths:
       - 'api/_fiscal/production-scope.js'
       - 'api/_fiscal/production-security-hold.js'
+      - 'api/_fiscal/credential-vault.js'
+      - 'tests/fiscal-production-boundaries.test.mjs'
       - 'api/_fiscal/production-enrollment-runtime.js'
       - 'tests/fiscal-production-scope.test.mjs'
       - '.github/workflows/lourex-fiscal-emergency-hold-qa.yml'
@@ -31,7 +33,8 @@ jobs:
         run: |
           node --check api/_fiscal/production-scope.js
           node --check api/_fiscal/production-security-hold.js
+          node --check api/_fiscal/credential-vault.js
           node --check api/_fiscal/production-enrollment-runtime.js
       - name: Test security hold and production isolation
         run: |
-          node --test tests/fiscal-production-scope.test.mjs tests/fiscal-production-registration-coordinator.test.mjs tests/fiscal-production-enrollment-command.test.mjs
+          node --test tests/fiscal-production-scope.test.mjs tests/fiscal-production-registration-coordinator.test.mjs tests/fiscal-production-enrollment-command.test.mjs tests/fiscal-production-boundaries.test.mjs tests/fiscal-managed-kms.test.mjs
