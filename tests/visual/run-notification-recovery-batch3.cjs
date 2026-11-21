@@ -5,8 +5,8 @@ const {mkdirSync}=require('node:fs');
  const browser=await chromium.launch({headless:true});mkdirSync('visual-qa-output/notification-recovery-batch3',{recursive:true});
  try{
   for(const [width,lang,theme] of [[320,'ar','dark'],[390,'en','light']]){
-   const page=await browser.newPage({viewport:{width,height:844}});page.setDefaultTimeout(8000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
-   await page.goto(`http://127.0.0.1:4173/tests/visual/notification-center-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});
+   console.log('[QA notification recovery]',width,lang,theme,'starting');const page=await browser.newPage({viewport:{width,height:844}});page.setDefaultTimeout(8000);page.setDefaultNavigationTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+   await page.goto(`http://127.0.0.1:4173/tests/visual/notification-center-batch5.html?lang=${lang}`,{waitUntil:'load'});
    await page.waitForFunction(()=>window.__batch5Ready);await page.evaluate(async theme=>{document.documentElement.dataset.uiTheme=theme;await window.lockNotificationQa();window.dispatchEvent(new Event('lourex-notification-center-open'));},theme);
    const error=page.locator('.lx-notification-error');await error.waitFor();assert.match(await error.innerText(),/Your account workspace is not ready|مساحة عمل حسابك غير جاهزة/);
    assert.match(await page.locator('.lx-notification-summary strong').innerText(),/Notifications unavailable|التنبيهات غير متاحة/,'dashboard must not imply zero follow-ups when the vault is unreadable');
@@ -15,7 +15,7 @@ const {mkdirSync}=require('node:fs');
     await tab.click();assert.equal(await page.locator('.lx-notification-empty').count(),0,'switching tabs cannot erase an unread-vault error');assert.match(await error.innerText(),/Your account workspace is not ready|مساحة عمل حسابك غير جاهزة/);
    }
    await page.getByRole('tab',{name:lang==='ar'?/^نشط ·/:/^Active ·/}).click();
-   await page.evaluate(()=>window.unlockNotificationQa());
+   console.log('[QA notification recovery]',width,lang,theme,'retrying locked vault');await page.evaluate(()=>window.unlockNotificationQa());
    const retry=error.getByRole('button',{name:lang==='ar'?'إعادة المحاولة':'Try again',exact:true});assert.ok((await retry.boundingBox()).height>=44);await retry.click();
    await page.locator('.lx-notification-item').first().waitFor();assert.equal(await error.count(),0);assert.equal(await page.evaluate(()=>window.__batch5MutationCount),0,'read retry never mutates financial or notification history');
    await page.getByRole('tab',{name:lang==='ar'?/^تم ·/:/^Done ·/}).click();
