@@ -80,7 +80,7 @@
   }
 
   function mountDailyTool(compose,form,Component){
-    if(dailyMount?.isConnected||!compose.isConnected||!form.isConnected||!compose.contains(form))return;
+    if(dailyMount?.isConnected||!compose.isConnected||form.parentNode!==compose)return;
     const node=document.createElement('div');node.dataset.lourexDailyCommandCenterMount='true';compose.insertBefore(node,form);dailyMount=node;
     try{window.ReactDOM.render(window.React.createElement(Component,{launcher:false}),node,()=>{if(node===dailyMount&&node.isConnected)node.dataset.lourexDailyReady='true';});}
     catch(error){try{window.ReactDOM.unmountComponentAtNode(node);}catch{}node.remove();if(dailyMount===node)dailyMount=null;throw error;}
@@ -115,7 +115,7 @@
     if(!dailyMount)void repairDailyTool(panel,compose,form);
     if(mounting)return;
     if(failedPanel===panel&&Date.now()-failedAt<1500)return;
-    if(mount)return;
+    if(mount){if(!dailyMount)void repairDailyTool(panel,compose,form);return;}
     installContextBridge(compose);
     mounting=true;const node=document.createElement('div');node.dataset.lourexAiWorkflowMount='true';compose.insertBefore(node,form);
     try{
