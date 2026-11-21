@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createProductionEnrollmentCommand,parseProductionEnrollmentCommand} from '../api/_fiscal/production-enrollment-command.js';
 const owner={uid:'owner',role:'owner'},w='company',unit={environment:'production',accountUid:'owner',workspaceId:w,egsId:'unit',branchId:'branch',state:'enrolling',privateKey:'never-return'};
-function fixture(configured=true,{active=false,issuanceConfigured=false,verifyIssuanceReady}={}){
+function fixture(configured=true,{active=false,issuanceConfigured=false,verifyIssuanceReady,twoUnits=false}={}){
  const selectedUnit={...unit,state:active?'active':unit.state};
- const calls=[],db={doc:p=>p,collection:p=>({limit:()=>p}),runTransaction:async fn=>fn({get:async path=>({exists:false,docs:path==='fiscalProductionV1/owner/workspaces/company/egs'?[{id:'unit',data:()=>selectedUnit}]:[]})})};
- const loadWorkspace=async(_tx,s)=>{assert.equal(s.accountUid,'owner');return {branches:[{id:'branch',workspaceId:w,active:true}]};};
- const enrollment=Object.fromEntries(['inspect','begin','check','operational','activate'].map(k=>[k,async(_i,args)=>{calls.push([k,args]);return {...selectedUnit,state:active?'operational-recorded':'not-started',unitActive:active,enrollmentHeld:false,version:active?9:0,passed:active?6:0,required:6,secret:'never-return'};}]));
+ const secondUnit={...selectedUnit,egsId:'unit2',branchId:'branch2'};
+ const entries=[selectedUnit,...(twoUnits?[secondUnit]:[])];
+ const calls=[],db={doc:p=>p,collection:p=>({limit:()=>p}),runTransaction:async fn=>fn({get:async path=>({exists:false,docs:path==='fiscalProductionV1/owner/workspaces/company/egs'?entries.map(u=>({id:u.egsId,data:()=>u})):[]})})};
+ const loadWorkspace=async(_tx,s)=>{assert.equal(s.accountUid,'owner');return {branches:entries.map(u=>({id:u.branchId,workspaceId:w,active:true}))};};
+ const enrollment=Object.fromEntries(['inspect','begin','check','operational','activate'].map(k=>[k,async(_i,args)=>{calls.push([k,args]);const selected=entries.find(x=>x.egsId===args?.egsId)??selectedUnit;return {...selected,state:active?'operational-recorded':'not-started',unitActive:active,enrollmentHeld:false,version:active?9:0,passed:active?6:0,required:6,secret:'never-return'};}]));
  return {calls,execute:createProductionEnrollmentCommand({db,loadWorkspace,enrollment:configured?enrollment:undefined,issuanceConfigured,verifyIssuanceReady})};
 }
 test('strict command schema refuses credentials, environment and foreign identities',()=>{
@@ -77,4 +79,37 @@ test('expired or unreachable protected signer denies readiness without exposing 
  const {execute}=fixture(true,{issuanceConfigured:true,verifyIssuanceReady:async()=>{checked=true;return true;}});
  assert.equal((await execute(owner,{operation:'enrollment-status',workspaceId:w})).issuanceEnabled,false);
  assert.equal(checked,false);
+});
+
+test('two active EGS devices never borrow each other\'s signing readiness',async()=>{
+ const verified=[];
+ const {execute}=fixture(true,{active:true,twoUnits:true,issuanceConfigured:true,
+   verifyIssuanceReady:async scope=>{verified.push(scope);if(scope.egsId==='unit2')throw Error('private HSM unavailable');return scope.egsId==='unit';}});
+ const status=await execute(owner,{operation:'enrollment-status',workspaceId:w});
+ assert.equal(status.registeredUnits,2);
+ assert.equal(status.issuanceEnabled,true);
+ assert.deepEqual(status.units.map(u=>({egsId:u.egsId,issuanceReady:u.issuanceReady})),
+   [{egsId:'unit',issuanceReady:true},{egsId:'unit2',issuanceReady:false}]);
+ assert.deepEqual(verified.map(s=>s.egsId),['unit','unit2']);
+ for(const scope of verified)assert.deepEqual(
+   Object.keys(scope).sort(),['accountUid','egsId','environment','workspaceId']);
+ assert(!JSON.stringify(status).includes('private HSM unavailable'));
+ assert(!JSON.stringify(status).includes('never-return'));
+});
+test('missing signer and failed certificate verification return per-unit false without leaking evidence',async()=>{
+ for(const verifyIssuanceReady of [undefined,async()=>false,async()=>{throw Error('private key material');}]){
+  const {execute}=fixture(true,{active:true,twoUnits:true,issuanceConfigured:true,verifyIssuanceReady});
+  const s=await execute(owner,{operation:'enrollment-status',workspaceId:w});
+  assert.equal(s.issuanceEnabled,false);
+  assert.deepEqual(s.units.map(x=>x.issuanceReady),[false,false]);
+  assert(!JSON.stringify(s).includes('private key material'));
+ }
+});
+test('fiscal client and UI require exact per-device readiness instead of workspace readiness',async()=>{
+ const client=await readFile(new URL('../src/lib/fiscal-production-enrollment-client.ts',import.meta.url),'utf8');
+ const panel=await readFile(new URL('../src/components/FiscalProductionEnrollmentPanel.tsx',import.meta.url),'utf8');
+ assert.match(client,/issuanceReady:boolean/);
+ assert.match(client,/v\.issuanceEnabled!==units\.some\(u=>u\.issuanceReady\)/);
+ assert.match(panel,/u\?\.issuanceReady/);
+ assert.doesNotMatch(panel,/s\.issuanceEnabled\?t\(/);
 });

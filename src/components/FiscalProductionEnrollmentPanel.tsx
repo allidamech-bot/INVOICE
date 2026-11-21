@@ -58,7 +58,13 @@ export class FiscalProductionEnrollmentPanel extends React.Component<Props,State
         <Button variant="primary" disabled={this.state.busy||!/^\d{6}$/.test(this.state.otp)} onClick={()=>void this.run({operation:action,egsId:u.egsId,otp:this.state.otp})}>{t('Connect company','ربط المنشأة')}</Button>
       </div>:null}
       {u&&action&&action!=='enrollment-begin'?<Button variant="primary" disabled={this.state.busy} onClick={()=>void this.run({operation:action,egsId:u.egsId,expectedVersion:u.version})}>{action==='enrollment-check'?t('Run next compliance check','تشغيل فحص الامتثال التالي'):action==='enrollment-operational'?t('Request operational certificate','طلب شهادة التشغيل'):t('Verify and activate unit','التحقق وتفعيل الوحدة')}</Button>:null}
-      <p className="commercial-empty-note">{s.issuanceEnabled?t('The official issuance service is configured and an invoicing unit is active. Each invoice must still pass its own verification.','خدمة الإصدار الرسمي مهيأة وتوجد وحدة فوترة مفعلة. تبقى كل فاتورة خاضعة للتحقق الخاص بها.'):t('Official invoice issuance is not ready. Complete connection and secure service configuration.','الإصدار الرسمي غير جاهز. أكمل الربط وتهيئة الخدمة الآمنة.')}</p>
+      <p className="commercial-empty-note" role="status">{s.units.length>1&&!u?
+        t('Select an invoicing unit to view its verified issuance readiness.','اختر وحدة فوترة لمعرفة جاهزية إصدارها المتحقق منها.'):
+        u?.issuanceReady?
+        t('This invoicing unit has a verified operational signing session. Each invoice still requires its own authority acceptance.','وحدة الفوترة المحددة لديها جلسة توقيع تشغيلية متحقق منها. وتظل كل فاتورة بحاجة إلى قبول الهيئة.'):
+        u?.unitActive?
+        t('This invoicing unit is activated, but its operational signing readiness could not be verified. Issuance is unavailable.','وحدة الفوترة المحددة مفعلة، لكن تعذر التحقق من جاهزية توقيعها. الإصدار غير متاح.'):
+        t('This invoicing unit is not ready for official invoice issuance. Complete connection and secure service configuration.','وحدة الفوترة غير جاهزة للإصدار الرسمي. أكمل الربط وتهيئة الخدمة الآمنة.')}</p>
     </div>:null}
    </div>;
  }

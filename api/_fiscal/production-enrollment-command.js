@@ -90,20 +90,20 @@ export function createProductionEnrollmentCommand({db,loadWorkspace,enrollment,i
         try{status.push(cleanStatus(await enrollment.inspect(identity,{workspaceId:cmd.workspaceId,egsId:item.egsId}),{workspaceId:cmd.workspaceId,egsId:item.egsId},item.branchId));}
         catch{status.push({...item,state:'unavailable',unitActive:false,enrollmentHeld:true,version:0,passed:0,required:0});}
       }
-      // Database activation is not sufficient to claim the customer can issue.
-      // Reopen a freshly PKIX-checked, tenant-bound operational signing session
-      // through the private runtime. Any error, missing adapter, expired or
-      // revoked certificate keeps issuance readiness false.
-      let issuanceEnabled=false;
+      // Issuance readiness is PER EGS, not a workspace-wide alias. A valid
+      // signer on one branch must not make another branch look ready.
+      // Never leak the signed session, cert, OTP, KMS path or verifier errors.
+      const ready=status.map(s=>({...s,issuanceReady:false}));
       if(configured&&issuanceConfigured===true&&typeof verifyIssuanceReady==='function'){
         for(let i=0;i<units.length;i++){
-          if(!status[i]?.unitActive||status[i].enrollmentHeld)continue;
+          if(!ready[i]?.unitActive||ready[i].enrollmentHeld)continue;
           const item=units[i],scope={environment:'production',accountUid:identity.uid,workspaceId:cmd.workspaceId,egsId:item.egsId};
-          try{if(await verifyIssuanceReady(scope)===true){issuanceEnabled=true;break;}}
-          catch{/* Readiness must fail closed without exposing signing details. */}
+          try{ready[i].issuanceReady=await verifyIssuanceReady(scope)===true;}
+          catch{/* A failed certificate/HSM check must never assert readiness. */}
         }
       }
-      return {environment:'production',workspaceId:cmd.workspaceId,available:configured,registeredUnits:units.length,units:status,branches,profileVersion,issuanceEnabled};
+      const issuanceEnabled=ready.some(u=>u.issuanceReady);
+      return {environment:'production',workspaceId:cmd.workspaceId,available:configured,registeredUnits:units.length,units:ready,branches,profileVersion,issuanceEnabled};
     }
     need(configured,'FISCAL_ENROLLMENT_UNAVAILABLE');
     need(units.some(u=>u.egsId===cmd.egsId));

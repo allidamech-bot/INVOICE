@@ -2,7 +2,7 @@ import {currentCloudIdToken,currentCloudUser} from '../cloud/firebase.js';
 import {fiscalProductionProfileClientEnabled} from './fiscal-production-profile-client.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const states=['not-started','checking','checks-complete','restart-required','operational-request-held','operational-recorded','unavailable'];
-export interface ProductionEnrollmentUnit{egsId:string;branchId:string;state:string;unitActive:boolean;enrollmentHeld:boolean;version:number;passed:number;required:number;}
+export interface ProductionEnrollmentUnit{egsId:string;branchId:string;state:string;unitActive:boolean;enrollmentHeld:boolean;issuanceReady:boolean;version:number;passed:number;required:number;}
 export interface ProductionEnrollmentBranch{branchId:string;label:string;state:'not-requested'|'pending'|'registered';}
 export interface ProductionEnrollmentStatus{environment:'production';workspaceId:string;available:boolean;registeredUnits:number;units:ProductionEnrollmentUnit[];branches:ProductionEnrollmentBranch[];profileVersion:number;issuanceEnabled:boolean;}
 export type ProductionEnrollmentCommand={operation:'enrollment-status'}|{operation:'enrollment-request';branchId:string;expectedProfileVersion:number;functionalityMap:'1000'|'0100'|'1100';businessCategory:string}|{operation:'enrollment-begin';egsId:string;otp:string}|{operation:'enrollment-check'|'enrollment-operational'|'enrollment-activate';egsId:string;expectedVersion:number};
@@ -13,10 +13,10 @@ export function validateProductionEnrollmentStatus(v:any,w:string):ProductionEnr
  const branches:ProductionEnrollmentBranch[]=v.branches.map((b:any)=>{if(!b||typeof b.branchId!=='string'||!ID.test(b.branchId)||typeof b.label!=='string'||!b.label||b.label.length>250||!['not-requested','pending','registered'].includes(b.state))throw Error('FISCAL_INVALID_STATUS');return {branchId:b.branchId,label:b.label,state:b.state};});
  if(new Set(branches.map(b=>b.branchId)).size!==branches.length)throw Error('FISCAL_INVALID_STATUS');
  const units:ProductionEnrollmentUnit[]=v.units.map((u:any)=>{
-   if(!u||typeof u.egsId!=='string'||!ID.test(u.egsId)||typeof u.branchId!=='string'||!ID.test(u.branchId)||!states.includes(u.state)||typeof u.unitActive!=='boolean'||typeof u.enrollmentHeld!=='boolean'||!Number.isSafeInteger(u.version)||u.version<0||!Number.isInteger(u.passed)||u.passed<0||u.passed>u.required||!(u.state==='unavailable'?u.required===0&&u.enrollmentHeld&&!u.unitActive:[3,6].includes(u.required))||(u.unitActive&&u.state!=='operational-recorded'))throw Error('FISCAL_INVALID_STATUS');
-   return {egsId:u.egsId,branchId:u.branchId,state:u.state,unitActive:u.unitActive,enrollmentHeld:u.enrollmentHeld,version:u.version,passed:u.passed,required:u.required};
+   if(!u||typeof u.egsId!=='string'||!ID.test(u.egsId)||typeof u.branchId!=='string'||!ID.test(u.branchId)||!states.includes(u.state)||typeof u.unitActive!=='boolean'||typeof u.enrollmentHeld!=='boolean'||typeof u.issuanceReady!=='boolean'||!Number.isSafeInteger(u.version)||u.version<0||!Number.isInteger(u.passed)||u.passed<0||u.passed>u.required||!(u.state==='unavailable'?u.required===0&&u.enrollmentHeld&&!u.unitActive:[3,6].includes(u.required))||(u.unitActive&&u.state!=='operational-recorded')||(u.issuanceReady&&(!u.unitActive||u.enrollmentHeld)))throw Error('FISCAL_INVALID_STATUS');
+   return {egsId:u.egsId,branchId:u.branchId,state:u.state,unitActive:u.unitActive,enrollmentHeld:u.enrollmentHeld,issuanceReady:u.issuanceReady,version:u.version,passed:u.passed,required:u.required};
  });
- if(v.issuanceEnabled&&(!v.available||!units.some(u=>u.unitActive&&!u.enrollmentHeld)))throw Error('FISCAL_INVALID_STATUS');
+ if(v.issuanceEnabled!==units.some(u=>u.issuanceReady)||(!v.available&&v.issuanceEnabled))throw Error('FISCAL_INVALID_STATUS');
  if(new Set(units.map(u=>u.egsId)).size!==units.length)throw Error('FISCAL_INVALID_STATUS');
  return {environment:'production',workspaceId:w,available:v.available,registeredUnits:v.registeredUnits,units,branches,profileVersion:v.profileVersion,issuanceEnabled:v.issuanceEnabled};
 }

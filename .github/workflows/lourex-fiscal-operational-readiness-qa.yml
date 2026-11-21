@@ -6,6 +6,8 @@ on:
       - 'api/_fiscal/production-enrollment-runtime.js'
       - 'api/_fiscal/production-profile-runtime.js'
       - 'api/_fiscal/production-enrollment-command.js'
+      - 'src/lib/fiscal-production-enrollment-client.ts'
+      - 'src/components/FiscalProductionEnrollmentPanel.tsx'
       - 'tests/fiscal-production-enrollment-command.test.mjs'
       - 'tests/fiscal-production-profile.test.mjs'
       - '.github/workflows/lourex-fiscal-operational-readiness-qa.yml'
@@ -32,5 +34,9 @@ jobs:
           node --check api/_fiscal/production-enrollment-runtime.js
           node --check api/_fiscal/production-profile-runtime.js
           node --check api/_fiscal/production-enrollment-command.js
+      - name: Install reproducible frontend typecheck dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Type-check the fiscal client and panel
+        run: npm run typecheck
       - name: Run focused tenant status and fail-closed profile tests
         run: node --test tests/fiscal-production-enrollment-command.test.mjs tests/fiscal-production-profile.test.mjs
