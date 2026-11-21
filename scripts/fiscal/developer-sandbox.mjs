@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
+import {verifyDeveloperSandboxClearance} from '../../api/_fiscal/developer-sandbox-clearance.js';
 import {fileURLToPath} from 'node:url';
 const ROOT=fileURLToPath(new URL('../../',import.meta.url));
 const BASE='https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal/';
@@ -78,6 +79,12 @@ try{
   stage='test-clearance';
   const response=await post('invoices/clearance/single',payload,{...auth(operational),'Clearance-Status':'1'});
   need(cleared(response),'SANDBOX_CLEARANCE_NOT_CONFIRMED');
+  const clearedEvidence=verifyDeveloperSandboxClearance({
+    httpStatus:response.status,body:response.value,request:payload,
+    canonicalize:bytes=>run('java',['-cp',dir,'CanonicalInvoice','invoice'],bytes)
+  });
+  console.log(JSON.stringify({stage:'verify-cleared-artifact',status:clearedEvidence.status,
+    warningCount:clearedEvidence.warningCount,warningCodes:clearedEvidence.warningCodes}));
   console.log('DEVELOPER SANDBOX TRANSPORT POSITIVE — test response only.');
   console.log('No live taxpayer authorization, signed-artifact verification or production acceptance established.');
  }

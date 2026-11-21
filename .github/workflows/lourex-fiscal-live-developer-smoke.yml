@@ -8,6 +8,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/lourex-fiscal-live-developer-smoke.yml'
+      - 'scripts/fiscal/developer-sandbox.mjs'
+      - 'api/_fiscal/developer-sandbox-clearance.js'
+      - 'tests/fiscal-developer-cleared-payload.test.mjs'
   workflow_dispatch:
 
 permissions:
@@ -35,5 +38,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build only local fiscal dependencies
         run: npm run build
-      - name: Synthetic Developer Portal transport (no customer, no AWS, no OTP from portal)
+      - name: Pure offline cleared-artifact tampering regression
+        run: node --test tests/fiscal-developer-cleared-payload.test.mjs
+      - name: Synthetic Developer Portal transport, including returned XML proof
         run: node scripts/fiscal/developer-sandbox.mjs --live-developer-sandbox
